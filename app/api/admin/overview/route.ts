@@ -1,0 +1,35 @@
+import { NextResponse } from "next/server";
+import { checkAdminPassword } from "../../../../lib/admin";
+import { getSupabaseAdmin } from "../../../../lib/supabaseAdmin";
+
+export async function POST(request: Request) {
+  try {
+    const body = await request.json();
+    if (!checkAdminPassword(body.password)) {
+      return NextResponse.json({ message: "관리자 비밀번호가 올바르지 않습니다." }, { status: 401 });
+    }
+
+    const supabase = getSupabaseAdmin();
+    const [students, slots, bookings, classes, onedayBookings] = await Promise.all([
+      supabase.from("students").select("id, name, phone_last4, is_active, memo, created_at").order("created_at", { ascending: false }),
+      supabase.from("available_slots").select("id, start_at, end_at, is_open, created_at").order("start_at", { ascending: true }),
+      supabase.from("regular_bookings").select("id, start_at, end_at, status, memo, created_at, students(name, phone_last4)").order("start_at", { ascending: true }),
+      supabase.from("oneday_classes").select("id, title, start_at, end_at, capacity, regular_price, normal_price, description, is_open").order("start_at", { ascending: true }),
+      supabase.from("oneday_bookings").select("id, student_name, phone_last4, people_count, is_regular_student, status, created_at, oneday_classes(title)").order("created_at", { ascending: false }),
+    ]);
+
+    for (const result of [students, slots, bookings, classes, onedayBookings]) {
+      if (result.error) throw result.error;
+    }
+
+    return NextResponse.json({
+      students: students.data || [],
+      slots: slots.data || [],
+      bookings: bookings.data || [],
+      classes: classes.data || [],
+      onedayBookings: onedayBookings.data || [],
+    });
+  } catch (error) {
+    return NextResponse.json({ message: error instanceof Error ? error.message : "오류가 발생했습니다." }, { status: 500 });
+  }
+}
