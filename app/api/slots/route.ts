@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { getSupabaseAdmin } from "../../../lib/supabaseAdmin";
-import { overlaps, reservationCutoffDate } from "../../../lib/businessRules";
+import { bookingBlockEndIso, overlaps, reservationCutoffDate } from "../../../lib/businessRules";
 
 export async function GET() {
   try {
@@ -24,7 +24,7 @@ export async function GET() {
     const activeBookings = bookings || [];
     const available = (slots || []).filter((slot) => {
       return !activeBookings.some((booking) => (
-        booking.slot_id === slot.id || overlaps(slot.start_at, slot.end_at, booking.start_at, booking.end_at)
+        booking.slot_id === slot.id || overlaps(slot.start_at, bookingBlockEndIso(slot.start_at), booking.start_at, bookingBlockEndIso(booking.start_at))
       ));
     });
 

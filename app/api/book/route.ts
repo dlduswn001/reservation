@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { getSupabaseAdmin } from "../../../lib/supabaseAdmin";
-import { isAtLeastSixHoursBefore, overlaps } from "../../../lib/businessRules";
+import { bookingBlockEndIso, isAtLeastSixHoursBefore, overlaps } from "../../../lib/businessRules";
 
 export async function POST(request: Request) {
   try {
@@ -12,6 +12,20 @@ export async function POST(request: Request) {
     }
 
     const supabase = getSupabaseAdmin();
+
+    const { data: student, error: studentError } = await supabase
+      .from("students")
+      .select("id, lesson_credits")
+      .eq("id", studentId)
+      .eq("is_active", true)
+      .single();
+    if (studentError) throw studentError;
+
+    const currentCredits = Number(student.lesson_credits || 0);
+    if (currentCredits <= 0) {
+      return NextResponse.json({ message: "잔여 수강권이 없어 예약할 수 없습니다. 관리자에게 문의해 주세요." }, { status: 400 });
+    }
+
     const { data: slot, error: slotError } = await supabase
       .from("available_slots")
       .select("id, start_at, end_at, is_open")
@@ -31,7 +45,7 @@ export async function POST(request: Request) {
     if (existingError) throw existingError;
 
     const alreadyTaken = (existingBookings || []).some((booking) => (
-      booking.slot_id === slot.id || overlaps(slot.start_at, slot.end_at, booking.start_at, booking.end_at)
+      booking.slot_id === slot.id || overlaps(slot.start_at, bookingBlockEndIso(slot.start_at), booking.start_at, bookingBlockEndIso(booking.start_at))
     ));
     if (alreadyTaken) {
       return NextResponse.json({ message: "이미 다른 수강생이 예약한 시간입니다." }, { status: 409 });
@@ -43,7 +57,7 @@ export async function POST(request: Request) {
       start_at: slot.start_at,
       end_at: slot.end_at,
       status: "booked",
-      memo: "수강생 직접 예약",
+      memo: "수강생 직접 예약 / 수강권 1회 차감",
     });
     if (error) {
       if (error.message.includes("duplicate")) {
@@ -52,7 +66,13 @@ export async function POST(request: Request) {
       throw error;
     }
 
-    return NextResponse.json({ ok: true });
+    const { error: creditError } = await supabase
+      .from("students")
+      .update({ lesson_credits: currentCredits - 1 })
+      .eq("id", studentId);
+    if (creditError) throw creditError;
+
+    return NextResponse.json({ ok: true, lesson_credits: currentCredits - 1 });
   } catch (error) {
     const message = typeof error === "object" && error && "message" in error
       ? String((error as { message?: unknown }).message)

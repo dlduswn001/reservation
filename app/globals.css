@@ -140,3 +140,12 @@ button.compact, .button.compact { padding: 10px 13px; font-size: 14px; margin-to
   .calendarHeader h2 { font-size: 19px; }
   button.compact, .button.compact { font-size: 13px; padding: 9px 10px; }
 }
+button:disabled, .button:disabled {
+  background: #d7cec6;
+  color: #8d8177;
+  cursor: not-allowed;
+}
+.row.between { justify-content: space-between; align-items: flex-start; }
+.creditsRow { margin-top: 12px; }
+.inlineLabel { margin: 0; width: auto; }
+.smallInput { max-width: 110px; }

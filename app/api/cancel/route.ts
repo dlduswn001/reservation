@@ -19,18 +19,43 @@ export async function POST(request: Request) {
       .single();
     if (findError) throw findError;
 
-    if (!isAtLeastSixHoursBefore(booking.start_at)) {
-      return NextResponse.json({ message: "수업 시작 6시간 전까지만 취소할 수 있습니다." }, { status: 400 });
-    }
+    const isEarlyCancel = isAtLeastSixHoursBefore(booking.start_at);
+    const nextStatus = isEarlyCancel ? "cancelled" : "late_cancelled";
+    const nextMemo = isEarlyCancel
+      ? "수강생 직접 취소 / 수업 6시간 전 취소로 수강권 1회 복구"
+      : "수강생 직접 취소 / 수업 6시간 이내 취소로 수강권 차감 유지";
 
     const { error } = await supabase
       .from("regular_bookings")
-      .update({ status: "cancelled", updated_at: new Date().toISOString(), memo: "수강생 직접 취소" })
+      .update({ status: nextStatus, updated_at: new Date().toISOString(), memo: nextMemo })
       .eq("id", bookingId)
       .eq("student_id", studentId);
     if (error) throw error;
 
-    return NextResponse.json({ ok: true });
+    let nextCredits: number | null = null;
+    if (isEarlyCancel) {
+      const { data: student, error: studentError } = await supabase
+        .from("students")
+        .select("lesson_credits")
+        .eq("id", studentId)
+        .single();
+      if (studentError) throw studentError;
+      nextCredits = Number(student.lesson_credits || 0) + 1;
+      const { error: creditError } = await supabase
+        .from("students")
+        .update({ lesson_credits: nextCredits })
+        .eq("id", studentId);
+      if (creditError) throw creditError;
+    }
+
+    return NextResponse.json({
+      ok: true,
+      early_cancel: isEarlyCancel,
+      lesson_credits: nextCredits,
+      message: isEarlyCancel
+        ? "예약이 취소되었습니다. 수강권 1회가 복구되었습니다."
+        : "예약이 취소되었습니다. 수업 6시간 이내 취소라 수강권은 차감된 상태로 유지됩니다.",
+    });
   } catch (error) {
     const message = typeof error === "object" && error && "message" in error
       ? String((error as { message?: unknown }).message)

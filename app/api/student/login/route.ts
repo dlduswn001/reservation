@@ -14,7 +14,7 @@ export async function POST(request: Request) {
     const supabase = getSupabaseAdmin();
     const { data, error } = await supabase
       .from("students")
-      .select("id, name, phone_last4")
+      .select("id, name, phone_last4, lesson_credits")
       .eq("name", name)
       .eq("phone_last4", phoneLast4)
       .eq("is_active", true)

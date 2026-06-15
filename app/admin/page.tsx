@@ -287,13 +287,13 @@ export default function AdminPage() {
           <section className="card">
             <h2>정규 수강생 등록</h2>
             <label>이름</label>
-            <input value={studentName} onChange={(e) => setStudentName(e.target.value)} placeholder="예: 테스트학생" />
+            <input value={studentName} onChange={(e) => setStudentName(e.target.value)} placeholder="예: 김문장" />
             <label>핸드폰번호 뒷자리 4자리</label>
             <input value={phoneLast4} onChange={(e) => setPhoneLast4(e.target.value)} placeholder="예: 1234" maxLength={4} />
             <label>수강권 잔여 횟수</label>
             <input type="number" min="0" value={lessonCredits} onChange={(e) => setLessonCredits(e.target.value)} placeholder="예: 4" />
             <label>메모</label>
-            <input value={memo} onChange={(e) => setMemo(e.target.value)} placeholder="예: 테스트용" />
+            <input value={memo} onChange={(e) => setMemo(e.target.value)} placeholder="예: 주 1회 정규수업" />
             <button onClick={addStudent}>수강생 등록</button>
           </section>
 

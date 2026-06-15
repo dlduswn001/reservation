@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 
-type Student = { id: string; name: string; phone_last4: string };
+type Student = { id: string; name: string; phone_last4: string; lesson_credits?: number };
 type Slot = { id: string; start_at: string; end_at: string };
 type Booking = { id: string; start_at: string; end_at: string; status: string; memo?: string };
 
@@ -13,6 +13,7 @@ const STATUS_LABELS: Record<string, string> = {
   cancel_request: "취소 요청",
   cancelled: "취소 완료",
   done: "수업 완료",
+  late_cancelled: "6시간 이내 취소",
 };
 
 function formatDateTime(value: string) {
@@ -131,6 +132,17 @@ export default function RegularPage() {
     setBookings(bookingJson.bookings || []);
   }
 
+  async function refreshStudent() {
+    if (!student) return;
+    const res = await fetch("/api/student/login", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name: student.name, phone_last4: student.phone_last4 }),
+    });
+    const json = await res.json();
+    if (res.ok) setStudent(json.student);
+  }
+
   useEffect(() => {
     if (student) loadData(student.id);
   }, [student]);
@@ -184,7 +196,8 @@ export default function RegularPage() {
       setMessage(json.message || "예약할 수 없습니다.");
       return;
     }
-    setMessage("예약이 완료되었습니다.");
+    setMessage("예약이 완료되었습니다. 수강권 1회가 차감되었습니다.");
+    await refreshStudent();
     await loadData(student.id);
   }
 
@@ -201,7 +214,8 @@ export default function RegularPage() {
       setMessage(json.message || "취소 요청을 보낼 수 없습니다.");
       return;
     }
-    setMessage("취소 요청이 접수되었습니다.");
+    setMessage(json.message || "예약이 취소되었습니다.");
+    await refreshStudent();
     await loadData(student.id);
   }
 
@@ -222,7 +236,8 @@ export default function RegularPage() {
         ) : (
           <div>
             <h2>안녕하세요, {student.name}님.</h2>
-            <p>달력에서 날짜를 선택한 뒤, 가능한 시간을 예약해 주세요. 수업 예약과 취소는 시작 6시간 전까지만 가능합니다.</p>
+            <p>잔여 수강권: <strong>{student.lesson_credits ?? 0}회</strong></p>
+            <p>달력에서 날짜를 선택한 뒤, 가능한 시간을 예약해 주세요. 실제 수업은 80분 동안 진행되며, 수업 후 10분은 정리 시간으로 비워둡니다. 수업 예약은 시작 6시간 전까지만 가능합니다. 수업 6시간 전까지 취소하면 수강권이 복구되고, 6시간 이내 취소는 수강권이 차감된 상태로 유지됩니다.</p>
           </div>
         )}
         {message && <p className={message.includes("완료") || message.includes("접수") ? "success" : "error"}>{message}</p>}
@@ -275,11 +290,12 @@ export default function RegularPage() {
 
             <div className="selectedSlots">
               <h3>{selectedDate ? formatDateLabel(selectedDate) : "예약 가능한 날짜"}</h3>
+              {(student.lesson_credits ?? 0) <= 0 && <p className="error">잔여 수강권이 없어 예약할 수 없습니다. 관리자에게 문의해 주세요.</p>}
               {slots.length === 0 && <p>현재 예약 가능한 시간이 없습니다. 이미 예약된 시간과 6시간 이내 수업은 자동으로 보이지 않습니다.</p>}
               {slots.length > 0 && selectedSlots.length === 0 && <p>선택한 날짜에는 예약 가능한 시간이 없습니다.</p>}
               <div className="timeGrid">
                 {selectedSlots.map((slot) => (
-                  <button className="timeButton" key={slot.id} onClick={() => book(slot.id)}>
+                  <button className="timeButton" key={slot.id} onClick={() => book(slot.id)} disabled={(student.lesson_credits ?? 0) <= 0}>
                     {formatTime(slot.start_at)} - {formatTime(slot.end_at)} 예약하기
                   </button>
                 ))}

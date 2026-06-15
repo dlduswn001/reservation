@@ -1,5 +1,7 @@
 export const MIN_HOURS_BEFORE_LESSON = 6;
-export const LESSON_MINUTES = 90;
+export const LESSON_MINUTES = 80;
+export const BREAK_MINUTES = 10;
+export const BOOKING_BLOCK_MINUTES = LESSON_MINUTES + BREAK_MINUTES;
 export const SLOT_INTERVAL_MINUTES = 30;
 
 export const WEEKDAY_START_TIME = "14:00";
@@ -53,6 +55,10 @@ export function overlaps(
 
 export function addMinutesToIso(iso: string, minutes: number) {
   return new Date(new Date(iso).getTime() + minutes * 60 * 1000).toISOString();
+}
+
+export function bookingBlockEndIso(startAt: string) {
+  return addMinutesToIso(startAt, BOOKING_BLOCK_MINUTES);
 }
 
 export function kstDateTimeToUtcIso(dateKey: string, time: string) {

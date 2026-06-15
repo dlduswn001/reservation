@@ -11,7 +11,7 @@ export async function GET() {
 
   try {
     const supabase = getSupabaseAdmin();
-    const students = await supabase.from("students").select("id, name, phone_last4", { count: "exact" }).limit(5);
+    const students = await supabase.from("students").select("id, name, phone_last4, lesson_credits", { count: "exact" }).limit(5);
     if (students.error) throw students.error;
     const slots = await supabase.from("available_slots").select("id, start_at, end_at", { count: "exact" }).limit(5);
     if (slots.error) throw slots.error;

@@ -14,7 +14,6 @@ export default function Home() {
           <Link className="button secondary" href="/admin">관리자 페이지</Link>
         </div>
       </section>
-      <p className="small">예약 페이지 초기 테스트용입니다. 실제 운영 전에는 관리자 비밀번호를 안전한 값으로 변경해 주세요.</p>
     </main>
   );
 }

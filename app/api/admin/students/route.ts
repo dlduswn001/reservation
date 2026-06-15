@@ -12,8 +12,12 @@ export async function POST(request: Request) {
     const name = String(body.name || "").trim();
     const phoneLast4 = String(body.phone_last4 || "").trim();
     const memo = String(body.memo || "").trim();
+    const lessonCredits = Math.max(0, Number(body.lesson_credits || 0));
     if (!name || !phoneLast4) {
       return NextResponse.json({ message: "이름과 핸드폰번호 뒷자리 4자리를 입력해 주세요." }, { status: 400 });
+    }
+    if (!/^\d{4}$/.test(phoneLast4)) {
+      return NextResponse.json({ message: "핸드폰번호 뒷자리 4자리를 숫자로 입력해 주세요." }, { status: 400 });
     }
 
     const supabase = getSupabaseAdmin();
@@ -21,6 +25,7 @@ export async function POST(request: Request) {
       name,
       phone_last4: phoneLast4,
       memo,
+      lesson_credits: lessonCredits,
       is_active: true,
     });
 

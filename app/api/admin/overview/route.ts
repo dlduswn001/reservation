@@ -11,7 +11,7 @@ export async function POST(request: Request) {
 
     const supabase = getSupabaseAdmin();
     const [students, slots, bookings, classes, onedayBookings] = await Promise.all([
-      supabase.from("students").select("id, name, phone_last4, is_active, memo, created_at").order("created_at", { ascending: false }),
+      supabase.from("students").select("id, name, phone_last4, is_active, memo, lesson_credits, created_at").order("created_at", { ascending: false }),
       supabase.from("available_slots").select("id, start_at, end_at, is_open, created_at").order("start_at", { ascending: true }),
       supabase.from("regular_bookings").select("id, start_at, end_at, status, memo, created_at, students(name, phone_last4)").order("start_at", { ascending: true }),
       supabase.from("oneday_classes").select("id, title, start_at, end_at, capacity, regular_price, normal_price, description, is_open").order("start_at", { ascending: true }),
