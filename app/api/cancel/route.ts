@@ -18,6 +18,11 @@ export async function POST(request: Request) {
 
     return NextResponse.json({ ok: true });
   } catch (error) {
-    return NextResponse.json({ message: error instanceof Error ? error.message : "오류가 발생했습니다." }, { status: 500 });
+    const message = typeof error === "object" && error && "message" in error
+      ? String((error as { message?: unknown }).message)
+      : error instanceof Error
+        ? error.message
+        : "오류가 발생했습니다.";
+    return NextResponse.json({ message }, { status: 500 });
   }
 }
