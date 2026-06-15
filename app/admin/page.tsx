@@ -3,8 +3,17 @@
 import { useState } from "react";
 import Link from "next/link";
 
+type Student = {
+  id: string;
+  name: string;
+  phone_last4: string;
+  is_active: boolean;
+  memo?: string;
+  lesson_credits?: number;
+};
+
 type Overview = {
-  students: any[];
+  students: Student[];
   slots: any[];
   bookings: any[];
   classes: any[];
@@ -30,10 +39,12 @@ export default function AdminPage() {
   const [studentName, setStudentName] = useState("");
   const [phoneLast4, setPhoneLast4] = useState("");
   const [memo, setMemo] = useState("");
+  const [lessonCredits, setLessonCredits] = useState("4");
   const [startAt, setStartAt] = useState("");
   const [endAt, setEndAt] = useState("");
   const [generateStartDate, setGenerateStartDate] = useState("");
   const [generateWeeks, setGenerateWeeks] = useState("8");
+  const [creditEdits, setCreditEdits] = useState<Record<string, string>>({});
 
   async function loadOverview() {
     setMessage("");
@@ -48,6 +59,11 @@ export default function AdminPage() {
       return;
     }
     setOverview(json);
+    const nextEdits: Record<string, string> = {};
+    for (const student of json.students || []) {
+      nextEdits[student.id] = String(student.lesson_credits ?? 0);
+    }
+    setCreditEdits(nextEdits);
   }
 
   async function addStudent() {
@@ -55,15 +71,55 @@ export default function AdminPage() {
     const res = await fetch("/api/admin/students", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ password, name: studentName, phone_last4: phoneLast4, memo }),
+      body: JSON.stringify({
+        password,
+        name: studentName,
+        phone_last4: phoneLast4,
+        memo,
+        lesson_credits: Number(lessonCredits || 0),
+      }),
     });
     const json = await res.json();
     if (!res.ok) {
       setMessage(json.message || "수강생을 등록할 수 없습니다.");
       return;
     }
-    setStudentName(""); setPhoneLast4(""); setMemo("");
+    setStudentName(""); setPhoneLast4(""); setMemo(""); setLessonCredits("4");
     setMessage("수강생을 등록했습니다.");
+    await loadOverview();
+  }
+
+  async function updateCredits(studentId: string) {
+    setMessage("");
+    const res = await fetch(`/api/admin/students/${studentId}/credits`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ password, lesson_credits: Number(creditEdits[studentId] || 0) }),
+    });
+    const json = await res.json();
+    if (!res.ok) {
+      setMessage(json.message || "수강권 횟수를 변경할 수 없습니다.");
+      return;
+    }
+    setMessage("수강권 횟수를 변경했습니다.");
+    await loadOverview();
+  }
+
+  async function deleteStudent(studentId: string, studentName: string) {
+    const ok = window.confirm(`${studentName} 수강생을 삭제할까요? 해당 수강생의 예약 기록도 함께 삭제될 수 있습니다.`);
+    if (!ok) return;
+    setMessage("");
+    const res = await fetch(`/api/admin/students/${studentId}`, {
+      method: "DELETE",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ password }),
+    });
+    const json = await res.json();
+    if (!res.ok) {
+      setMessage(json.message || "수강생을 삭제할 수 없습니다.");
+      return;
+    }
+    setMessage("수강생을 삭제했습니다.");
     await loadOverview();
   }
 
@@ -105,11 +161,11 @@ export default function AdminPage() {
       <Link href="/" className="small">← 처음으로</Link>
       <section className="card">
         <h1>관리자 페이지</h1>
-        <p>관리자 비밀번호를 입력해 주세요. 처음 테스트 비밀번호는 1234로 설정하면 됩니다.</p>
+        <p>관리자 비밀번호를 입력해 주세요.</p>
         <label>관리자 비밀번호</label>
         <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="관리자 비밀번호" />
         <button onClick={loadOverview}>관리자 페이지 열기</button>
-        {message && <p className={message.includes("등록") ? "success" : "error"}>{message}</p>}
+        {message && <p className={message.includes("등록") || message.includes("변경") || message.includes("삭제") || message.includes("만들") ? "success" : "error"}>{message}</p>}
       </section>
 
       {overview && (
@@ -120,6 +176,8 @@ export default function AdminPage() {
             <input value={studentName} onChange={(e) => setStudentName(e.target.value)} placeholder="예: 테스트학생" />
             <label>핸드폰번호 뒷자리 4자리</label>
             <input value={phoneLast4} onChange={(e) => setPhoneLast4(e.target.value)} placeholder="예: 1234" maxLength={4} />
+            <label>수강권 잔여 횟수</label>
+            <input type="number" min="0" value={lessonCredits} onChange={(e) => setLessonCredits(e.target.value)} placeholder="예: 4" />
             <label>메모</label>
             <input value={memo} onChange={(e) => setMemo(e.target.value)} placeholder="예: 테스트용" />
             <button onClick={addStudent}>수강생 등록</button>
@@ -147,9 +205,29 @@ export default function AdminPage() {
 
           <section className="card">
             <h2>수강생 목록</h2>
+            <p className="small">수강권 잔여 횟수는 수업 예약 시 1회 차감되고, 수업 6시간 전까지 취소하면 1회 복구됩니다. 수업 6시간 이내 취소는 차감된 상태로 유지됩니다.</p>
             <div className="list">
               {overview.students.map((s) => (
-                <div className="item" key={s.id}><strong>{s.name}</strong> / {s.phone_last4}<p className="small">{s.memo}</p></div>
+                <div className="item" key={s.id}>
+                  <div className="row between">
+                    <div>
+                      <strong>{s.name}</strong> / {s.phone_last4}
+                      <p className="small">메모: {s.memo || "-"}</p>
+                    </div>
+                    <button className="danger compact" onClick={() => deleteStudent(s.id, s.name)}>삭제</button>
+                  </div>
+                  <div className="row creditsRow">
+                    <label className="inlineLabel">수강권 잔여 횟수</label>
+                    <input
+                      className="smallInput"
+                      type="number"
+                      min="0"
+                      value={creditEdits[s.id] ?? String(s.lesson_credits ?? 0)}
+                      onChange={(e) => setCreditEdits((current) => ({ ...current, [s.id]: e.target.value }))}
+                    />
+                    <button className="secondary compact" onClick={() => updateCredits(s.id)}>변경</button>
+                  </div>
+                </div>
               ))}
             </div>
           </section>
@@ -170,6 +248,7 @@ export default function AdminPage() {
                 <div className="item" key={b.id}>
                   <strong>{b.students?.name || "이름 없음"}</strong>
                   <p>{formatDateTime(b.start_at)} / 상태: {b.status}</p>
+                  {b.memo && <p className="small">메모: {b.memo}</p>}
                 </div>
               ))}
             </div>
