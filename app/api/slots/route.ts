@@ -1,24 +1,33 @@
 import { NextResponse } from "next/server";
 import { getSupabaseAdmin } from "../../../lib/supabaseAdmin";
+import { overlaps, reservationCutoffDate } from "../../../lib/businessRules";
 
 export async function GET() {
   try {
     const supabase = getSupabaseAdmin();
+    const cutoff = reservationCutoffDate().toISOString();
+
     const { data: slots, error: slotsError } = await supabase
       .from("available_slots")
       .select("id, start_at, end_at")
       .eq("is_open", true)
+      .gt("start_at", cutoff)
       .order("start_at", { ascending: true });
     if (slotsError) throw slotsError;
 
     const { data: bookings, error: bookingsError } = await supabase
       .from("regular_bookings")
-      .select("slot_id")
-      .in("status", ["booked", "change_request"]);
+      .select("id, slot_id, start_at, end_at, status")
+      .in("status", ["booked", "change_request", "cancel_request"]);
     if (bookingsError) throw bookingsError;
 
-    const taken = new Set((bookings || []).map((b) => b.slot_id));
-    const available = (slots || []).filter((slot) => !taken.has(slot.id));
+    const activeBookings = bookings || [];
+    const available = (slots || []).filter((slot) => {
+      return !activeBookings.some((booking) => (
+        booking.slot_id === slot.id || overlaps(slot.start_at, slot.end_at, booking.start_at, booking.end_at)
+      ));
+    });
+
     return NextResponse.json({ slots: available });
   } catch (error) {
     const message = typeof error === "object" && error && "message" in error

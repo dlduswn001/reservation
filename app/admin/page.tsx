@@ -32,6 +32,8 @@ export default function AdminPage() {
   const [memo, setMemo] = useState("");
   const [startAt, setStartAt] = useState("");
   const [endAt, setEndAt] = useState("");
+  const [generateStartDate, setGenerateStartDate] = useState("");
+  const [generateWeeks, setGenerateWeeks] = useState("8");
 
   async function loadOverview() {
     setMessage("");
@@ -82,6 +84,22 @@ export default function AdminPage() {
     await loadOverview();
   }
 
+  async function generateTimetable() {
+    setMessage("");
+    const res = await fetch("/api/admin/generate-slots", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ password, start_date: generateStartDate, weeks: Number(generateWeeks || 8) }),
+    });
+    const json = await res.json();
+    if (!res.ok) {
+      setMessage(json.message || "기본 시간표를 만들 수 없습니다.");
+      return;
+    }
+    setMessage(`기본 시간표를 만들었습니다. 새로 추가된 시간: ${json.count}개 / 확인한 시간: ${json.attempted}개`);
+    await loadOverview();
+  }
+
   return (
     <main className="container">
       <Link href="/" className="small">← 처음으로</Link>
@@ -108,7 +126,18 @@ export default function AdminPage() {
           </section>
 
           <section className="card">
-            <h2>예약 가능 시간 등록</h2>
+            <h2>기본 타임테이블 자동 생성</h2>
+            <p className="small">월-금 14:00-20:30, 토 10:00-16:30 사이를 30분 단위로 엽니다. 수업은 90분으로 계산되며, 이미 예약된 수업과 겹치는 시간은 자동으로 숨겨집니다. 이미 있는 시간은 중복 등록되지 않습니다.</p>
+            <label>시작 날짜</label>
+            <input type="date" value={generateStartDate} onChange={(e) => setGenerateStartDate(e.target.value)} />
+            <label>몇 주치 만들까요?</label>
+            <input type="number" min="1" max="26" value={generateWeeks} onChange={(e) => setGenerateWeeks(e.target.value)} />
+            <button onClick={generateTimetable}>기본 시간표 만들기</button>
+          </section>
+
+          <section className="card">
+            <h2>예약 가능 시간 직접 등록</h2>
+            <p className="small">예외적으로 추가할 시간만 직접 등록해 주세요.</p>
             <label>시작 시간</label>
             <input type="datetime-local" value={startAt} onChange={(e) => setStartAt(e.target.value)} />
             <label>종료 시간</label>

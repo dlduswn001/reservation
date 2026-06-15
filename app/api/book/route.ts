@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { getSupabaseAdmin } from "../../../lib/supabaseAdmin";
+import { isAtLeastSixHoursBefore, overlaps } from "../../../lib/businessRules";
 
 export async function POST(request: Request) {
   try {
@@ -18,6 +19,23 @@ export async function POST(request: Request) {
       .eq("is_open", true)
       .single();
     if (slotError) throw slotError;
+
+    if (!isAtLeastSixHoursBefore(slot.start_at)) {
+      return NextResponse.json({ message: "수업 시작 6시간 전까지만 예약할 수 있습니다." }, { status: 400 });
+    }
+
+    const { data: existingBookings, error: existingError } = await supabase
+      .from("regular_bookings")
+      .select("id, slot_id, start_at, end_at, status")
+      .in("status", ["booked", "change_request", "cancel_request"]);
+    if (existingError) throw existingError;
+
+    const alreadyTaken = (existingBookings || []).some((booking) => (
+      booking.slot_id === slot.id || overlaps(slot.start_at, slot.end_at, booking.start_at, booking.end_at)
+    ));
+    if (alreadyTaken) {
+      return NextResponse.json({ message: "이미 다른 수강생이 예약한 시간입니다." }, { status: 409 });
+    }
 
     const { error } = await supabase.from("regular_bookings").insert({
       student_id: studentId,
