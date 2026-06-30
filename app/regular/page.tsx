@@ -32,6 +32,8 @@ type Booking = {
 };
 
 const STUDENT_LOGIN_STORAGE_KEY = "munjangStudentLogin";
+const SLOT_CACHE_STORAGE_KEY = "munjangRegularSlotCacheV4";
+const SLOT_CACHE_TTL_MS = 5 * 60 * 1000;
 
 const STATUS_LABELS: Record<string, string> = {
   booked: "예약 완료",
@@ -69,6 +71,55 @@ function saveStoredStudentLogin(student: Student) {
 function clearStoredStudentLogin() {
   try {
     window.localStorage.removeItem(STUDENT_LOGIN_STORAGE_KEY);
+  } catch {
+    // 무시
+  }
+}
+
+function estimateOpenMonthKey() {
+  // 예약은 6시간 전까지만 가능하므로, 화면도 "지금 + 6시간"이 속한 달만 빠르게 준비합니다.
+  const cutoffLikeServer = new Date(Date.now() + 6 * 60 * 60 * 1000);
+  const parts = new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Asia/Seoul",
+    year: "numeric",
+    month: "2-digit",
+  }).formatToParts(cutoffLikeServer);
+  const year = parts.find((part) => part.type === "year")?.value || "";
+  const month = parts.find((part) => part.type === "month")?.value || "";
+  return `${year}-${month}`;
+}
+
+function slotCacheKey(studentId: string) {
+  return `${SLOT_CACHE_STORAGE_KEY}:${studentId}:${estimateOpenMonthKey()}`;
+}
+
+function readCachedSlots(studentId: string) {
+  try {
+    const saved = window.sessionStorage.getItem(slotCacheKey(studentId));
+    if (!saved) return null;
+    const parsed = JSON.parse(saved) as { savedAt?: number; slots?: Slot[] };
+    if (!parsed.savedAt || !Array.isArray(parsed.slots)) return null;
+    if (Date.now() - parsed.savedAt > SLOT_CACHE_TTL_MS) return null;
+    return parsed.slots;
+  } catch {
+    return null;
+  }
+}
+
+function saveCachedSlots(studentId: string, nextSlots: Slot[]) {
+  try {
+    window.sessionStorage.setItem(
+      slotCacheKey(studentId),
+      JSON.stringify({ savedAt: Date.now(), slots: nextSlots }),
+    );
+  } catch {
+    // 캐시 저장에 실패해도 예약 기능은 그대로 사용할 수 있습니다.
+  }
+}
+
+function clearCachedSlots(studentId: string) {
+  try {
+    window.sessionStorage.removeItem(slotCacheKey(studentId));
   } catch {
     // 무시
   }
@@ -189,18 +240,49 @@ export default function RegularPage() {
     }
   }
 
-  async function loadData(studentId: string) {
-    setIsLoadingData(true);
-    const [slotRes, bookingRes] = await Promise.all([
-      fetch(`/api/slots?studentId=${studentId}`),
-      fetch(`/api/student/bookings?studentId=${studentId}`),
-    ]);
-    const slotJson = await slotRes.json();
-    const bookingJson = await bookingRes.json();
-    setIsLoadingData(false);
+  async function loadData(studentId: string, options: { useCache?: boolean } = {}) {
+    const useCache = options.useCache !== false;
+    const lessonMinutes = student?.lesson_duration_minutes || "";
 
-    setSlots(slotJson.slots || []);
-    setBookings(bookingJson.bookings || []);
+    if (useCache) {
+      const cachedSlots = readCachedSlots(studentId);
+      if (cachedSlots) {
+        setSlots(cachedSlots);
+        setIsLoadingData(false);
+      } else {
+        setIsLoadingData(true);
+      }
+    } else {
+      clearCachedSlots(studentId);
+      setIsLoadingData(true);
+    }
+
+    const slotRequest = fetch(`/api/slots?studentId=${studentId}&lessonMinutes=${lessonMinutes}`)
+      .then(async (slotRes) => {
+        const slotJson = await slotRes.json();
+        if (!slotRes.ok) throw new Error(slotJson.message || "예약 가능한 시간을 불러오지 못했습니다.");
+        const nextSlots = slotJson.slots || [];
+        setSlots(nextSlots);
+        saveCachedSlots(studentId, nextSlots);
+      })
+      .catch((error) => {
+        setMessage(error instanceof Error ? error.message : "예약 가능한 시간을 불러오지 못했습니다.");
+      })
+      .finally(() => {
+        setIsLoadingData(false);
+      });
+
+    const bookingRequest = fetch(`/api/student/bookings?studentId=${studentId}`)
+      .then(async (bookingRes) => {
+        const bookingJson = await bookingRes.json();
+        if (!bookingRes.ok) throw new Error(bookingJson.message || "예약 내역을 불러오지 못했습니다.");
+        setBookings(bookingJson.bookings || []);
+      })
+      .catch((error) => {
+        setMessage(error instanceof Error ? error.message : "예약 내역을 불러오지 못했습니다.");
+      });
+
+    await Promise.allSettled([slotRequest, bookingRequest]);
   }
 
   async function refreshStudent() {
@@ -315,7 +397,7 @@ export default function RegularPage() {
     }
     setMessage("예약이 완료되었습니다. 수강권 1회가 차감되었습니다.");
     await refreshStudent();
-    await loadData(student.id);
+    await loadData(student.id, { useCache: false });
   }
 
   function logoutStudent() {
@@ -344,7 +426,7 @@ export default function RegularPage() {
     }
     setMessage(json.message || "예약이 취소되었습니다.");
     await refreshStudent();
-    await loadData(student.id);
+    await loadData(student.id, { useCache: false });
   }
 
   return (
@@ -451,7 +533,7 @@ export default function RegularPage() {
               <button
                 className="secondary compact"
                 type="button"
-                onClick={() => student && loadData(student.id)}
+                onClick={() => student && loadData(student.id, { useCache: false })}
                 disabled={isLoadingData}
                 style={styles.refreshButton}
               >
@@ -459,7 +541,8 @@ export default function RegularPage() {
               </button>
             </div>
 
-            {isLoadingData && <p>예약 가능한 시간을 불러오고 있습니다.</p>}
+            {isLoadingData && slots.length === 0 && <p>예약 가능한 시간을 불러오고 있습니다.</p>}
+            {isLoadingData && slots.length > 0 && <p style={styles.helperText}>최신 예약 가능 시간을 확인하고 있습니다.</p>}
 
             {!isLoadingData && availableDateKeys.length === 0 && (
               <div className="item" style={styles.emptyItem}>
