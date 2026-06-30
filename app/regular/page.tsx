@@ -446,7 +446,7 @@ export default function RegularPage() {
             <div style={styles.reservationHeader}>
               <div>
                 <h2 style={styles.reservationTitle}>예약 가능한 날짜</h2>
-                <p style={styles.helperText}>예약 가능한 날짜만 표시합니다. 예약 마감 날짜는 숨겨서 화면이 밀리지 않게 조정했습니다.</p>
+                <p style={styles.helperText}>수업일정은 한 달 단위로 열립니다. 예약 마감된 일정은 보이지 않습니다.</p>
               </div>
               <button
                 className="secondary compact"
