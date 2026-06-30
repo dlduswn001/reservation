@@ -59,7 +59,7 @@ export async function GET(request: Request) {
       .gte("start_at", cutoff)
       .lte("start_at", rangeEnd)
       .order("start_at", { ascending: true })
-      .limit(260);
+      .limit(1000);
     if (slotsError) throw slotsError;
 
     const { data: bookings, error: bookingsError } = await supabase
