@@ -20,17 +20,64 @@ import {
   ONEDAY_PREP_MINUTES,
 } from "../../../lib/businessRules";
 
-function endOfNextMonthIso() {
-  const now = new Date();
-  return new Date(
-    now.getFullYear(),
-    now.getMonth() + 2,
-    0,
-    23,
-    59,
-    59,
-    999,
+type KstMonthRange = {
+  year: number;
+  month: number;
+  rangeStartIso: string;
+  rangeEndIso: string;
+};
+
+function kstParts(date: Date) {
+  const parts = new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Asia/Seoul",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).formatToParts(date);
+
+  const get = (type: string) => parts.find((part) => part.type === type)?.value || "";
+
+  return {
+    year: Number(get("year")),
+    month: Number(get("month")),
+    day: Number(get("day")),
+  };
+}
+
+function daysInMonth(year: number, month: number) {
+  return new Date(Date.UTC(year, month, 0)).getUTCDate();
+}
+
+function kstDateTimeToIso(
+  year: number,
+  month: number,
+  day: number,
+  hour = 0,
+  minute = 0,
+  second = 0,
+  millisecond = 0,
+) {
+  return new Date(Date.UTC(year, month - 1, day, hour - 9, minute, second, millisecond)).toISOString();
+}
+
+function oneOpenMonthRange(cutoffDate: Date): KstMonthRange {
+  const cutoffParts = kstParts(cutoffDate);
+  const lastDay = daysInMonth(cutoffParts.year, cutoffParts.month);
+
+  const monthStartIso = kstDateTimeToIso(cutoffParts.year, cutoffParts.month, 1, 0, 0, 0, 0);
+  const monthEndIso = kstDateTimeToIso(cutoffParts.year, cutoffParts.month, lastDay, 23, 59, 59, 999);
+
+  // 한 달 단위로만 조회하되, 이미 예약 마감된 시간은 제외합니다.
+  const rangeStartIso = new Date(
+    Math.max(new Date(monthStartIso).getTime(), cutoffDate.getTime()),
   ).toISOString();
+
+  return {
+    year: cutoffParts.year,
+    month: cutoffParts.month,
+    rangeStartIso,
+    rangeEndIso: monthEndIso,
+  };
 }
 
 export async function GET(request: Request) {
@@ -38,11 +85,20 @@ export async function GET(request: Request) {
     const { searchParams } = new URL(request.url);
     const studentId = searchParams.get("studentId");
     const supabase = getSupabaseAdmin();
-    const cutoff = reservationCutoffDate().toISOString();
-    const rangeEnd = endOfNextMonthIso();
+    const cutoffDate = reservationCutoffDate();
+    const cutoff = cutoffDate.toISOString();
+    const monthRange = oneOpenMonthRange(cutoffDate);
+    const rangeStart = monthRange.rangeStartIso;
+    const rangeEnd = monthRange.rangeEndIso;
 
-    let lessonMinutes = normalizeLessonDurationMinutes(null);
-    if (studentId) {
+    const requestedLessonMinutes = Number(searchParams.get("lessonMinutes") || 0);
+    let lessonMinutes = normalizeLessonDurationMinutes(
+      Number.isFinite(requestedLessonMinutes) && requestedLessonMinutes > 0 ? requestedLessonMinutes : null,
+    );
+
+    // 학생 정보에 수업 시간이 이미 담겨 있으면 화면에서 넘겨받아 학생 조회 1번을 줄입니다.
+    // lessonMinutes가 넘어오지 않은 예전 화면도 그대로 동작하도록 studentId 조회는 fallback으로 남겨둡니다.
+    if (!requestedLessonMinutes && studentId) {
       const { data: student, error: studentError } = await supabase
         .from("students")
         .select("lesson_duration_minutes")
@@ -56,10 +112,10 @@ export async function GET(request: Request) {
       .from("available_slots")
       .select("id, start_at, end_at")
       .eq("is_open", true)
-      .gte("start_at", cutoff)
+      .gte("start_at", rangeStart)
       .lte("start_at", rangeEnd)
       .order("start_at", { ascending: true })
-      .limit(1000);
+      .limit(500);
     if (slotsError) throw slotsError;
 
     const { data: bookings, error: bookingsError } = await supabase
@@ -180,7 +236,25 @@ export async function GET(request: Request) {
     const available = [...normalAvailable, ...autoAdjustmentSlots]
       .sort((a, b) => new Date(a.start_at).getTime() - new Date(b.start_at).getTime());
 
-    return NextResponse.json({ slots: available, lesson_minutes: lessonMinutes });
+    return NextResponse.json(
+      {
+        slots: available,
+        lesson_minutes: lessonMinutes,
+        open_month: {
+          year: monthRange.year,
+          month: monthRange.month,
+          range_start_at: rangeStart,
+          range_end_at: rangeEnd,
+        },
+      },
+      {
+        headers: {
+          // 같은 수강생이 같은 화면을 반복해서 열 때 브라우저가 짧게 재사용할 수 있게 합니다.
+          // 관리자에서 방금 연 슬롯까지 즉시 반영해야 할 때는 화면의 새로고침 버튼을 누르면 됩니다.
+          "Cache-Control": "private, max-age=20",
+        },
+      },
+    );
   } catch (error) {
     const message = typeof error === "object" && error && "message" in error
       ? String((error as { message?: unknown }).message)
