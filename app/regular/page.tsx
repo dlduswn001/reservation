@@ -1,12 +1,35 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import Link from "next/link";
+import type { CSSProperties } from "react";
 import BottomNav from "../components/BottomNav";
 
-type Student = { id: string; name: string; phone_last4: string; lesson_credits?: number; lesson_duration_minutes?: number };
-type Slot = { id: string; start_at: string; end_at: string; lesson_minutes?: number; break_minutes?: number; rule_label?: string; is_auto_adjustment?: boolean; adjustment_label?: string };
-type Booking = { id: string; start_at: string; end_at: string; status: string; memo?: string };
+type Student = {
+  id: string;
+  name: string;
+  phone_last4: string;
+  lesson_credits?: number;
+  lesson_duration_minutes?: number;
+};
+
+type Slot = {
+  id: string;
+  start_at: string;
+  end_at: string;
+  lesson_minutes?: number;
+  break_minutes?: number;
+  rule_label?: string;
+  is_auto_adjustment?: boolean;
+  adjustment_label?: string;
+};
+
+type Booking = {
+  id: string;
+  start_at: string;
+  end_at: string;
+  status: string;
+  memo?: string;
+};
 
 const STUDENT_LOGIN_STORAGE_KEY = "munjangStudentLogin";
 
@@ -102,27 +125,19 @@ function formatDateLabel(dateKey: string) {
   }).format(date);
 }
 
-function buildCalendarDays(year: number, month: number) {
-  const firstDay = new Date(year, month - 1, 1);
-  const lastDay = new Date(year, month, 0);
-  const firstWeekday = firstDay.getDay();
-  const totalDays = lastDay.getDate();
-  const days: Array<{ day: number | null; key: string | null }> = [];
+function formatShortDateLabel(dateKey: string) {
+  const [year, month, day] = dateKey.split("-").map(Number);
+  const date = new Date(year, month - 1, day);
+  return new Intl.DateTimeFormat("ko-KR", {
+    month: "numeric",
+    day: "numeric",
+    weekday: "short",
+  }).format(date);
+}
 
-  for (let i = 0; i < firstWeekday; i += 1) {
-    days.push({ day: null, key: null });
-  }
-
-  for (let day = 1; day <= totalDays; day += 1) {
-    const key = `${year}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
-    days.push({ day, key });
-  }
-
-  while (days.length % 7 !== 0) {
-    days.push({ day: null, key: null });
-  }
-
-  return days;
+function formatMonthTitle(dateKey: string) {
+  const [year, month] = dateKey.split("-").map(Number);
+  return `${year}년 ${month}월`;
 }
 
 export default function RegularPage() {
@@ -134,10 +149,7 @@ export default function RegularPage() {
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [message, setMessage] = useState("");
   const [loading, setLoading] = useState(false);
-  const [calendarMonth, setCalendarMonth] = useState(() => {
-    const now = new Date();
-    return { year: now.getFullYear(), month: now.getMonth() + 1 };
-  });
+  const [isLoadingData, setIsLoadingData] = useState(false);
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
   const [currentTime, setCurrentTime] = useState(() => Date.now());
   const [bookingSection, setBookingSection] = useState<"upcoming" | "completed">("upcoming");
@@ -160,13 +172,16 @@ export default function RegularPage() {
     });
     const json = await res.json();
     setLoading(false);
+
     if (!res.ok) {
       setMessage(json.message || "입장할 수 없습니다.");
       return;
     }
+
     setStudent(json.student);
     setName(json.student.name);
     setPhoneLast4(json.student.phone_last4);
+
     if (shouldRemember) {
       saveStoredStudentLogin(json.student);
     } else {
@@ -175,12 +190,15 @@ export default function RegularPage() {
   }
 
   async function loadData(studentId: string) {
+    setIsLoadingData(true);
     const [slotRes, bookingRes] = await Promise.all([
       fetch(`/api/slots?studentId=${studentId}`),
       fetch(`/api/student/bookings?studentId=${studentId}`),
     ]);
     const slotJson = await slotRes.json();
     const bookingJson = await bookingRes.json();
+    setIsLoadingData(false);
+
     setSlots(slotJson.slots || []);
     setBookings(bookingJson.bookings || []);
   }
@@ -228,7 +246,6 @@ export default function RegularPage() {
     return booking.status;
   }
 
-
   const upcomingBookings = useMemo(() => {
     return bookings
       .filter((booking) => bookingViewStatus(booking) !== "done")
@@ -256,28 +273,32 @@ export default function RegularPage() {
     return grouped;
   }, [slots]);
 
-  useEffect(() => {
-    if (slots.length === 0) return;
-    const firstSlot = [...slots].sort((a, b) => new Date(a.start_at).getTime() - new Date(b.start_at).getTime())[0];
-    const key = seoulDateKey(firstSlot.start_at);
-    const parts = seoulParts(firstSlot.start_at);
-    setSelectedDate((current) => current || key);
-    setCalendarMonth({ year: parts.year, month: parts.month });
-  }, [slots]);
+  const availableDateKeys = useMemo(() => {
+    return Object.keys(slotsByDate).sort((a, b) => a.localeCompare(b));
+  }, [slotsByDate]);
 
-  const calendarDays = useMemo(
-    () => buildCalendarDays(calendarMonth.year, calendarMonth.month),
-    [calendarMonth]
-  );
+  const dateKeysByMonth = useMemo(() => {
+    const grouped: Record<string, string[]> = {};
+    for (const dateKey of availableDateKeys) {
+      const monthKey = dateKey.slice(0, 7);
+      if (!grouped[monthKey]) grouped[monthKey] = [];
+      grouped[monthKey].push(dateKey);
+    }
+    return grouped;
+  }, [availableDateKeys]);
+
+  useEffect(() => {
+    if (availableDateKeys.length === 0) {
+      setSelectedDate(null);
+      return;
+    }
+    setSelectedDate((current) => {
+      if (current && availableDateKeys.includes(current)) return current;
+      return availableDateKeys[0];
+    });
+  }, [availableDateKeys]);
 
   const selectedSlots = selectedDate ? slotsByDate[selectedDate] || [] : [];
-
-  function moveMonth(direction: -1 | 1) {
-    setCalendarMonth((current) => {
-      const date = new Date(current.year, current.month - 1 + direction, 1);
-      return { year: date.getFullYear(), month: date.getMonth() + 1 };
-    });
-  }
 
   async function book(slotId: string) {
     if (!student) return;
@@ -327,8 +348,8 @@ export default function RegularPage() {
   }
 
   return (
-    <main className="container appContainer">
-      <section className="card">
+    <main className="container appContainer" style={styles.appContainer}>
+      <section className="card" style={styles.topCardFix}>
         <h1>정규수업 예약</h1>
         {!student ? (
           <div>
@@ -336,7 +357,13 @@ export default function RegularPage() {
             <label>이름</label>
             <input value={name} onChange={(e) => setName(e.target.value)} placeholder="예: 김문장" />
             <label>핸드폰번호 뒷자리 4자리</label>
-            <input value={phoneLast4} onChange={(e) => setPhoneLast4(e.target.value.replace(/\D/g, "").slice(0, 4))} placeholder="예: 6789" inputMode="numeric" maxLength={4} />
+            <input
+              value={phoneLast4}
+              onChange={(e) => setPhoneLast4(e.target.value.replace(/\D/g, "").slice(0, 4))}
+              placeholder="예: 6789"
+              inputMode="numeric"
+              maxLength={4}
+            />
             <label className="checkboxRow">
               <input type="checkbox" checked={rememberLogin} onChange={(e) => setRememberLogin(e.target.checked)} />
               <span>이 기기에서 자동 로그인하기</span>
@@ -361,15 +388,16 @@ export default function RegularPage() {
 
       {student && (
         <>
-          <section className="card">
+          <section className="card" style={styles.cardFix}>
             <h2>내 수업 일정</h2>
-            <div className="bookingSectionTabs" role="tablist" aria-label="수업 일정 구분">
+            <div className="bookingSectionTabs" role="tablist" aria-label="수업 일정 구분" style={styles.bookingSectionTabs}>
               <button
                 type="button"
                 className={`bookingSectionTab ${bookingSection === "upcoming" ? "active" : ""}`}
                 onClick={() => setBookingSection("upcoming")}
                 role="tab"
                 aria-selected={bookingSection === "upcoming"}
+                style={bookingSection === "upcoming" ? styles.activeTab : styles.tab}
               >
                 예정된 수업 <span>{upcomingBookings.length}</span>
               </button>
@@ -379,6 +407,7 @@ export default function RegularPage() {
                 onClick={() => setBookingSection("completed")}
                 role="tab"
                 aria-selected={bookingSection === "completed"}
+                style={bookingSection === "completed" ? styles.activeTab : styles.tab}
               >
                 완료한 수업 <span>{completedBookings.length}</span>
               </button>
@@ -413,53 +442,80 @@ export default function RegularPage() {
             </div>
           </section>
 
-          <section className="card">
-            <div className="calendarHeader">
-              <button className="secondary compact" onClick={() => moveMonth(-1)}>이전 달</button>
-              <h2>{calendarMonth.year}년 {calendarMonth.month}월</h2>
-              <button className="secondary compact" onClick={() => moveMonth(1)}>다음 달</button>
-            </div>
-
-            <div className="calendarWeekdays">
-              <span>일</span><span>월</span><span>화</span><span>수</span><span>목</span><span>금</span><span>토</span>
-            </div>
-
-            <div className="calendarGrid">
-              {calendarDays.map((day, index) => {
-                const count = day.key ? slotsByDate[day.key]?.length || 0 : 0;
-                const isSelected = day.key && selectedDate === day.key;
-                return (
-                  <button
-                    key={`${day.key || "blank"}-${index}`}
-                    className={`calendarDay ${count > 0 ? "hasSlots" : ""} ${isSelected ? "selected" : ""}`}
-                    disabled={!day.key || count === 0}
-                    onClick={() => day.key && setSelectedDate(day.key)}
-                  >
-                    <span className="dayNumber">{day.day || ""}</span>
-                    {day.key && (
-                      <span className={`slotBadge ${count > 0 ? "available" : "closed"}`}>
-                        {count > 0 ? "예약 가능" : "예약 마감"}
-                      </span>
-                    )}
-                  </button>
-                );
-              })}
-            </div>
-
-            <div className="selectedSlots">
-              <h3>{selectedDate ? formatDateLabel(selectedDate) : "예약 가능한 날짜"}</h3>
-              {(student.lesson_credits ?? 0) <= 0 && <p className="error">잔여 수강권이 없어 예약할 수 없습니다. 관리자에게 문의해 주세요.</p>}
-              {slots.length === 0 && <p>현재 예약 가능한 시간이 없습니다. 이미 예약된 시간과 6시간 이내 수업은 자동으로 보이지 않습니다.</p>}
-              {slots.length > 0 && selectedSlots.length === 0 && <p>선택한 날짜에는 예약 가능한 시간이 없습니다.</p>}
-              <div className="timeGrid">
-                {selectedSlots.map((slot) => (
-                  <button className="timeButton" key={slot.id} onClick={() => book(slot.id)} disabled={(student.lesson_credits ?? 0) <= 0}>
-                    <span>{formatTime(slot.start_at)} - {formatTime(slot.end_at)} 예약하기</span>
-                    {slot.is_auto_adjustment && <small>추천 시간</small>}
-                  </button>
-                ))}
+          <section className="card" style={styles.cardFix}>
+            <div style={styles.reservationHeader}>
+              <div>
+                <h2 style={styles.reservationTitle}>예약 가능한 날짜</h2>
+                <p style={styles.helperText}>예약 가능한 날짜만 표시합니다. 예약 마감 날짜는 숨겨서 화면이 밀리지 않게 조정했습니다.</p>
               </div>
+              <button
+                className="secondary compact"
+                type="button"
+                onClick={() => student && loadData(student.id)}
+                disabled={isLoadingData}
+                style={styles.refreshButton}
+              >
+                {isLoadingData ? "불러오는 중" : "새로고침"}
+              </button>
             </div>
+
+            {isLoadingData && <p>예약 가능한 시간을 불러오고 있습니다.</p>}
+
+            {!isLoadingData && availableDateKeys.length === 0 && (
+              <div className="item" style={styles.emptyItem}>
+                <strong>현재 예약 가능한 시간이 없습니다.</strong>
+                <p className="small">이미 예약된 시간과 6시간 이내 수업은 자동으로 보이지 않습니다.</p>
+              </div>
+            )}
+
+            {!isLoadingData && availableDateKeys.length > 0 && (
+              <>
+                <div style={styles.monthList}>
+                  {Object.entries(dateKeysByMonth).map(([monthKey, dateKeys]) => (
+                    <div key={monthKey} style={styles.monthBlock}>
+                      <h3 style={styles.monthTitle}>{formatMonthTitle(`${monthKey}-01`)}</h3>
+                      <div style={styles.datePillGrid}>
+                        {dateKeys.map((dateKey) => {
+                          const count = slotsByDate[dateKey]?.length || 0;
+                          const isSelected = selectedDate === dateKey;
+                          return (
+                            <button
+                              key={dateKey}
+                              type="button"
+                              onClick={() => setSelectedDate(dateKey)}
+                              style={isSelected ? styles.selectedDatePill : styles.datePill}
+                            >
+                              <span style={styles.datePillDate}>{formatShortDateLabel(dateKey)}</span>
+                              <span style={isSelected ? styles.selectedDatePillCount : styles.datePillCount}>{count}개 시간</span>
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+
+                <div className="selectedSlots" style={styles.selectedSlots}>
+                  <h3 style={styles.selectedDateTitle}>{selectedDate ? formatDateLabel(selectedDate) : "예약 가능한 시간"}</h3>
+                  {(student.lesson_credits ?? 0) <= 0 && <p className="error">잔여 수강권이 없어 예약할 수 없습니다. 관리자에게 문의해 주세요.</p>}
+                  {selectedSlots.length === 0 && <p>선택한 날짜에는 예약 가능한 시간이 없습니다.</p>}
+                  <div className="timeGrid" style={styles.timeGridFix}>
+                    {selectedSlots.map((slot) => (
+                      <button
+                        className="timeButton"
+                        key={slot.id}
+                        onClick={() => book(slot.id)}
+                        disabled={(student.lesson_credits ?? 0) <= 0}
+                        style={styles.timeButtonFix}
+                      >
+                        <span>{formatTime(slot.start_at)} - {formatTime(slot.end_at)} 예약하기</span>
+                        {slot.is_auto_adjustment && <small style={styles.recommendLabel}>추천 시간</small>}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </>
+            )}
           </section>
         </>
       )}
@@ -467,3 +523,161 @@ export default function RegularPage() {
     </main>
   );
 }
+
+const styles: Record<string, CSSProperties> = {
+  appContainer: {
+    width: "100%",
+    maxWidth: 860,
+    overflowX: "hidden",
+    paddingLeft: 16,
+    paddingRight: 16,
+    paddingBottom: 110,
+  },
+  topCardFix: {
+    width: "100%",
+    maxWidth: "100%",
+    overflow: "hidden",
+  },
+  cardFix: {
+    width: "100%",
+    maxWidth: "100%",
+    overflow: "hidden",
+  },
+  bookingSectionTabs: {
+    display: "grid",
+    gridTemplateColumns: "1fr 1fr",
+    gap: 8,
+    marginBottom: 14,
+  },
+  tab: {
+    marginTop: 0,
+    width: "100%",
+    minWidth: 0,
+    borderRadius: 999,
+    padding: "11px 10px",
+    background: "#F3E4E8",
+    color: "#541B2B",
+    fontSize: 14,
+  },
+  activeTab: {
+    marginTop: 0,
+    width: "100%",
+    minWidth: 0,
+    borderRadius: 999,
+    padding: "11px 10px",
+    background: "#7A2638",
+    color: "#ffffff",
+    fontSize: 14,
+  },
+  reservationHeader: {
+    display: "flex",
+    justifyContent: "space-between",
+    alignItems: "flex-start",
+    gap: 12,
+    marginBottom: 16,
+  },
+  reservationTitle: {
+    marginBottom: 4,
+  },
+  helperText: {
+    margin: 0,
+    fontSize: 14,
+    lineHeight: 1.55,
+  },
+  refreshButton: {
+    flexShrink: 0,
+    marginTop: 0,
+    whiteSpace: "nowrap",
+  },
+  emptyItem: {
+    marginTop: 8,
+  },
+  monthList: {
+    display: "grid",
+    gap: 18,
+  },
+  monthBlock: {
+    display: "grid",
+    gap: 10,
+  },
+  monthTitle: {
+    margin: "2px 0 0",
+    fontSize: 18,
+  },
+  datePillGrid: {
+    display: "grid",
+    gridTemplateColumns: "repeat(auto-fit, minmax(126px, 1fr))",
+    gap: 9,
+    width: "100%",
+  },
+  datePill: {
+    width: "100%",
+    minWidth: 0,
+    marginTop: 0,
+    padding: "12px 10px",
+    borderRadius: 16,
+    border: "1px solid #ead8dc",
+    background: "#fffdfb",
+    color: "#541B2B",
+    display: "flex",
+    flexDirection: "column",
+    alignItems: "center",
+    gap: 5,
+  },
+  selectedDatePill: {
+    width: "100%",
+    minWidth: 0,
+    marginTop: 0,
+    padding: "12px 10px",
+    borderRadius: 16,
+    border: "1px solid #7A2638",
+    background: "#7A2638",
+    color: "#ffffff",
+    display: "flex",
+    flexDirection: "column",
+    alignItems: "center",
+    gap: 5,
+  },
+  datePillDate: {
+    fontSize: 15,
+    fontWeight: 900,
+    lineHeight: 1.1,
+  },
+  datePillCount: {
+    fontSize: 12,
+    color: "#7d6d63",
+    fontWeight: 800,
+  },
+  selectedDatePillCount: {
+    fontSize: 12,
+    color: "#F9E8EE",
+    fontWeight: 800,
+  },
+  selectedSlots: {
+    marginTop: 24,
+    paddingTop: 18,
+    borderTop: "1px solid #ead8dc",
+  },
+  selectedDateTitle: {
+    marginTop: 0,
+  },
+  timeGridFix: {
+    display: "grid",
+    gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))",
+    gap: 10,
+  },
+  timeButtonFix: {
+    width: "100%",
+    minWidth: 0,
+    marginTop: 0,
+    padding: "14px 10px",
+    lineHeight: 1.3,
+    whiteSpace: "normal",
+    flexDirection: "column",
+    gap: 4,
+  },
+  recommendLabel: {
+    fontSize: 12,
+    opacity: 0.9,
+  },
+};
