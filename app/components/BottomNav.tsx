@@ -5,8 +5,8 @@ import { usePathname } from "next/navigation";
 
 const navItems = [
   { href: "/", label: "홈", icon: "⌂", match: (path: string) => path === "/" },
-  { href: "/history", label: "예약내역", icon: "▤", match: (path: string) => path.startsWith("/history") },
   { href: "/book", label: "예약하기", icon: "+", match: (path: string) => path.startsWith("/book") || path.startsWith("/regular") || path.startsWith("/oneday") },
+  { href: "/history", label: "예약내역", icon: "▤", match: (path: string) => path.startsWith("/history") },
   { href: "/profile", label: "프로필", icon: "♙", match: (path: string) => path.startsWith("/profile") },
 ];
 
