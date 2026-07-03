@@ -2,16 +2,29 @@ import { NextResponse } from "next/server";
 import { checkAdminPassword } from "../../../../../lib/admin";
 import { getSupabaseAdmin } from "../../../../../lib/supabaseAdmin";
 
-export async function DELETE(request: Request, context: { params: Promise<{ blockId: string }> }) {
+export async function DELETE(
+  request: Request,
+  context: { params: { id: string } | Promise<{ id: string }> },
+) {
   try {
-    const body = await request.json();
+    const body = await request.json().catch(() => ({}));
+
     if (!checkAdminPassword(body.password)) {
       return NextResponse.json({ message: "관리자 비밀번호가 올바르지 않습니다." }, { status: 401 });
     }
 
-    const { blockId } = await context.params;
+    const params = await context.params;
+    const id = String(params.id || "").trim();
+    if (!id) {
+      return NextResponse.json({ message: "삭제할 외부 차단 일정을 찾지 못했습니다." }, { status: 400 });
+    }
+
     const supabase = getSupabaseAdmin();
-    const { error } = await supabase.from("blocked_times").delete().eq("id", blockId);
+    const { error } = await supabase
+      .from("blocked_times")
+      .delete()
+      .eq("id", id);
+
     if (error) throw error;
 
     return NextResponse.json({ ok: true });
