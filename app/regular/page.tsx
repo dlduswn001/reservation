@@ -19,8 +19,6 @@ type Slot = {
   lesson_minutes?: number;
   break_minutes?: number;
   rule_label?: string;
-  is_auto_adjustment?: boolean;
-  adjustment_label?: string;
 };
 
 type Booking = {
@@ -32,7 +30,7 @@ type Booking = {
 };
 
 const STUDENT_LOGIN_STORAGE_KEY = "munjangStudentLogin";
-const SLOT_CACHE_STORAGE_KEY = "munjangRegularSlotCacheV4";
+const SLOT_CACHE_STORAGE_KEY = "munjangRegularSlotCacheV5";
 const SLOT_CACHE_TTL_MS = 5 * 60 * 1000;
 
 const STATUS_LABELS: Record<string, string> = {
@@ -592,7 +590,6 @@ export default function RegularPage() {
                         style={styles.timeButtonFix}
                       >
                         <span>{formatTime(slot.start_at)} - {formatTime(slot.end_at)} 예약하기</span>
-                        {slot.is_auto_adjustment && <small style={styles.recommendLabel}>추천 시간</small>}
                       </button>
                     ))}
                   </div>
@@ -758,9 +755,5 @@ const styles: Record<string, CSSProperties> = {
     whiteSpace: "normal",
     flexDirection: "column",
     gap: 4,
-  },
-  recommendLabel: {
-    fontSize: 12,
-    opacity: 0.9,
   },
 };
