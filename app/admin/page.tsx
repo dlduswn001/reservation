@@ -79,6 +79,17 @@ type Overview = {
   blockedTimes: BlockedTime[];
 };
 
+type TodayScheduleItem = {
+  id: string;
+  type: "regular" | "block" | "oneday";
+  start_at: string;
+  end_at: string;
+  label: string;
+  title: string;
+  subtitle: string;
+  detail?: string;
+};
+
 type AdminTab = "dashboard" | "schedule" | "students" | "history" | "timetable" | "slots" | "blocks" | "bookings" | "oneday" | "settings";
 
 const STATUS_LABELS: Record<string, string> = {
@@ -345,6 +356,25 @@ function seoulDateKey(value: string) {
     month: "2-digit",
     day: "2-digit",
   }).format(new Date(value));
+}
+
+function todaySeoulDateKey() {
+  return new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Asia/Seoul",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(new Date());
+}
+
+function todaySeoulLabel() {
+  return new Intl.DateTimeFormat("ko-KR", {
+    timeZone: "Asia/Seoul",
+    year: "numeric",
+    month: "long",
+    day: "numeric",
+    weekday: "long",
+  }).format(new Date());
 }
 
 function seoulParts(value: string) {
@@ -892,6 +922,74 @@ export default function AdminPage() {
 
   const activeBookingsCount = (overview?.bookings || []).filter((booking) => booking.status !== "cancelled" && booking.status !== "late_cancelled").length;
 
+  const todayKey = todaySeoulDateKey();
+  const todayLabel = todaySeoulLabel();
+
+  const todayScheduleItems = useMemo<TodayScheduleItem[]>(() => {
+    if (!overview) return [];
+
+    const items: TodayScheduleItem[] = [];
+
+    for (const booking of overview.bookings || []) {
+      if (booking.status === "cancelled" || booking.status === "late_cancelled") continue;
+      if (seoulDateKey(booking.start_at) !== todayKey) continue;
+
+      items.push({
+        id: `regular-${booking.id}`,
+        type: "regular",
+        start_at: booking.start_at,
+        end_at: booking.end_at,
+        label: "정규수업",
+        title: booking.students?.name || "이름 없음",
+        subtitle: `${booking.students?.phone_last4 || "번호 없음"} · ${STATUS_LABELS[booking.status] || booking.status}`,
+        detail: booking.memo || undefined,
+      });
+    }
+
+    for (const block of overview.blockedTimes || []) {
+      if (seoulDateKey(block.start_at) !== todayKey) continue;
+
+      items.push({
+        id: `block-${block.id}`,
+        type: "block",
+        start_at: block.start_at,
+        end_at: block.end_at,
+        label: "외부/체험",
+        title: block.title || "외부 차단",
+        subtitle: block.memo || "관리자가 차단한 일정입니다.",
+      });
+    }
+
+    for (const klass of overview.classes || []) {
+      if (seoulDateKey(klass.start_at) !== todayKey) continue;
+
+      const relatedBookings = (overview.onedayBookings || []).filter((booking) => {
+        const classId = booking.class_id || booking.oneday_classes?.id;
+        return classId === klass.id && isActiveOneDayBooking(booking.status);
+      });
+      const confirmedCount = relatedBookings.filter((booking) => ["입금완료", "등록완료"].includes(String(booking.status || ""))).length;
+
+      items.push({
+        id: `oneday-${klass.id}`,
+        type: "oneday",
+        start_at: klass.start_at,
+        end_at: klass.end_at,
+        label: "원데이",
+        title: klass.title || "원데이 클래스",
+        subtitle: `신청 ${relatedBookings.length}명 / 확정 ${confirmedCount}명 / 정원 ${klass.capacity || 0}명`,
+        detail: klass.description || undefined,
+      });
+    }
+
+    return items.sort((a, b) => new Date(a.start_at).getTime() - new Date(b.start_at).getTime());
+  }, [overview, todayKey]);
+
+  const todayCounts = useMemo(() => ({
+    regular: todayScheduleItems.filter((item) => item.type === "regular").length,
+    block: todayScheduleItems.filter((item) => item.type === "block").length,
+    oneday: todayScheduleItems.filter((item) => item.type === "oneday").length,
+  }), [todayScheduleItems]);
+
   const bookedSlotIds = useMemo(() => {
     return new Set(
       (overview?.bookings || [])
@@ -948,26 +1046,68 @@ export default function AdminPage() {
           </section>
 
           {activeTab === "dashboard" && (
-            <section className="card">
-              <h2>홈</h2>
-              <div className="statsGrid">
-                <div className="statBox"><span>정규 수강생</span><strong>{overview.students.length}명</strong></div>
-                <div className="statBox"><span>예약 가능 시간</span><strong>{overview.slots.length}개</strong></div>
-                <div className="statBox"><span>정규 예약</span><strong>{activeBookingsCount}건</strong></div>
-                <div className="statBox"><span>원데이 신청</span><strong>{overview.onedayBookings.length}건</strong></div>
-                <div className="statBox"><span>외부 차단</span><strong>{overview.blockedTimes?.length || 0}건</strong></div>
-              </div>
-              <h3>다가오는 정규수업</h3>
-              <div className="list">
-                {upcomingBookings.length === 0 && <p>다가오는 정규수업 예약이 없습니다.</p>}
-                {upcomingBookings.map((b) => (
-                  <div className="item" key={b.id}>
-                    <strong>{formatDateTime(b.start_at)} - {formatTime(b.end_at)}</strong>
-                    <p>{b.students?.name || "이름 없음"} / {b.students?.phone_last4 || "번호 없음"} / 상태: {STATUS_LABELS[b.status] || b.status}</p>
+            <>
+              <section className="card todayCard">
+                <div className="sectionHeaderRow">
+                  <div>
+                    <p className="eyebrow">오늘의 수업</p>
+                    <h2>{todayLabel}</h2>
+                    <p className="small">정규수업, 외부 차단/체험수업, 원데이 클래스를 한 번에 확인합니다.</p>
                   </div>
-                ))}
-              </div>
-            </section>
+                  <Link href="/admin/schedule" className="scheduleLink">통합 스케줄 보기</Link>
+                </div>
+
+                <div className="todaySummaryGrid">
+                  <div className="todaySummaryBox regular"><span>정규수업</span><strong>{todayCounts.regular}건</strong></div>
+                  <div className="todaySummaryBox block"><span>외부/체험</span><strong>{todayCounts.block}건</strong></div>
+                  <div className="todaySummaryBox oneday"><span>원데이</span><strong>{todayCounts.oneday}건</strong></div>
+                </div>
+
+                <div className="todayTimeline">
+                  {todayScheduleItems.length === 0 && (
+                    <div className="emptyToday">
+                      <strong>오늘 등록된 수업 일정이 없습니다.</strong>
+                      <p>정규 예약, 외부 차단, 원데이 클래스가 생기면 이곳에 시간순으로 표시됩니다.</p>
+                    </div>
+                  )}
+                  {todayScheduleItems.map((item) => (
+                    <div className={`todayItem ${item.type}`} key={item.id}>
+                      <div className="todayTime">
+                        <strong>{formatTime(item.start_at)}</strong>
+                        <span>{formatTime(item.end_at)}</span>
+                      </div>
+                      <div className="todayContent">
+                        <span className={`todayBadge ${item.type}`}>{item.label}</span>
+                        <strong>{item.title}</strong>
+                        <p>{item.subtitle}</p>
+                        {item.detail && <p className="todayMemo">{item.detail}</p>}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </section>
+
+              <section className="card">
+                <h2>홈</h2>
+                <div className="statsGrid">
+                  <div className="statBox"><span>정규 수강생</span><strong>{overview.students.length}명</strong></div>
+                  <div className="statBox"><span>예약 가능 시간</span><strong>{overview.slots.length}개</strong></div>
+                  <div className="statBox"><span>정규 예약</span><strong>{activeBookingsCount}건</strong></div>
+                  <div className="statBox"><span>원데이 신청</span><strong>{overview.onedayBookings.length}건</strong></div>
+                  <div className="statBox"><span>외부 차단</span><strong>{overview.blockedTimes?.length || 0}건</strong></div>
+                </div>
+                <h3>다가오는 정규수업</h3>
+                <div className="list">
+                  {upcomingBookings.length === 0 && <p>다가오는 정규수업 예약이 없습니다.</p>}
+                  {upcomingBookings.map((b) => (
+                    <div className="item" key={b.id}>
+                      <strong>{formatDateTime(b.start_at)} - {formatTime(b.end_at)}</strong>
+                      <p>{b.students?.name || "이름 없음"} / {b.students?.phone_last4 || "번호 없음"} / 상태: {STATUS_LABELS[b.status] || b.status}</p>
+                    </div>
+                  ))}
+                </div>
+              </section>
+            </>
           )}
 
           {activeTab === "schedule" && (
@@ -1509,6 +1649,119 @@ export default function AdminPage() {
         </>
       )}
       <style jsx>{`
+        .todayCard {
+          border-color: #d8c2a4;
+          background: linear-gradient(180deg, #fffdf8 0%, #fff8ee 100%);
+        }
+        .sectionHeaderRow {
+          display: flex;
+          align-items: flex-start;
+          justify-content: space-between;
+          gap: 16px;
+          margin-bottom: 18px;
+        }
+        .eyebrow {
+          margin: 0 0 4px;
+          font-size: 13px;
+          font-weight: 800;
+          color: #8a5a2f;
+          letter-spacing: 0.02em;
+        }
+        .scheduleLink {
+          flex-shrink: 0;
+          padding: 10px 14px;
+          border-radius: 999px;
+          background: #7d5a36;
+          color: white;
+          text-decoration: none;
+          font-size: 14px;
+          font-weight: 700;
+        }
+        .todaySummaryGrid {
+          display: grid;
+          grid-template-columns: repeat(3, minmax(0, 1fr));
+          gap: 10px;
+          margin-bottom: 18px;
+        }
+        .todaySummaryBox {
+          padding: 14px;
+          border: 1px solid #eadfce;
+          border-radius: 16px;
+          background: white;
+        }
+        .todaySummaryBox span {
+          display: block;
+          margin-bottom: 6px;
+          color: #766a5d;
+          font-size: 13px;
+        }
+        .todaySummaryBox strong {
+          font-size: 22px;
+        }
+        .todayTimeline {
+          display: flex;
+          flex-direction: column;
+          gap: 10px;
+        }
+        .todayItem {
+          display: grid;
+          grid-template-columns: 86px 1fr;
+          gap: 14px;
+          padding: 14px;
+          border: 1px solid #eadfce;
+          border-radius: 18px;
+          background: #fffefa;
+        }
+        .todayItem.regular { border-left: 6px solid #7e9bc8; }
+        .todayItem.block { border-left: 6px solid #9a958c; }
+        .todayItem.oneday { border-left: 6px solid #b58ac8; }
+        .todayTime {
+          display: flex;
+          flex-direction: column;
+          justify-content: center;
+          gap: 4px;
+          color: #4e4034;
+        }
+        .todayTime strong { font-size: 18px; }
+        .todayTime span { font-size: 13px; color: #7a7168; }
+        .todayContent {
+          display: flex;
+          flex-direction: column;
+          gap: 5px;
+          min-width: 0;
+        }
+        .todayContent strong { font-size: 16px; }
+        .todayContent p { margin: 0; color: #6f655c; line-height: 1.45; }
+        .todayBadge {
+          width: fit-content;
+          padding: 4px 8px;
+          border-radius: 999px;
+          font-size: 12px;
+          font-weight: 800;
+          background: #f2eadf;
+          color: #5d4b3b;
+        }
+        .todayBadge.regular { background: #eaf0fb; color: #3d5c8b; }
+        .todayBadge.block { background: #eeeeec; color: #5e5a54; }
+        .todayBadge.oneday { background: #f4eafa; color: #7b4a91; }
+        .todayMemo {
+          padding-top: 4px;
+          font-size: 13px;
+        }
+        .emptyToday {
+          padding: 18px;
+          border: 1px dashed #d9c8b1;
+          border-radius: 16px;
+          background: white;
+        }
+        .emptyToday p { margin: 6px 0 0; color: #746a60; }
+        @media (max-width: 640px) {
+          .sectionHeaderRow { flex-direction: column; }
+          .scheduleLink { width: 100%; text-align: center; }
+          .todaySummaryGrid { grid-template-columns: 1fr; }
+          .todayItem { grid-template-columns: 1fr; }
+          .todayTime { flex-direction: row; align-items: baseline; }
+        }
         .adminQuickGrid {
           display: grid;
           grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
