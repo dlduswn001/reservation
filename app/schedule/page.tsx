@@ -1,638 +1,881 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
-import type { CSSProperties } from "react";
-import { createClient } from "@supabase/supabase-js";
 
-/**
- * 문장학교 정규수업 예약 페이지 - 속도 개선 버전
- *
- * 핵심 개선 사항
- * 1. 과거 일정은 불러오지 않습니다.
- * 2. 예약 가능한 일정(is_available = true)만 불러옵니다.
- * 3. 오늘부터 다음 달 말까지만 불러옵니다.
- * 4. 예약 가능한 시간이 없는 달은 화면에 표시하지 않습니다.
- * 5. 예약 완료 후 해당 슬롯은 즉시 is_available=false 처리합니다.
- *
- * 사용 방법
- * - 이 파일을 정규수업 예약 페이지의 page.tsx에 그대로 교체해서 업로드하세요.
- * - Supabase 테이블 기준: students, slots, reservations
- * - students: id, name, phone_last4, lesson_credits
- * - slots: id, start_at, end_at, is_available
- * - reservations: id, student_id, slot_id, created_at
- */
+type ScheduleType = "regular" | "oneday" | "block" | "available";
 
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || "";
-const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "";
-
-const supabase = createClient(supabaseUrl, supabaseAnonKey);
-
-type Student = {
+type ScheduleItem = {
   id: string;
-  name: string;
-  phone_last4: string;
-  lesson_credits?: number | null;
-};
-
-type Slot = {
-  id: string;
+  type: ScheduleType;
+  title: string;
+  subtitle: string;
   start_at: string;
   end_at: string;
-  is_available: boolean;
+  status?: string;
+  memo?: string | null;
+  meta?: Record<string, unknown>;
 };
 
-type Reservation = {
-  id: string;
-  student_id: string;
-  slot_id: string;
-  created_at?: string;
+type ScheduleSummary = {
+  regular_count: number;
+  oneday_count: number;
+  block_count: number;
+  available_count: number;
+  oneday_booking_people: number;
 };
 
-const KOREA_LOCALE = "ko-KR";
+type ScheduleResponse = {
+  ok: boolean;
+  range: {
+    start_date: string;
+    end_date: string;
+    start_at: string;
+    end_at: string;
+  };
+  summary: ScheduleSummary;
+  items: ScheduleItem[];
+};
 
-function getBookingRange() {
-  const now = new Date();
-  const endOfNextMonth = new Date(
-    now.getFullYear(),
-    now.getMonth() + 2,
-    0,
-    23,
-    59,
-    59,
-    999
-  );
+type Filters = Record<ScheduleType, boolean>;
 
+const FILTER_LABELS: Record<ScheduleType, string> = {
+  regular: "정규수업",
+  oneday: "원데이",
+  block: "외부차단",
+  available: "예약가능",
+};
+
+const TYPE_CLASS: Record<ScheduleType, string> = {
+  regular: "regular",
+  oneday: "oneday",
+  block: "block",
+  available: "available",
+};
+
+const TYPE_BADGE: Record<ScheduleType, string> = {
+  regular: "정규",
+  oneday: "원데이",
+  block: "차단",
+  available: "가능",
+};
+
+function pad(value: number) {
+  return String(value).padStart(2, "0");
+}
+
+function getKstDateParts(date = new Date()) {
+  const parts = new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Asia/Seoul",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).formatToParts(date);
+
+  const map = Object.fromEntries(parts.map((part) => [part.type, part.value]));
   return {
-    nowIso: now.toISOString(),
-    endIso: endOfNextMonth.toISOString(),
+    year: Number(map.year),
+    month: Number(map.month),
+    day: Number(map.day),
   };
 }
 
-function formatMonth(dateString: string) {
-  const date = new Date(dateString);
-  return date.toLocaleDateString(KOREA_LOCALE, {
-    year: "numeric",
-    month: "long",
-  });
+function dateString(year: number, month: number, day: number) {
+  return `${year}-${pad(month)}-${pad(day)}`;
 }
 
-function formatDate(dateString: string) {
-  const date = new Date(dateString);
-  return date.toLocaleDateString(KOREA_LOCALE, {
+function todayKstString() {
+  const { year, month, day } = getKstDateParts();
+  return dateString(year, month, day);
+}
+
+function thisMonthRange() {
+  const { year, month } = getKstDateParts();
+  const lastDay = new Date(Date.UTC(year, month, 0)).getUTCDate();
+  return {
+    start: dateString(year, month, 1),
+    end: dateString(year, month, lastDay),
+  };
+}
+
+function nextMonthRange() {
+  const { year, month } = getKstDateParts();
+  const next = new Date(Date.UTC(year, month, 1));
+  const nextYear = next.getUTCFullYear();
+  const nextMonth = next.getUTCMonth() + 1;
+  const lastDay = new Date(Date.UTC(nextYear, nextMonth, 0)).getUTCDate();
+  return {
+    start: dateString(nextYear, nextMonth, 1),
+    end: dateString(nextYear, nextMonth, lastDay),
+  };
+}
+
+function thisWeekRange() {
+  const { year, month, day } = getKstDateParts();
+  const base = new Date(Date.UTC(year, month - 1, day));
+  const dayOfWeek = base.getUTCDay();
+  const mondayOffset = dayOfWeek === 0 ? -6 : 1 - dayOfWeek;
+  const monday = new Date(base);
+  monday.setUTCDate(base.getUTCDate() + mondayOffset);
+  const sunday = new Date(monday);
+  sunday.setUTCDate(monday.getUTCDate() + 6);
+  return {
+    start: dateString(monday.getUTCFullYear(), monday.getUTCMonth() + 1, monday.getUTCDate()),
+    end: dateString(sunday.getUTCFullYear(), sunday.getUTCMonth() + 1, sunday.getUTCDate()),
+  };
+}
+
+function formatDate(value: string) {
+  return new Intl.DateTimeFormat("ko-KR", {
+    timeZone: "Asia/Seoul",
+    year: "numeric",
     month: "long",
     day: "numeric",
     weekday: "short",
-  });
+  }).format(new Date(value));
 }
 
-function formatTimeRange(startString: string, endString: string) {
-  const start = new Date(startString);
-  const end = new Date(endString);
-
-  const startText = start.toLocaleTimeString(KOREA_LOCALE, {
+function formatTime(value: string) {
+  return new Intl.DateTimeFormat("ko-KR", {
+    timeZone: "Asia/Seoul",
     hour: "2-digit",
     minute: "2-digit",
     hour12: false,
-  });
+  }).format(new Date(value));
+}
 
-  const endText = end.toLocaleTimeString(KOREA_LOCALE, {
+function seoulDateKey(value: string) {
+  const parts = new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Asia/Seoul",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).formatToParts(new Date(value));
+  const map = Object.fromEntries(parts.map((part) => [part.type, part.value]));
+  return `${map.year}-${map.month}-${map.day}`;
+}
+
+function overlaps(a: ScheduleItem, b: ScheduleItem) {
+  return new Date(a.start_at).getTime() < new Date(b.end_at).getTime()
+    && new Date(a.end_at).getTime() > new Date(b.start_at).getTime();
+}
+
+function addMinutesToLocalDateTime(value: string, minutes: number) {
+  if (!value) return "";
+  const [datePart, timePart] = value.split("T");
+  if (!datePart || !timePart) return "";
+  const [year, month, day] = datePart.split("-").map(Number);
+  const [hour, minute] = timePart.split(":").map(Number);
+  const date = new Date(year, month - 1, day, hour, minute || 0, 0, 0);
+  date.setMinutes(date.getMinutes() + minutes);
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
+}
+
+function localNowInput() {
+  const now = new Date();
+  return `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}T${pad(now.getHours())}:${pad(now.getMinutes())}`;
+}
+
+
+function isoToSeoulLocalInput(value: string) {
+  if (!value) return "";
+  const parts = new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Asia/Seoul",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
     hour: "2-digit",
     minute: "2-digit",
     hour12: false,
-  });
-
-  return `${startText} - ${endText}`;
+  }).formatToParts(new Date(value));
+  const map = Object.fromEntries(parts.map((part) => [part.type, part.value]));
+  return `${map.year}-${map.month}-${map.day}T${map.hour}:${map.minute}`;
 }
 
-function groupSlotsByMonthAndDate(slots: Slot[]) {
-  const result: Record<string, Record<string, Slot[]>> = {};
-
-  for (const slot of slots) {
-    const monthKey = formatMonth(slot.start_at);
-    const dateKey = formatDate(slot.start_at);
-
-    if (!result[monthKey]) result[monthKey] = {};
-    if (!result[monthKey][dateKey]) result[monthKey][dateKey] = [];
-
-    result[monthKey][dateKey].push(slot);
-  }
-
-  return result;
-}
-
-export default function RegularReservationPage() {
-  const [name, setName] = useState("");
-  const [phoneLast4, setPhoneLast4] = useState("");
-  const [student, setStudent] = useState<Student | null>(null);
-  const [slots, setSlots] = useState<Slot[]>([]);
-  const [selectedSlotId, setSelectedSlotId] = useState<string | null>(null);
-  const [isLoggingIn, setIsLoggingIn] = useState(false);
-  const [isLoadingSlots, setIsLoadingSlots] = useState(false);
-  const [isBooking, setIsBooking] = useState(false);
+export default function AdminUnifiedSchedulePage() {
+  const defaultRange = useMemo(() => thisMonthRange(), []);
+  const [password, setPassword] = useState("");
+  const [startDate, setStartDate] = useState(defaultRange.start);
+  const [endDate, setEndDate] = useState(defaultRange.end);
+  const [data, setData] = useState<ScheduleResponse | null>(null);
   const [message, setMessage] = useState("");
-  const [errorMessage, setErrorMessage] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [filters, setFilters] = useState<Filters>({
+    regular: true,
+    oneday: true,
+    block: true,
+    available: false,
+  });
 
-  const groupedSlots = useMemo(() => groupSlotsByMonthAndDate(slots), [slots]);
-  const selectedSlot = useMemo(
-    () => slots.find((slot) => slot.id === selectedSlotId) || null,
-    [slots, selectedSlotId]
-  );
+  const [blockTitle, setBlockTitle] = useState("");
+  const [blockStartAt, setBlockStartAt] = useState("");
+  const [blockEndAt, setBlockEndAt] = useState("");
+  const [blockMemo, setBlockMemo] = useState("");
 
-  async function loginStudent() {
-    setMessage("");
-    setErrorMessage("");
-
-    const trimmedName = name.trim();
-    const trimmedPhone = phoneLast4.trim();
-
-    if (!trimmedName || !trimmedPhone) {
-      setErrorMessage("이름과 휴대폰 번호 뒷 4자리를 입력해 주세요.");
-      return;
-    }
-
-    if (trimmedPhone.length !== 4) {
-      setErrorMessage("휴대폰 번호 뒷 4자리는 숫자 4자리로 입력해 주세요.");
-      return;
-    }
-
-    setIsLoggingIn(true);
-
-    const { data, error } = await supabase
-      .from("students")
-      .select("id, name, phone_last4, lesson_credits")
-      .eq("name", trimmedName)
-      .eq("phone_last4", trimmedPhone)
-      .maybeSingle();
-
-    setIsLoggingIn(false);
-
-    if (error) {
-      setErrorMessage("수강생 정보를 확인하는 중 오류가 발생했습니다.");
-      return;
-    }
-
-    if (!data) {
-      setErrorMessage("일치하는 수강생 정보를 찾을 수 없습니다. 이름과 휴대폰 번호 뒷 4자리를 확인해 주세요.");
-      return;
-    }
-
-    setStudent(data as Student);
-    setMessage(`${data.name}님, 예약 가능한 일정을 불러오고 있습니다.`);
-  }
-
-  async function loadAvailableSlots() {
-    setMessage("");
-    setErrorMessage("");
-    setIsLoadingSlots(true);
-
-    const { nowIso, endIso } = getBookingRange();
-
-    const { data, error } = await supabase
-      .from("slots")
-      .select("id, start_at, end_at, is_available")
-      .gte("start_at", nowIso)
-      .lte("start_at", endIso)
-      .eq("is_available", true)
-      .order("start_at", { ascending: true })
-      .limit(300);
-
-    setIsLoadingSlots(false);
-
-    if (error) {
-      setErrorMessage("예약 가능한 일정을 불러오지 못했습니다. 잠시 후 다시 시도해 주세요.");
-      return;
-    }
-
-    setSlots((data || []) as Slot[]);
-    setSelectedSlotId(null);
-
-    if (!data || data.length === 0) {
-      setMessage("현재 예약 가능한 정규수업 일정이 없습니다.");
-    }
-  }
-
-  async function bookSelectedSlot() {
-    if (!student) {
-      setErrorMessage("먼저 수강생 로그인을 해 주세요.");
-      return;
-    }
-
-    if (!selectedSlot) {
-      setErrorMessage("예약할 시간을 선택해 주세요.");
-      return;
-    }
-
-    if (student.lesson_credits !== null && student.lesson_credits !== undefined && student.lesson_credits <= 0) {
-      setErrorMessage("남은 수강권이 없습니다. 관리자에게 문의해 주세요.");
-      return;
-    }
-
-    const confirmed = window.confirm(
-      `${formatDate(selectedSlot.start_at)} ${formatTimeRange(
-        selectedSlot.start_at,
-        selectedSlot.end_at
-      )} 수업을 예약할까요?`
-    );
-
-    if (!confirmed) return;
-
-    setIsBooking(true);
-    setMessage("");
-    setErrorMessage("");
-
-    const { data: latestSlot, error: latestSlotError } = await supabase
-      .from("slots")
-      .select("id, is_available")
-      .eq("id", selectedSlot.id)
-      .maybeSingle();
-
-    if (latestSlotError || !latestSlot || latestSlot.is_available !== true) {
-      setIsBooking(false);
-      setErrorMessage("이미 예약되었거나 예약할 수 없는 시간입니다. 다른 시간을 선택해 주세요.");
-      await loadAvailableSlots();
-      return;
-    }
-
-    const { data: existingReservation, error: existingReservationError } = await supabase
-      .from("reservations")
-      .select("id")
-      .eq("slot_id", selectedSlot.id)
-      .limit(1);
-
-    if (existingReservationError) {
-      setIsBooking(false);
-      setErrorMessage("예약 가능 여부를 확인하는 중 오류가 발생했습니다.");
-      return;
-    }
-
-    if (existingReservation && existingReservation.length > 0) {
-      await supabase.from("slots").update({ is_available: false }).eq("id", selectedSlot.id);
-      setIsBooking(false);
-      setErrorMessage("방금 다른 수강생이 예약한 시간입니다. 다른 시간을 선택해 주세요.");
-      await loadAvailableSlots();
-      return;
-    }
-
-    const { error: reservationError } = await supabase.from("reservations").insert({
-      student_id: student.id,
-      slot_id: selectedSlot.id,
-    });
-
-    if (reservationError) {
-      setIsBooking(false);
-      setErrorMessage("예약을 완료하지 못했습니다. 잠시 후 다시 시도해 주세요.");
-      return;
-    }
-
-    const { error: slotUpdateError } = await supabase
-      .from("slots")
-      .update({ is_available: false })
-      .eq("id", selectedSlot.id);
-
-    if (slotUpdateError) {
-      setIsBooking(false);
-      setErrorMessage("예약은 접수되었지만 일정 상태 변경 중 오류가 발생했습니다. 관리자에게 문의해 주세요.");
-      await loadAvailableSlots();
-      return;
-    }
-
-    if (typeof student.lesson_credits === "number") {
-      const nextCredits = Math.max(student.lesson_credits - 1, 0);
-      const { error: creditError } = await supabase
-        .from("students")
-        .update({ lesson_credits: nextCredits })
-        .eq("id", student.id);
-
-      if (!creditError) {
-        setStudent({ ...student, lesson_credits: nextCredits });
-      }
-    }
-
-    setIsBooking(false);
-    setMessage("예약이 완료되었습니다. 예약 가능한 일정 목록을 새로 불러왔습니다.");
-    await loadAvailableSlots();
-  }
+  const [moveTarget, setMoveTarget] = useState<ScheduleItem | null>(null);
+  const [moveStartAt, setMoveStartAt] = useState("");
+  const [moveEndAt, setMoveEndAt] = useState("");
+  const [moveLoading, setMoveLoading] = useState(false);
+  const [moveConflicts, setMoveConflicts] = useState<string[]>([]);
 
   useEffect(() => {
-    if (student) {
-      loadAvailableSlots();
+    const savedPassword = window.localStorage.getItem("munjang_admin_password") || "";
+    setPassword(savedPassword);
+  }, []);
+
+  useEffect(() => {
+    if (blockStartAt && !blockEndAt) {
+      setBlockEndAt(addMinutesToLocalDateTime(blockStartAt, 90));
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [student?.id]);
+  }, [blockStartAt, blockEndAt]);
+
+
+  useEffect(() => {
+    if (moveStartAt && moveTarget) {
+      const originalStart = new Date(moveTarget.start_at).getTime();
+      const originalEnd = new Date(moveTarget.end_at).getTime();
+      const durationMinutes = Math.max(30, Math.round((originalEnd - originalStart) / 60000));
+      setMoveEndAt(addMinutesToLocalDateTime(moveStartAt, durationMinutes));
+    }
+  }, [moveStartAt, moveTarget]);
+
+  async function loadSchedule(nextStartDate = startDate, nextEndDate = endDate) {
+    setLoading(true);
+    setMessage("");
+    try {
+      const response = await fetch("/api/admin/schedule", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ password, start_date: nextStartDate, end_date: nextEndDate }),
+      });
+      const json = await response.json();
+      if (!response.ok) throw new Error(json.message || "통합 스케줄을 불러오지 못했습니다.");
+      window.localStorage.setItem("munjang_admin_password", password);
+      setData(json);
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : "오류가 발생했습니다.");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  function applyRange(range: { start: string; end: string }) {
+    setStartDate(range.start);
+    setEndDate(range.end);
+    if (password) loadSchedule(range.start, range.end);
+  }
+
+  async function addBlockedTime() {
+    setMessage("");
+    if (!blockTitle.trim()) {
+      setMessage("외부 차단 제목을 입력해 주세요.");
+      return;
+    }
+    if (!blockStartAt || !blockEndAt) {
+      setMessage("차단 시작 시간과 종료 시간을 입력해 주세요.");
+      return;
+    }
+
+    try {
+      const response = await fetch("/api/admin/blocked-times", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          password,
+          title: blockTitle,
+          start_at: blockStartAt,
+          end_at: blockEndAt,
+          memo: blockMemo,
+        }),
+      });
+      const json = await response.json();
+      if (!response.ok) throw new Error(json.message || "외부 차단 일정을 추가하지 못했습니다.");
+
+      setBlockTitle("");
+      setBlockStartAt("");
+      setBlockEndAt("");
+      setBlockMemo("");
+      setMessage("외부 차단 일정을 추가했습니다.");
+      await loadSchedule();
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : "오류가 발생했습니다.");
+    }
+  }
+
+  async function deleteBlockedTime(item: ScheduleItem) {
+    const blockId = String(item.meta?.block_id || "");
+    if (!blockId) return;
+    if (!window.confirm(`'${item.title.replace("외부차단 · ", "")}' 일정을 삭제할까요?`)) return;
+
+    try {
+      const response = await fetch(`/api/admin/blocked-times/${blockId}`, {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ password }),
+      });
+      const json = await response.json();
+      if (!response.ok) throw new Error(json.message || "외부 차단 일정을 삭제하지 못했습니다.");
+      setMessage("외부 차단 일정을 삭제했습니다.");
+      await loadSchedule();
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : "오류가 발생했습니다.");
+    }
+  }
+
+
+  function openMoveModal(item: ScheduleItem) {
+    setMoveTarget(item);
+    setMoveStartAt(isoToSeoulLocalInput(item.start_at));
+    setMoveEndAt(isoToSeoulLocalInput(item.end_at));
+    setMoveConflicts([]);
+    setMessage("");
+  }
+
+  function closeMoveModal() {
+    setMoveTarget(null);
+    setMoveStartAt("");
+    setMoveEndAt("");
+    setMoveConflicts([]);
+    setMoveLoading(false);
+  }
+
+  async function moveRegularBooking(force = false) {
+    if (!moveTarget) return;
+    const bookingId = String(moveTarget.meta?.booking_id || "");
+    if (!bookingId) {
+      setMessage("예약 정보를 찾지 못했습니다.");
+      return;
+    }
+    if (!moveStartAt || !moveEndAt) {
+      setMessage("변경할 시작 시간과 종료 시간을 입력해 주세요.");
+      return;
+    }
+
+    setMoveLoading(true);
+    setMoveConflicts([]);
+    setMessage("");
+
+    try {
+      const response = await fetch("/api/admin/regular-bookings/move", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          password,
+          booking_id: bookingId,
+          new_start_at: moveStartAt,
+          new_end_at: moveEndAt,
+          force,
+        }),
+      });
+      const json = await response.json();
+
+      if (response.status === 409) {
+        setMoveConflicts(Array.isArray(json.conflicts) ? json.conflicts : [json.message || "겹치는 일정이 있습니다."]);
+        return;
+      }
+
+      if (!response.ok) throw new Error(json.message || "수업 시간을 변경하지 못했습니다.");
+
+      setMessage("정규수업 시간을 변경했습니다.");
+      closeMoveModal();
+      await loadSchedule();
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : "오류가 발생했습니다.");
+    } finally {
+      setMoveLoading(false);
+    }
+  }
+
+  const filteredItems = useMemo(() => {
+    return (data?.items || []).filter((item) => filters[item.type]);
+  }, [data?.items, filters]);
+
+  const conflictItemIds = useMemo(() => {
+    const ids = new Set<string>();
+    const activeItems = filteredItems.filter((item) => item.type !== "available");
+    for (let i = 0; i < activeItems.length; i += 1) {
+      for (let j = i + 1; j < activeItems.length; j += 1) {
+        if (seoulDateKey(activeItems[i].start_at) !== seoulDateKey(activeItems[j].start_at)) continue;
+        if (overlaps(activeItems[i], activeItems[j])) {
+          ids.add(activeItems[i].id);
+          ids.add(activeItems[j].id);
+        }
+      }
+    }
+    return ids;
+  }, [filteredItems]);
+
+  const groupedItems = useMemo(() => {
+    const groups = new Map<string, ScheduleItem[]>();
+    for (const item of filteredItems) {
+      const key = seoulDateKey(item.start_at);
+      if (!groups.has(key)) groups.set(key, []);
+      groups.get(key)?.push(item);
+    }
+    return [...groups.entries()].map(([dateKey, items]) => ({
+      dateKey,
+      label: formatDate(items[0].start_at),
+      items: items.sort((a, b) => new Date(a.start_at).getTime() - new Date(b.start_at).getTime()),
+    }));
+  }, [filteredItems]);
+
+  const visibleSummary = useMemo(() => {
+    return {
+      regular: filteredItems.filter((item) => item.type === "regular").length,
+      oneday: filteredItems.filter((item) => item.type === "oneday").length,
+      block: filteredItems.filter((item) => item.type === "block").length,
+      available: filteredItems.filter((item) => item.type === "available").length,
+    };
+  }, [filteredItems]);
 
   return (
-    <main style={styles.page}>
-      <section style={styles.card}>
-        <div style={styles.header}>
-          <p style={styles.eyebrow}>문장학교 예약</p>
-          <h1 style={styles.title}>정규수업 예약하기</h1>
-          <p style={styles.description}>
-            오늘 이후 예약 가능한 일정만 빠르게 불러옵니다. 예약 가능한 시간이 없는 달은 표시되지 않습니다.
-          </p>
+    <main className="container schedulePage">
+      <div className="topLinks">
+        <Link href="/admin" className="small">← 관리자 페이지로</Link>
+        <Link href="/" className="small">처음으로</Link>
+      </div>
+
+      <section className="card heroCard">
+        <div>
+          <p className="eyebrow">문장학교 관리자</p>
+          <h1>통합 스케줄</h1>
+          <p className="muted">정규수업 예약자, 외부 차단 일정, 원데이 클래스 일정을 한 화면에서 확인합니다.</p>
+        </div>
+      </section>
+
+      <section className="card controlsCard">
+        <h2>조회 기간</h2>
+        <label>관리자 비밀번호</label>
+        <input
+          type="password"
+          value={password}
+          onChange={(event) => setPassword(event.target.value)}
+          placeholder="관리자 비밀번호"
+        />
+
+        <div className="quickButtons">
+          <button className="secondary" onClick={() => applyRange({ start: todayKstString(), end: todayKstString() })}>오늘</button>
+          <button className="secondary" onClick={() => applyRange(thisWeekRange())}>이번 주</button>
+          <button className="secondary" onClick={() => applyRange(thisMonthRange())}>이번 달</button>
+          <button className="secondary" onClick={() => applyRange(nextMonthRange())}>다음 달</button>
         </div>
 
-        {!student ? (
-          <div style={styles.loginBox}>
-            <label style={styles.label}>
-              이름
-              <input
-                style={styles.input}
-                value={name}
-                onChange={(event) => setName(event.target.value)}
-                placeholder="예: 이연주"
-              />
-            </label>
-
-            <label style={styles.label}>
-              휴대폰 번호 뒷 4자리
-              <input
-                style={styles.input}
-                value={phoneLast4}
-                onChange={(event) => setPhoneLast4(event.target.value.replace(/[^0-9]/g, "").slice(0, 4))}
-                placeholder="예: 1234"
-                inputMode="numeric"
-                maxLength={4}
-              />
-            </label>
-
-            <button style={styles.primaryButton} onClick={loginStudent} disabled={isLoggingIn}>
-              {isLoggingIn ? "확인 중..." : "예약 일정 확인하기"}
-            </button>
-          </div>
-        ) : (
+        <div className="dateGrid">
           <div>
-            <div style={styles.studentBox}>
-              <div>
-                <strong>{student.name}님</strong>
-                <p style={styles.smallText}>정규수업 예약 가능 일정을 확인해 주세요.</p>
-              </div>
-              <div style={styles.creditBox}>
-                남은 수강권: {typeof student.lesson_credits === "number" ? `${student.lesson_credits}회` : "확인 필요"}
-              </div>
-            </div>
-
-            <div style={styles.actionRow}>
-              <button style={styles.secondaryButton} onClick={loadAvailableSlots} disabled={isLoadingSlots}>
-                {isLoadingSlots ? "불러오는 중..." : "예약 가능 일정 새로고침"}
-              </button>
-              <button style={styles.textButton} onClick={() => setStudent(null)}>
-                다른 수강생으로 확인
-              </button>
-            </div>
-
-            {isLoadingSlots ? (
-              <div style={styles.emptyBox}>예약 가능한 일정을 불러오고 있습니다.</div>
-            ) : slots.length === 0 ? (
-              <div style={styles.emptyBox}>현재 예약 가능한 정규수업 일정이 없습니다.</div>
-            ) : (
-              <div style={styles.slotArea}>
-                {Object.entries(groupedSlots).map(([month, dateGroups]) => (
-                  <section key={month} style={styles.monthSection}>
-                    <h2 style={styles.monthTitle}>{month}</h2>
-                    {Object.entries(dateGroups).map(([date, dateSlots]) => (
-                      <div key={date} style={styles.dateSection}>
-                        <h3 style={styles.dateTitle}>{date}</h3>
-                        <div style={styles.slotGrid}>
-                          {dateSlots.map((slot) => {
-                            const isSelected = selectedSlotId === slot.id;
-                            return (
-                              <button
-                                key={slot.id}
-                                style={{
-                                  ...styles.slotButton,
-                                  ...(isSelected ? styles.selectedSlotButton : {}),
-                                }}
-                                onClick={() => setSelectedSlotId(slot.id)}
-                              >
-                                {formatTimeRange(slot.start_at, slot.end_at)}
-                              </button>
-                            );
-                          })}
-                        </div>
-                      </div>
-                    ))}
-                  </section>
-                ))}
-              </div>
-            )}
-
-            {selectedSlot && (
-              <div style={styles.confirmBox}>
-                <div>
-                  <strong>선택한 수업</strong>
-                  <p style={styles.smallText}>
-                    {formatDate(selectedSlot.start_at)} {formatTimeRange(selectedSlot.start_at, selectedSlot.end_at)}
-                  </p>
-                </div>
-                <button style={styles.primaryButton} onClick={bookSelectedSlot} disabled={isBooking}>
-                  {isBooking ? "예약 중..." : "이 시간으로 예약하기"}
-                </button>
-              </div>
-            )}
+            <label>시작일</label>
+            <input type="date" value={startDate} onChange={(event) => setStartDate(event.target.value)} />
           </div>
-        )}
+          <div>
+            <label>종료일</label>
+            <input type="date" value={endDate} onChange={(event) => setEndDate(event.target.value)} />
+          </div>
+        </div>
 
-        {message && <div style={styles.messageBox}>{message}</div>}
-        {errorMessage && <div style={styles.errorBox}>{errorMessage}</div>}
+        <button onClick={() => loadSchedule()} disabled={loading || !password}>
+          {loading ? "불러오는 중..." : "통합 스케줄 보기"}
+        </button>
+        {message && <p className={message.includes("추가") || message.includes("삭제") || message.includes("변경") ? "success" : "error"}>{message}</p>}
       </section>
+
+      {data && (
+        <>
+          <section className="card summaryCard">
+            <div className="summaryGrid">
+              <div><span>정규수업</span><strong>{data.summary.regular_count}건</strong></div>
+              <div><span>원데이</span><strong>{data.summary.oneday_count}건</strong></div>
+              <div><span>외부차단</span><strong>{data.summary.block_count}건</strong></div>
+              <div><span>예약가능</span><strong>{data.summary.available_count}개</strong></div>
+            </div>
+            <p className="rangeText">{startDate} ~ {endDate} 기준입니다. 예약가능 시간은 화면이 복잡해지지 않도록 기본적으로 숨겨져 있습니다.</p>
+          </section>
+
+          <section className="card filterCard">
+            <h2>표시 항목</h2>
+            <div className="filterGrid">
+              {(Object.keys(filters) as ScheduleType[]).map((key) => (
+                <label key={key} className={`filterPill ${filters[key] ? "active" : ""}`}>
+                  <input
+                    type="checkbox"
+                    checked={filters[key]}
+                    onChange={(event) => setFilters((current) => ({ ...current, [key]: event.target.checked }))}
+                  />
+                  {FILTER_LABELS[key]}
+                </label>
+              ))}
+            </div>
+            <p className="muted smallText">
+              현재 표시: 정규 {visibleSummary.regular}건 · 원데이 {visibleSummary.oneday}건 · 외부차단 {visibleSummary.block}건 · 예약가능 {visibleSummary.available}개
+            </p>
+          </section>
+
+          <section className="card blockCard">
+            <h2>외부 차단 일정 추가</h2>
+            <p className="muted">네이버 예약, 상담, 체험수업, 개인 일정처럼 정규수업 예약을 막아야 하는 시간을 등록합니다.</p>
+            <div className="formGrid">
+              <div>
+                <label>제목</label>
+                <input value={blockTitle} onChange={(event) => setBlockTitle(event.target.value)} placeholder="예: 네이버 상담 / 외부 수업 / 개인 일정" />
+              </div>
+              <div>
+                <label>시작</label>
+                <input type="datetime-local" value={blockStartAt} onChange={(event) => setBlockStartAt(event.target.value)} placeholder={localNowInput()} />
+              </div>
+              <div>
+                <label>종료</label>
+                <input type="datetime-local" value={blockEndAt} onChange={(event) => setBlockEndAt(event.target.value)} />
+              </div>
+              <div>
+                <label>메모</label>
+                <input value={blockMemo} onChange={(event) => setBlockMemo(event.target.value)} placeholder="선택 입력" />
+              </div>
+            </div>
+            <button onClick={addBlockedTime} disabled={!password}>외부 차단 등록</button>
+          </section>
+
+          <section className="scheduleList">
+            {groupedItems.length === 0 && (
+              <div className="card emptyCard">
+                <h2>표시할 일정이 없습니다.</h2>
+                <p>조회 기간이나 표시 항목을 조정해 주세요.</p>
+              </div>
+            )}
+
+            {groupedItems.map((group) => (
+              <section className="card dayCard" key={group.dateKey}>
+                <h2>{group.label}</h2>
+                <div className="dayItems">
+                  {group.items.map((item) => {
+                    const hasConflict = conflictItemIds.has(item.id);
+                    return (
+                      <article className={`scheduleItem ${TYPE_CLASS[item.type]} ${hasConflict ? "conflict" : ""}`} key={item.id}>
+                        <div className="timeBox">
+                          <strong>{formatTime(item.start_at)}</strong>
+                          <span>{formatTime(item.end_at)}</span>
+                        </div>
+                        <div className="itemBody">
+                          <div className="itemHeader">
+                            <span className={`badge ${TYPE_CLASS[item.type]}`}>{TYPE_BADGE[item.type]}</span>
+                            {hasConflict && <span className="warningBadge">겹침 확인</span>}
+                          </div>
+                          <h3>{item.title}</h3>
+                          <p>{item.subtitle}</p>
+                          {item.memo && item.type !== "block" && <p className="memo">{item.memo}</p>}
+                          {item.type === "oneday" && item.meta?.price_label && <p className="memo">{String(item.meta.price_label)}</p>}
+                          {item.type === "regular" && (
+                            <button className="secondary compact" onClick={() => openMoveModal(item)}>수업 시간 변경</button>
+                          )}
+                          {item.type === "block" && (
+                            <button className="danger compact" onClick={() => deleteBlockedTime(item)}>차단 삭제</button>
+                          )}
+                        </div>
+                      </article>
+                    );
+                  })}
+                </div>
+              </section>
+            ))}
+          </section>
+        </>
+      )}
+
+
+      {moveTarget && (
+        <div className="modalBackdrop" role="presentation">
+          <section className="modalCard card" role="dialog" aria-modal="true" aria-label="정규수업 시간 변경">
+            <div className="modalHeader">
+              <div>
+                <p className="eyebrow">정규수업 시간 변경</p>
+                <h2>{moveTarget.title.replace("정규수업 · ", "")}</h2>
+              </div>
+              <button className="secondary compact" onClick={closeMoveModal}>닫기</button>
+            </div>
+            <p className="muted smallText">
+              기존 시간: {formatDate(moveTarget.start_at)} {formatTime(moveTarget.start_at)}-{formatTime(moveTarget.end_at)}
+            </p>
+            <div className="dateGrid">
+              <div>
+                <label>변경 시작</label>
+                <input type="datetime-local" value={moveStartAt} onChange={(event) => setMoveStartAt(event.target.value)} />
+              </div>
+              <div>
+                <label>변경 종료</label>
+                <input type="datetime-local" value={moveEndAt} onChange={(event) => setMoveEndAt(event.target.value)} />
+              </div>
+            </div>
+            {moveConflicts.length > 0 && (
+              <div className="conflictBox">
+                <strong>겹치는 일정이 있습니다.</strong>
+                <ul>
+                  {moveConflicts.map((conflict) => <li key={conflict}>{conflict}</li>)}
+                </ul>
+                <p>그래도 변경해야 하는 예외 상황이면 아래 버튼으로 강제 변경할 수 있습니다.</p>
+              </div>
+            )}
+            <div className="modalActions">
+              <button onClick={() => moveRegularBooking(false)} disabled={moveLoading || !password}>
+                {moveLoading ? "변경 중..." : "시간 변경"}
+              </button>
+              {moveConflicts.length > 0 && (
+                <button className="danger" onClick={() => moveRegularBooking(true)} disabled={moveLoading || !password}>
+                  겹쳐도 강제 변경
+                </button>
+              )}
+            </div>
+          </section>
+        </div>
+      )}
+
+      <style jsx>{`
+        .schedulePage {
+          padding-bottom: 48px;
+        }
+        .topLinks {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          gap: 12px;
+          margin-bottom: 12px;
+        }
+        .heroCard h1 {
+          margin-bottom: 8px;
+        }
+        .eyebrow {
+          margin: 0 0 6px;
+          font-size: 13px;
+          font-weight: 700;
+          letter-spacing: 0.08em;
+          color: #8a6b45;
+        }
+        .muted {
+          color: #6f675d;
+          line-height: 1.6;
+        }
+        .smallText {
+          font-size: 13px;
+        }
+        .quickButtons,
+        .filterGrid {
+          display: flex;
+          flex-wrap: wrap;
+          gap: 8px;
+          margin: 12px 0;
+        }
+        .dateGrid,
+        .formGrid {
+          display: grid;
+          grid-template-columns: repeat(2, minmax(0, 1fr));
+          gap: 12px;
+          margin: 12px 0;
+        }
+        .summaryGrid {
+          display: grid;
+          grid-template-columns: repeat(4, minmax(0, 1fr));
+          gap: 10px;
+        }
+        .summaryGrid div {
+          border: 1px solid rgba(90, 70, 50, 0.12);
+          border-radius: 18px;
+          padding: 14px;
+          background: #fffaf3;
+        }
+        .summaryGrid span {
+          display: block;
+          color: #766c61;
+          font-size: 13px;
+          margin-bottom: 6px;
+        }
+        .summaryGrid strong {
+          display: block;
+          font-size: 22px;
+        }
+        .rangeText {
+          margin: 12px 0 0;
+          font-size: 13px;
+          color: #6f675d;
+        }
+        .filterPill {
+          display: inline-flex;
+          align-items: center;
+          gap: 6px;
+          padding: 9px 12px;
+          border-radius: 999px;
+          border: 1px solid rgba(90, 70, 50, 0.16);
+          background: #fff;
+          cursor: pointer;
+          font-size: 14px;
+        }
+        .filterPill.active {
+          background: #2f2a25;
+          color: #fff;
+        }
+        .filterPill input {
+          width: auto;
+          margin: 0;
+        }
+        .dayCard h2 {
+          margin-bottom: 14px;
+        }
+        .dayItems {
+          display: grid;
+          gap: 10px;
+        }
+        .scheduleItem {
+          display: grid;
+          grid-template-columns: 82px minmax(0, 1fr);
+          gap: 12px;
+          padding: 14px;
+          border-radius: 20px;
+          border: 1px solid rgba(90, 70, 50, 0.12);
+          background: #fff;
+        }
+        .scheduleItem.regular {
+          border-left: 6px solid #3f6eb3;
+        }
+        .scheduleItem.oneday {
+          border-left: 6px solid #8b5fbf;
+        }
+        .scheduleItem.block {
+          border-left: 6px solid #7a7a7a;
+          background: #fafafa;
+        }
+        .scheduleItem.available {
+          border-left: 6px solid #5b9d69;
+          background: #fbfff9;
+        }
+        .scheduleItem.conflict {
+          outline: 2px solid #d84949;
+          background: #fff8f8;
+        }
+        .timeBox {
+          display: flex;
+          flex-direction: column;
+          gap: 4px;
+          align-items: flex-start;
+          justify-content: flex-start;
+          color: #2f2a25;
+        }
+        .timeBox strong {
+          font-size: 18px;
+        }
+        .timeBox span {
+          font-size: 13px;
+          color: #756c62;
+        }
+        .itemBody h3 {
+          margin: 6px 0 5px;
+          font-size: 17px;
+          line-height: 1.35;
+        }
+        .itemBody p {
+          margin: 0;
+          color: #625a52;
+          line-height: 1.55;
+        }
+        .itemHeader {
+          display: flex;
+          gap: 6px;
+          flex-wrap: wrap;
+        }
+        .badge,
+        .warningBadge {
+          display: inline-flex;
+          align-items: center;
+          border-radius: 999px;
+          padding: 4px 8px;
+          font-size: 12px;
+          font-weight: 700;
+        }
+        .badge.regular {
+          background: #eaf1ff;
+          color: #24569a;
+        }
+        .badge.oneday {
+          background: #f2e9ff;
+          color: #6f3dac;
+        }
+        .badge.block {
+          background: #eeeeee;
+          color: #555;
+        }
+        .badge.available {
+          background: #edf8ef;
+          color: #3c7b48;
+        }
+        .warningBadge {
+          background: #ffe9e9;
+          color: #ba3030;
+        }
+        .memo {
+          margin-top: 6px !important;
+          font-size: 13px;
+          color: #81776d !important;
+        }
+        .compact {
+          margin-top: 10px;
+          padding: 8px 10px;
+          font-size: 13px;
+        }
+
+        .modalBackdrop {
+          position: fixed;
+          inset: 0;
+          z-index: 50;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          padding: 18px;
+          background: rgba(32, 28, 24, 0.45);
+        }
+        .modalCard {
+          width: min(620px, 100%);
+          max-height: 92vh;
+          overflow: auto;
+          box-shadow: 0 18px 70px rgba(0, 0, 0, 0.22);
+        }
+        .modalHeader {
+          display: flex;
+          align-items: flex-start;
+          justify-content: space-between;
+          gap: 12px;
+          margin-bottom: 10px;
+        }
+        .modalHeader h2 {
+          margin: 0;
+        }
+        .modalActions {
+          display: flex;
+          gap: 8px;
+          flex-wrap: wrap;
+          margin-top: 12px;
+        }
+        .conflictBox {
+          border: 1px solid #f0b5b5;
+          background: #fff7f7;
+          color: #7d2525;
+          border-radius: 16px;
+          padding: 12px 14px;
+          margin-top: 10px;
+          line-height: 1.55;
+        }
+        .conflictBox ul {
+          margin: 8px 0;
+          padding-left: 18px;
+        }
+        @media (max-width: 720px) {
+          .dateGrid,
+          .formGrid,
+          .summaryGrid {
+            grid-template-columns: 1fr;
+          }
+          .scheduleItem {
+            grid-template-columns: 70px minmax(0, 1fr);
+            padding: 12px;
+          }
+          .timeBox strong {
+            font-size: 16px;
+          }
+        }
+      `}</style>
     </main>
   );
 }
-
-const styles: Record<string, CSSProperties> = {
-  page: {
-    minHeight: "100vh",
-    background: "#f7f3ec",
-    padding: "32px 16px",
-    color: "#2f2a25",
-  },
-  card: {
-    maxWidth: 860,
-    margin: "0 auto",
-    background: "#fffaf4",
-    border: "1px solid #eadfce",
-    borderRadius: 24,
-    padding: "28px",
-    boxShadow: "0 16px 40px rgba(50, 38, 25, 0.08)",
-  },
-  header: {
-    marginBottom: 24,
-  },
-  eyebrow: {
-    margin: 0,
-    fontSize: 14,
-    letterSpacing: "0.08em",
-    color: "#8b6f4e",
-    fontWeight: 700,
-  },
-  title: {
-    margin: "8px 0 10px",
-    fontSize: 30,
-    lineHeight: 1.25,
-  },
-  description: {
-    margin: 0,
-    color: "#6f6258",
-    lineHeight: 1.6,
-  },
-  loginBox: {
-    display: "grid",
-    gap: 14,
-  },
-  label: {
-    display: "grid",
-    gap: 8,
-    fontSize: 14,
-    fontWeight: 700,
-  },
-  input: {
-    width: "100%",
-    boxSizing: "border-box",
-    border: "1px solid #decfbb",
-    borderRadius: 14,
-    padding: "14px 15px",
-    fontSize: 16,
-    background: "#fff",
-  },
-  primaryButton: {
-    border: "none",
-    borderRadius: 14,
-    padding: "14px 18px",
-    fontSize: 16,
-    fontWeight: 800,
-    color: "#fff",
-    background: "#5b4636",
-    cursor: "pointer",
-  },
-  secondaryButton: {
-    border: "1px solid #d3c2ad",
-    borderRadius: 14,
-    padding: "12px 16px",
-    fontSize: 15,
-    fontWeight: 700,
-    color: "#4b392d",
-    background: "#fff",
-    cursor: "pointer",
-  },
-  textButton: {
-    border: "none",
-    background: "transparent",
-    color: "#7a644e",
-    fontSize: 14,
-    cursor: "pointer",
-    textDecoration: "underline",
-  },
-  studentBox: {
-    display: "flex",
-    justifyContent: "space-between",
-    gap: 16,
-    alignItems: "center",
-    padding: 16,
-    background: "#f2e8dc",
-    borderRadius: 18,
-    marginBottom: 16,
-  },
-  creditBox: {
-    padding: "10px 12px",
-    background: "#fffaf4",
-    borderRadius: 999,
-    fontSize: 14,
-    fontWeight: 800,
-    whiteSpace: "nowrap",
-  },
-  smallText: {
-    margin: "5px 0 0",
-    color: "#76685c",
-    fontSize: 14,
-    lineHeight: 1.5,
-  },
-  actionRow: {
-    display: "flex",
-    justifyContent: "space-between",
-    alignItems: "center",
-    gap: 12,
-    marginBottom: 18,
-  },
-  emptyBox: {
-    padding: 28,
-    textAlign: "center",
-    color: "#77685c",
-    background: "#fff",
-    border: "1px dashed #dac9b6",
-    borderRadius: 18,
-  },
-  slotArea: {
-    display: "grid",
-    gap: 24,
-  },
-  monthSection: {
-    display: "grid",
-    gap: 14,
-  },
-  monthTitle: {
-    fontSize: 22,
-    margin: "8px 0 0",
-  },
-  dateSection: {
-    padding: 16,
-    background: "#fff",
-    border: "1px solid #eadfce",
-    borderRadius: 18,
-  },
-  dateTitle: {
-    fontSize: 17,
-    margin: "0 0 12px",
-  },
-  slotGrid: {
-    display: "grid",
-    gridTemplateColumns: "repeat(auto-fit, minmax(130px, 1fr))",
-    gap: 10,
-  },
-  slotButton: {
-    border: "1px solid #d8c7b4",
-    borderRadius: 14,
-    padding: "12px 10px",
-    fontSize: 15,
-    fontWeight: 700,
-    background: "#fffaf4",
-    color: "#3f3026",
-    cursor: "pointer",
-  },
-  selectedSlotButton: {
-    background: "#5b4636",
-    color: "#fff",
-    borderColor: "#5b4636",
-  },
-  confirmBox: {
-    position: "sticky",
-    bottom: 16,
-    marginTop: 24,
-    display: "flex",
-    justifyContent: "space-between",
-    alignItems: "center",
-    gap: 16,
-    padding: 16,
-    background: "#efe2d0",
-    border: "1px solid #d5bea2",
-    borderRadius: 20,
-    boxShadow: "0 14px 30px rgba(50, 38, 25, 0.12)",
-  },
-  messageBox: {
-    marginTop: 18,
-    padding: 14,
-    borderRadius: 14,
-    background: "#edf7ee",
-    color: "#245c2b",
-    fontSize: 14,
-    lineHeight: 1.5,
-  },
-  errorBox: {
-    marginTop: 18,
-    padding: 14,
-    borderRadius: 14,
-    background: "#fff0ed",
-    color: "#9b2c18",
-    fontSize: 14,
-    lineHeight: 1.5,
-  },
-};
