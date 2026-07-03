@@ -79,7 +79,7 @@ type Overview = {
   blockedTimes: BlockedTime[];
 };
 
-type AdminTab = "dashboard" | "students" | "history" | "timetable" | "slots" | "blocks" | "bookings" | "oneday";
+type AdminTab = "dashboard" | "schedule" | "students" | "history" | "timetable" | "slots" | "blocks" | "bookings" | "oneday" | "settings";
 
 const STATUS_LABELS: Record<string, string> = {
   booked: "예약 완료",
@@ -91,15 +91,15 @@ const STATUS_LABELS: Record<string, string> = {
 };
 
 const TAB_LABELS: Array<{ id: AdminTab; label: string }> = [
-  { id: "dashboard", label: "한눈에 보기" },
-  { id: "students", label: "수강생 관리" },
-  { id: "history", label: "수강 기록" },
-  { id: "timetable", label: "시간표 만들기" },
-  { id: "slots", label: "예약 가능 시간" },
-  { id: "blocks", label: "외부 예약 차단" },
-  { id: "bookings", label: "정규 예약 달력" },
+  { id: "dashboard", label: "홈" },
+  { id: "schedule", label: "스케줄" },
+  { id: "students", label: "수강생" },
   { id: "oneday", label: "원데이" },
+  { id: "settings", label: "설정" },
 ];
+
+const SCHEDULE_TABS: AdminTab[] = ["schedule", "timetable", "slots", "blocks", "bookings"];
+const STUDENT_TABS: AdminTab[] = ["students", "history"];
 
 function formatDateTime(value: string) {
   return new Intl.DateTimeFormat("ko-KR", {
@@ -913,6 +913,12 @@ export default function AdminPage() {
     window.scrollTo({ top: 0, behavior: "smooth" });
   }
 
+  function isTopMenuActive(tab: AdminTab) {
+    if (tab === "schedule") return SCHEDULE_TABS.includes(activeTab);
+    if (tab === "students") return STUDENT_TABS.includes(activeTab);
+    return activeTab === tab;
+  }
+
   return (
     <main className="container">
       <Link href="/" className="small">← 처음으로</Link>
@@ -932,7 +938,7 @@ export default function AdminPage() {
               {TAB_LABELS.map((tab) => (
                 <button
                   key={tab.id}
-                  className={`tabButton ${activeTab === tab.id ? "active" : ""}`}
+                  className={`tabButton ${isTopMenuActive(tab.id) ? "active" : ""}`}
                   onClick={() => openTab(tab.id)}
                 >
                   {tab.label}
@@ -943,7 +949,7 @@ export default function AdminPage() {
 
           {activeTab === "dashboard" && (
             <section className="card">
-              <h2>한눈에 보기</h2>
+              <h2>홈</h2>
               <div className="statsGrid">
                 <div className="statBox"><span>정규 수강생</span><strong>{overview.students.length}명</strong></div>
                 <div className="statBox"><span>예약 가능 시간</span><strong>{overview.slots.length}개</strong></div>
@@ -964,8 +970,71 @@ export default function AdminPage() {
             </section>
           )}
 
+          {activeTab === "schedule" && (
+            <>
+              <section className="card">
+                <h2>스케줄</h2>
+                <p className="small">정규수업 예약, 원데이 클래스, 외부 차단, 예약 가능 시간을 한 곳에서 확인하고 관리합니다.</p>
+                <div className="statsGrid">
+                  <div className="statBox"><span>정규 예약</span><strong>{activeBookingsCount}건</strong></div>
+                  <div className="statBox"><span>예약 가능 시간</span><strong>{overview.slots.length}개</strong></div>
+                  <div className="statBox"><span>외부 차단</span><strong>{overview.blockedTimes?.length || 0}건</strong></div>
+                  <div className="statBox"><span>원데이 일정</span><strong>{overview.classes.length}개</strong></div>
+                </div>
+              </section>
+
+              <section className="card">
+                <h2>스케줄 관리 메뉴</h2>
+                <p className="small">평소에는 통합 스케줄을 먼저 확인하고, 필요한 작업만 아래 버튼으로 들어가면 됩니다.</p>
+                <div className="adminQuickGrid">
+                  <Link href="/admin/schedule" className="quickCard">
+                    <strong>통합 스케줄</strong>
+                    <span>정규수업·원데이·외부 차단을 한 화면에서 확인</span>
+                  </Link>
+                  <button className="quickCard" onClick={() => openTab("timetable")}>
+                    <strong>시간표 만들기</strong>
+                    <span>기본 시간표와 조율 슬롯 생성</span>
+                  </button>
+                  <button className="quickCard" onClick={() => openTab("slots")}>
+                    <strong>예약 가능 시간</strong>
+                    <span>수강생에게 열릴 수 있는 시간 확인·삭제</span>
+                  </button>
+                  <button className="quickCard" onClick={() => openTab("blocks")}>
+                    <strong>외부 차단</strong>
+                    <span>네이버 예약·상담·개인 일정 차단</span>
+                  </button>
+                  <button className="quickCard" onClick={() => openTab("bookings")}>
+                    <strong>정규 예약 달력</strong>
+                    <span>날짜별 정규수업 예약자 확인</span>
+                  </button>
+                </div>
+              </section>
+
+              <section className="card">
+                <h2>다가오는 정규수업</h2>
+                <div className="list">
+                  {upcomingBookings.length === 0 && <p>다가오는 정규수업 예약이 없습니다.</p>}
+                  {upcomingBookings.map((b) => (
+                    <div className="item" key={b.id}>
+                      <strong>{formatDateTime(b.start_at)} - {formatTime(b.end_at)}</strong>
+                      <p>{b.students?.name || "이름 없음"} / {b.students?.phone_last4 || "번호 없음"} / 상태: {STATUS_LABELS[b.status] || b.status}</p>
+                    </div>
+                  ))}
+                </div>
+              </section>
+            </>
+          )}
+
           {activeTab === "students" && (
             <>
+              <section className="card compactMenuCard">
+                <h2>수강생</h2>
+                <p className="small">수강생 등록, 계정 수정, 수강권 관리는 여기서 처리합니다. 지난 수업 기록은 아래 버튼으로 이동할 수 있습니다.</p>
+                <div className="row">
+                  <button className="secondary compact activeSoft">수강생 관리</button>
+                  <button className="secondary compact" onClick={() => openTab("history")}>수강 기록</button>
+                </div>
+              </section>
               <section className="card">
                 <h2>정규 수강생 등록</h2>
                 <label>이름</label>
@@ -1045,6 +1114,14 @@ export default function AdminPage() {
 
           {activeTab === "history" && (
             <>
+              <section className="card compactMenuCard">
+                <h2>수강생</h2>
+                <p className="small">수강생별 지난 수업 내용과 자동 저장된 예약 기록을 확인합니다.</p>
+                <div className="row">
+                  <button className="secondary compact" onClick={() => openTab("students")}>수강생 관리</button>
+                  <button className="secondary compact activeSoft">수강 기록</button>
+                </div>
+              </section>
               <section className="card">
                 <h2>수강생별 과거 수강 기록 입력</h2>
                 <p className="small">예약 시스템을 쓰기 전에 들었던 수업이나 별도로 진행한 수업을 직접 기록할 수 있습니다. 입력한 내용은 수강생의 ‘내 수강 기록’ 화면에도 표시됩니다.</p>
@@ -1110,6 +1187,10 @@ export default function AdminPage() {
 
           {activeTab === "timetable" && (
             <>
+              <section className="card compactMenuCard">
+                <h2>스케줄 &gt; 시간표 만들기</h2>
+                <button className="secondary compact" onClick={() => openTab("schedule")}>← 스케줄 메뉴로</button>
+              </section>
               <section className="card">
                 <h2>기본 타임테이블 자동 생성</h2>
                 <p className="small">월-금 14:00-20:30, 토 10:00-16:30 사이를 30분 단위로 엽니다. 2026년 6월 30일까지는 80분 수업 + 10분 휴식, 2026년 7월 1일부터는 수강생별 90분/120분 수업 + 30분 휴식으로 자동 계산됩니다. 이미 있는 시간은 중복 등록되지 않습니다.</p>
@@ -1150,7 +1231,10 @@ export default function AdminPage() {
 
           {activeTab === "slots" && (
             <section className="card">
-              <h2>예약 가능 시간 목록</h2>
+              <div className="row between">
+                <h2>예약 가능 시간 목록</h2>
+                <button className="secondary compact" onClick={() => openTab("schedule")}>← 스케줄 메뉴로</button>
+              </div>
               <p className="small">수강생 화면에 열릴 수 있는 시간 목록입니다. 이미 예약과 겹치거나 수업 6시간 이내인 시간은 수강생 화면에서 자동으로 제외됩니다. 예약이 연결되지 않은 시간은 삭제할 수 있습니다.</p>
               <div className="list">
                 {overview.slots.length === 0 && <p>등록된 예약 가능 시간이 없습니다.</p>}
@@ -1181,6 +1265,10 @@ export default function AdminPage() {
 
           {activeTab === "blocks" && (
             <>
+              <section className="card compactMenuCard">
+                <h2>스케줄 &gt; 외부 차단</h2>
+                <button className="secondary compact" onClick={() => openTab("schedule")}>← 스케줄 메뉴로</button>
+              </section>
               <section className="card">
                 <h2>외부 예약 시간 차단</h2>
                 <p className="small">네이버 예약으로 들어온 체험수업, 상담, 신규수강생 수업, 개인 일정 등을 1분 단위로 막아둘 수 있습니다. 차단된 시간과 겹치는 정규수업 예약 슬롯은 수강생 화면에서 자동으로 숨겨집니다.</p>
@@ -1219,7 +1307,10 @@ export default function AdminPage() {
 
           {activeTab === "bookings" && (
             <section className="card">
-              <h2>정규수업 예약 달력</h2>
+              <div className="row between">
+                <h2>정규수업 예약 달력</h2>
+                <button className="secondary compact" onClick={() => openTab("schedule")}>← 스케줄 메뉴로</button>
+              </div>
               <p className="small">예약된 정규수업을 날짜별로 확인할 수 있습니다. 정상 취소된 예약은 숨기고, 수강권이 차감된 취소건만 표시합니다.</p>
               <div className="calendarHeader">
                 <button className="secondary compact" onClick={() => moveBookingMonth(-1)}>이전 달</button>
@@ -1257,6 +1348,27 @@ export default function AdminPage() {
                       {b.memo && <p className="small">메모: {b.memo}</p>}
                     </div>
                   ))}
+                </div>
+              </div>
+            </section>
+          )}
+
+          {activeTab === "settings" && (
+            <section className="card">
+              <h2>설정</h2>
+              <p className="small">자주 바꾸는 운영 규칙을 한 곳에 모아두는 자리입니다. 현재 버전에서는 아래 항목을 확인용으로 정리해 두고, 실제 변경은 기존 관리 기능에서 처리합니다.</p>
+              <div className="list">
+                <div className="item">
+                  <strong>예약/취소 규칙</strong>
+                  <p className="small">수업 6시간 전까지 예약·취소 가능, 이후 취소 시 수강권 차감.</p>
+                </div>
+                <div className="item">
+                  <strong>정규수업 운영</strong>
+                  <p className="small">수강생별 90분/120분 수업 유형을 수강생 관리에서 지정합니다.</p>
+                </div>
+                <div className="item">
+                  <strong>스케줄 관리</strong>
+                  <p className="small">예약 가능 시간, 외부 차단, 정규 예약 달력은 스케줄 메뉴 안으로 묶었습니다.</p>
                 </div>
               </div>
             </section>
@@ -1396,6 +1508,51 @@ export default function AdminPage() {
           )}
         </>
       )}
+      <style jsx>{`
+        .adminQuickGrid {
+          display: grid;
+          grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+          gap: 12px;
+          margin-top: 16px;
+        }
+        .quickCard {
+          width: 100%;
+          min-height: 92px;
+          padding: 16px;
+          border: 1px solid #e6ded3;
+          border-radius: 18px;
+          background: #fffdf9;
+          color: inherit;
+          text-align: left;
+          text-decoration: none;
+          cursor: pointer;
+          display: flex;
+          flex-direction: column;
+          justify-content: center;
+          gap: 8px;
+          font: inherit;
+        }
+        .quickCard:hover {
+          border-color: #c7a77a;
+          background: #fff8ee;
+        }
+        .quickCard strong {
+          font-size: 16px;
+        }
+        .quickCard span {
+          font-size: 13px;
+          color: #746a60;
+          line-height: 1.45;
+        }
+        .compactMenuCard .row {
+          margin-top: 12px;
+        }
+        .activeSoft {
+          border-color: #7d5a36 !important;
+          background: #7d5a36 !important;
+          color: white !important;
+        }
+      `}</style>
     </main>
   );
 }
