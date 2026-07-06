@@ -1,0 +1,1357 @@
+:root {
+  --bg: #faf7f1;
+  --card: #ffffff;
+  --text: #222222;
+  --muted: #76706a;
+  --line: #ead8dc;
+  --accent: #7A2638;
+  --accent-dark: #541B2B;
+  --danger: #a33b34;
+}
+* { box-sizing: border-box; }
+body {
+  margin: 0;
+  min-height: 100vh;
+  background-color: #fbf1e4;
+  background-image: linear-gradient(rgba(251, 241, 228, 0.1), rgba(251, 241, 228, 0.1)), url("/images/reading-background.png");
+  background-size: cover;
+  background-position: right bottom;
+  background-repeat: no-repeat;
+  background-attachment: fixed;
+  color: var(--text);
+  font-family: -apple-system, BlinkMacSystemFont, "Apple SD Gothic Neo", "Noto Sans KR", "Segoe UI", sans-serif;
+}
+a { color: inherit; text-decoration: none; }
+.container { max-width: 860px; margin: 0 auto; padding: 44px 20px 80px; }
+.card {
+  background: rgba(255, 255, 255, 0.9);
+  border: 1px solid var(--line);
+  border-radius: 22px;
+  padding: 26px;
+  box-shadow: 0 12px 28px rgba(70, 50, 35, 0.07);
+  margin-bottom: 18px;
+  backdrop-filter: blur(4px);
+}
+h1 { font-size: 32px; margin: 0 0 12px; letter-spacing: -0.04em; }
+h2 { font-size: 22px; margin: 0 0 14px; letter-spacing: -0.03em; }
+h3 { margin: 18px 0 10px; }
+p { line-height: 1.7; color: var(--muted); }
+label { display: block; font-weight: 700; margin: 14px 0 6px; }
+input, textarea, select {
+  width: 100%;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  padding: 13px 14px;
+  font-size: 16px;
+  background: #fffdfb;
+}
+button, .button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 0;
+  border-radius: 16px;
+  padding: 13px 18px;
+  background: var(--accent);
+  color: white;
+  font-weight: 800;
+  font-size: 16px;
+  cursor: pointer;
+  margin-top: 12px;
+}
+button:hover, .button:hover { background: var(--accent-dark); }
+button.secondary, .button.secondary { background: #F3E4E8; color: #541B2B; }
+button.danger { background: var(--danger); }
+.grid { display: grid; gap: 14px; }
+.menu { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 14px; margin-top: 20px; }
+.small { font-size: 14px; color: var(--muted); }
+.error { color: var(--danger); font-weight: 700; }
+.success { color: #25704a; font-weight: 700; }
+.list { display: grid; gap: 10px; margin-top: 14px; }
+.item { border: 1px solid var(--line); background: #fffdfb; border-radius: 16px; padding: 14px; }
+.row { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
+hr { border: 0; border-top: 1px solid var(--line); margin: 22px 0; }
+
+.calendarHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+.calendarHeader h2 { margin: 0; text-align: center; }
+button.compact, .button.compact { padding: 10px 13px; font-size: 14px; margin-top: 0; }
+.calendarWeekdays {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 6px;
+  margin-bottom: 8px;
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 800;
+  text-align: center;
+}
+.calendarGrid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 6px;
+}
+.calendarDay {
+  min-height: 74px;
+  width: 100%;
+  margin: 0;
+  padding: 10px 8px;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: #fffdfb;
+  color: var(--text);
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: space-between;
+  font-weight: 800;
+}
+.calendarDay:disabled {
+  cursor: default;
+  background: #f3eee8;
+  color: #c0b6ad;
+  opacity: 0.7;
+}
+.calendarDay.hasSlots {
+  background: #f4eadf;
+  color: var(--accent-dark);
+}
+.calendarDay.selected {
+  outline: 3px solid rgba(107, 79, 59, 0.25);
+  border-color: var(--accent);
+}
+.dayNumber { font-size: 16px; }
+.slotBadge {
+  display: inline-flex;
+  border-radius: 999px;
+  padding: 4px 7px;
+  font-size: 12px;
+  line-height: 1;
+  white-space: nowrap;
+}
+.slotBadge.available {
+  background: var(--accent);
+  color: white;
+}
+.slotBadge.closed {
+  background: #e7ddd5;
+  color: #8c7b70;
+}
+.selectedSlots { margin-top: 22px; }
+.timeGrid { display: grid; gap: 10px; }
+.timeButton {
+  width: 100%;
+  justify-content: center;
+}
+@media (max-width: 560px) {
+  .calendarDay { min-height: 58px; padding: 8px 6px; border-radius: 12px; }
+  .slotBadge { font-size: 11px; padding: 3px 6px; }
+  .calendarHeader { align-items: stretch; }
+  .calendarHeader h2 { font-size: 19px; }
+  button.compact, .button.compact { font-size: 13px; padding: 9px 10px; }
+}
+button:disabled, .button:disabled {
+  background: #d7cec6;
+  color: #8d8177;
+  cursor: not-allowed;
+}
+.row.between { justify-content: space-between; align-items: flex-start; }
+.creditsRow { margin-top: 12px; }
+.inlineLabel { margin: 0; width: auto; }
+.smallInput { max-width: 110px; }
+
+.adminTabsCard { position: sticky; top: 0; z-index: 5; padding: 16px; }
+.adminTabs {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.tabButton {
+  margin-top: 0;
+  padding: 11px 14px;
+  border-radius: 999px;
+  background: #F3E4E8;
+  color: #541B2B;
+  font-size: 14px;
+}
+.tabButton.active {
+  background: var(--accent);
+  color: white;
+}
+.statsGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 12px;
+  margin: 18px 0 20px;
+}
+.statBox {
+  border: 1px solid var(--line);
+  background: #fffdfb;
+  border-radius: 18px;
+  padding: 16px;
+}
+.statBox span {
+  display: block;
+  color: var(--muted);
+  font-size: 14px;
+  margin-bottom: 8px;
+}
+.statBox strong {
+  font-size: 26px;
+  letter-spacing: -0.03em;
+}
+@media (max-width: 560px) {
+  .adminTabsCard { position: static; }
+  .tabButton { flex: 1 1 calc(50% - 8px); }
+}
+
+@media (max-width: 760px) {
+  body {
+    background-size: auto 100%;
+    background-position: right bottom;
+  }
+  .card {
+    background: rgba(255, 255, 255, 0.94);
+  }
+}
+
+.itemActions {
+  justify-content: flex-end;
+}
+.editPanel {
+  border-radius: 14px;
+  padding: 4px 2px 2px;
+}
+.checkboxLabel {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  font-weight: 700;
+}
+.checkboxLabel input {
+  width: 18px;
+  height: 18px;
+  margin: 0;
+}
+@media (max-width: 560px) {
+  .itemActions {
+    width: 100%;
+    justify-content: flex-start;
+  }
+  .itemActions button {
+    flex: 1 1 auto;
+  }
+}
+
+.installCard {
+  margin-top: 22px;
+  padding: 16px;
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  background: rgba(255, 253, 251, 0.92);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+.installTitle {
+  display: block;
+  margin-bottom: 5px;
+  color: var(--accent-dark);
+  font-size: 16px;
+}
+.installText {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.6;
+}
+.installActions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 8px;
+  flex: 0 0 auto;
+}
+.installActions button {
+  margin-top: 0;
+}
+@media (max-width: 620px) {
+  .installCard {
+    align-items: stretch;
+    flex-direction: column;
+  }
+  .installActions {
+    justify-content: stretch;
+  }
+  .installActions button {
+    flex: 1 1 auto;
+  }
+}
+
+.bookingSectionTabs {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  margin: 16px 0 4px;
+}
+.bookingSectionTab {
+  margin-top: 0;
+  padding: 12px 14px;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: #f4ece4;
+  color: var(--accent-dark);
+  gap: 7px;
+}
+.bookingSectionTab:hover {
+  background: #ead8dc;
+}
+.bookingSectionTab.active {
+  background: var(--accent);
+  color: #fff;
+  border-color: var(--accent);
+}
+.bookingSectionTab span {
+  display: inline-flex;
+  min-width: 24px;
+  height: 24px;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  padding: 0 7px;
+  background: rgba(255, 255, 255, 0.85);
+  color: var(--accent-dark);
+  font-size: 13px;
+}
+.bookingSectionList {
+  margin-top: 14px;
+}
+.bookingItem {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 14px;
+}
+.bookingItem.completed {
+  background: #f7f3ef;
+  border-color: #e6ddd5;
+}
+.bookingItem.completed strong {
+  color: #665d55;
+}
+.bookingItem p {
+  margin: 6px 0 0;
+}
+.bookingItem button {
+  flex: 0 0 auto;
+  margin-top: 0;
+}
+@media (max-width: 560px) {
+  .bookingSectionTabs {
+    grid-template-columns: 1fr;
+  }
+  .bookingItem {
+    align-items: stretch;
+    flex-direction: column;
+  }
+  .bookingItem button {
+    width: 100%;
+  }
+}
+
+/* One-day class readable card UI */
+.onedayPage { max-width: 960px; }
+.onedayHero {
+  overflow: hidden;
+  position: relative;
+  background: linear-gradient(135deg, rgba(255,255,255,.95), rgba(255,248,236,.92));
+}
+.onedayHero::after {
+  content: "";
+  position: absolute;
+  width: 180px;
+  height: 180px;
+  right: -58px;
+  top: -68px;
+  border-radius: 999px;
+  background: rgba(229, 186, 88, 0.16);
+}
+.onedayHeroBadge, .sectionEyebrow, .onedayEyebrow, .detailLabel {
+  display: inline-flex;
+  align-items: center;
+  color: #315f4b;
+  font-size: 12px;
+  font-weight: 900;
+  letter-spacing: .08em;
+}
+.onedayHeroBadge {
+  border: 1px solid #d7e5db;
+  border-radius: 999px;
+  padding: 7px 11px;
+  background: #f2f8f4;
+  letter-spacing: 0;
+}
+.onedayHero h1 { margin-top: 12px; }
+.onedayNoticeRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 16px;
+}
+.onedayNoticeRow span {
+  display: inline-flex;
+  padding: 7px 10px;
+  border-radius: 999px;
+  background: #f3ebe3;
+  color: var(--accent-dark);
+  font-size: 13px;
+  font-weight: 800;
+}
+.onedaySectionHeading {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 18px;
+  margin-bottom: 18px;
+}
+.onedaySectionHeading h2 { margin-top: 6px; margin-bottom: 0; }
+.onedaySectionHeading p { max-width: 420px; margin: 0; text-align: right; }
+.onedayClassGrid { display: grid; gap: 18px; }
+.onedayClassCard {
+  overflow: hidden;
+  border: 1px solid #e8d6da;
+  border-radius: 22px;
+  background: rgba(255, 253, 249, .98);
+  box-shadow: 0 9px 24px rgba(70, 50, 35, .06);
+}
+.onedayClassCard.expanded { border-color: #cfaeb8; }
+.onedayClassSummary { padding: 22px; }
+.onedayTitleBlock h3 {
+  margin: 8px 0 18px;
+  color: #26372f;
+  font-size: 25px;
+  line-height: 1.35;
+  letter-spacing: -.035em;
+}
+.onedayMetaGrid {
+  display: grid;
+  grid-template-columns: 1.6fr .8fr .8fr;
+  gap: 10px;
+}
+.onedayMetaItem {
+  min-width: 0;
+  padding: 12px 13px;
+  border-radius: 14px;
+  background: #f7f1ea;
+}
+.onedayMetaItem span {
+  display: block;
+  margin-bottom: 5px;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 800;
+}
+.onedayMetaItem strong {
+  display: block;
+  color: #3d352f;
+  font-size: 14px;
+  line-height: 1.45;
+}
+.soldOutText { color: var(--danger) !important; }
+.onedayCardActions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 16px;
+}
+.onedayDetails {
+  border-top: 1px solid #ead8dc;
+  background: #fff;
+}
+.onedayDetailSection {
+  padding: 22px;
+  border-bottom: 1px solid #f0e7df;
+}
+.onedayDetailSection p { margin: 9px 0 0; white-space: pre-line; }
+.questionSection {
+  background: linear-gradient(135deg, #f1f7f2, #fbf6ea);
+}
+.questionSection strong {
+  display: block;
+  max-width: 720px;
+  margin-top: 10px;
+  color: #264d3c;
+  font-size: 20px;
+  line-height: 1.55;
+  letter-spacing: -.025em;
+}
+.processList {
+  display: grid;
+  gap: 8px;
+  margin: 11px 0 0;
+  padding: 0;
+  list-style: none;
+}
+.processList li {
+  position: relative;
+  padding-left: 20px;
+  color: var(--muted);
+  line-height: 1.65;
+}
+.processList li::before {
+  content: "✓";
+  position: absolute;
+  left: 0;
+  color: #42745c;
+  font-weight: 900;
+}
+.onedayPaymentBox {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+  margin: 20px 22px;
+  padding: 18px;
+  border: 1px solid #ead6a7;
+  border-radius: 17px;
+  background: #fff8e7;
+}
+.onedayPaymentBox p { margin: 7px 0; }
+.onedayPaymentBox strong { color: #453825; }
+.onedayStickyAction {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 16px;
+  padding: 0 22px 22px;
+}
+.onedayStickyAction > strong { color: var(--accent-dark); font-size: 20px; }
+.onedayStickyAction button { margin-top: 0; }
+.applicationPaymentNote {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px 14px;
+  margin-top: 18px;
+  padding: 15px;
+  border-radius: 15px;
+  background: #fff8e7;
+  color: #5c4a31;
+}
+.applicationPaymentNote span { font-size: 14px; }
+.applicationPaymentNote button { margin: 0 0 0 auto; }
+
+@media (max-width: 680px) {
+  .onedaySectionHeading { align-items: flex-start; flex-direction: column; }
+  .onedaySectionHeading p { text-align: left; }
+  .onedayMetaGrid { grid-template-columns: 1fr 1fr; }
+  .onedayMetaItem:first-child { grid-column: 1 / -1; }
+  .onedayTitleBlock h3 { font-size: 22px; }
+  .onedayCardActions { display: grid; grid-template-columns: 1fr 1fr; }
+  .onedayCardActions button { width: 100%; }
+  .onedayPaymentBox { align-items: stretch; flex-direction: column; }
+  .onedayPaymentBox button { width: 100%; }
+  .onedayStickyAction {
+    position: sticky;
+    bottom: 0;
+    z-index: 2;
+    justify-content: space-between;
+    padding: 14px 18px;
+    background: rgba(255, 255, 255, .96);
+    border-top: 1px solid #ead8dc;
+    backdrop-filter: blur(8px);
+  }
+  .onedayStickyAction button { padding: 12px 14px; font-size: 14px; }
+  .applicationPaymentNote { align-items: stretch; flex-direction: column; }
+  .applicationPaymentNote button { width: 100%; margin-left: 0; }
+}
+
+.monthGroup {
+  display: grid;
+  gap: 10px;
+  padding: 14px;
+  border: 1px solid #ead8dc;
+  border-radius: 18px;
+  background: rgba(255, 251, 245, .72);
+}
+.monthGroup h3 {
+  margin: 0;
+  color: var(--accent-dark);
+  font-size: 17px;
+}
+.compactList {
+  gap: 8px;
+}
+
+.checkboxRow {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  margin: 12px 0 4px;
+  padding: 10px 12px;
+  border: 1px solid #ead8dc;
+  border-radius: 14px;
+  background: rgba(255, 251, 245, .7);
+  color: #4f4338;
+  font-size: 14px;
+  font-weight: 700;
+}
+.checkboxRow input {
+  width: auto;
+  margin: 0;
+  accent-color: var(--accent);
+}
+.inlineActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 12px 0;
+}
+.inlineActions button {
+  margin-top: 0;
+}
+@media (max-width: 680px) {
+  .inlineActions { flex-direction: column; }
+  .inlineActions button { width: 100%; }
+}
+
+.smallActionRow {
+  margin-top: 10px;
+  gap: 8px;
+}
+
+.timeButtonSub {
+  display: block;
+  margin-top: 4px;
+  font-size: 12px;
+  opacity: 0.78;
+  font-weight: 500;
+}
+
+.noticeBox {
+  display: grid;
+  gap: 6px;
+  margin: 14px 0 4px;
+  padding: 14px 16px;
+  border: 1px solid #ead8dc;
+  border-radius: 16px;
+  background: rgba(255, 251, 245, .82);
+  color: #4f4338;
+}
+.noticeBox p {
+  margin: 0;
+  line-height: 1.6;
+}
+
+.benefitSummary {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 2px 0 8px;
+}
+.benefitPill {
+  display: inline-flex;
+  align-items: center;
+  padding: 7px 10px;
+  border: 1px solid #ead8dc;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, .7);
+  color: #5b4a3d;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.paymentNotice {
+  display: inline-flex;
+  align-items: center;
+  margin: 6px 0 8px;
+  padding: 8px 11px;
+  border-radius: 999px;
+  background: #fff4dc;
+  color: #8a5a12;
+  font-size: 13px;
+  font-weight: 800;
+}
+
+/* 수강생 앱형 하단 메뉴 */
+.appContainer {
+  padding-bottom: 112px;
+}
+.heroCard {
+  background: linear-gradient(135deg, rgba(107, 79, 59, 0.94), rgba(77, 56, 41, 0.88));
+  color: #fff;
+  border-radius: 28px;
+  padding: 30px 26px;
+  margin-bottom: 18px;
+  box-shadow: 0 16px 34px rgba(70, 50, 35, 0.16);
+}
+.heroCard h1,
+.heroCard p {
+  color: #fff;
+}
+.heroCard .eyebrow {
+  display: inline-flex;
+  border-radius: 999px;
+  padding: 6px 10px;
+  background: rgba(255, 255, 255, 0.18);
+  font-size: 13px;
+  font-weight: 800;
+  margin: 0 0 12px;
+}
+.sectionTitleRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+.sectionTitleRow h2 { margin-bottom: 0; }
+.textLink {
+  color: var(--muted);
+  font-weight: 800;
+  font-size: 14px;
+}
+.appMenu .button {
+  min-height: 64px;
+  border-radius: 20px;
+}
+.miniScheduleItem {
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  padding: 14px;
+  background: #fffdfb;
+}
+.miniScheduleItem span,
+.scheduleKind {
+  display: inline-flex;
+  border-radius: 999px;
+  padding: 4px 9px;
+  background: #f2e7dc;
+  color: var(--accent-dark);
+  font-size: 12px;
+  font-weight: 900;
+  margin-bottom: 8px;
+}
+.miniScheduleItem strong {
+  display: block;
+  margin-bottom: 2px;
+}
+.miniScheduleItem p { margin: 0; }
+.bottomNav {
+  position: fixed;
+  left: 50%;
+  bottom: 0;
+  transform: translateX(-50%);
+  width: min(860px, 100%);
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 2px;
+  padding: 10px 10px calc(10px + env(safe-area-inset-bottom));
+  background: rgba(255, 253, 251, 0.96);
+  border-top: 1px solid var(--line);
+  box-shadow: 0 -10px 28px rgba(70, 50, 35, 0.09);
+  backdrop-filter: blur(10px);
+  z-index: 30;
+}
+.bottomNavItem {
+  min-height: 58px;
+  border-radius: 18px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  color: #8b8178;
+  font-size: 12px;
+  font-weight: 900;
+}
+.bottomNavItem.active {
+  background: #f3e7dc;
+  color: var(--accent-dark);
+}
+.bottomNavIcon {
+  width: 26px;
+  height: 26px;
+  border-radius: 10px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 20px;
+  line-height: 1;
+}
+.bottomNavItem.active .bottomNavIcon {
+  background: var(--accent);
+  color: #fff;
+}
+.profileGrid {
+  display: grid;
+  gap: 10px;
+}
+.profileLine {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 14px 0;
+  border-bottom: 1px solid var(--line);
+}
+.profileLine span {
+  color: var(--muted);
+  font-weight: 800;
+}
+.profileActions {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-top: 10px;
+}
+.scheduleMonth + .scheduleMonth {
+  margin-top: 26px;
+  padding-top: 22px;
+  border-top: 1px solid var(--line);
+}
+.scheduleItem {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  border: 1px solid var(--line);
+  background: #fffdfb;
+  border-radius: 18px;
+  padding: 14px;
+}
+.scheduleItem strong { display: block; }
+.scheduleItem p { margin: 4px 0 0; }
+.scheduleItem em {
+  flex: 0 0 auto;
+  border-radius: 999px;
+  padding: 6px 9px;
+  background: #f7efe7;
+  color: var(--accent-dark);
+  font-size: 12px;
+  font-style: normal;
+  font-weight: 900;
+}
+@media (max-width: 560px) {
+  .container { padding-top: 28px; }
+  .appContainer { padding-bottom: 104px; }
+  .heroCard { border-radius: 24px; padding: 24px 20px; }
+  .bottomNav { padding-left: 6px; padding-right: 6px; }
+  .bottomNavItem { min-height: 56px; font-size: 11px; border-radius: 15px; }
+  .bottomNavIcon { font-size: 18px; width: 24px; height: 24px; }
+  .scheduleItem { flex-direction: column; }
+  .profileActions .button,
+  .profileActions button { width: 100%; }
+}
+
+/* 문장학교 브랜딩 UI 리프레시 */
+:root {
+  --bg: #fbf2e6;
+  --paper: #fffaf3;
+  --card: rgba(255, 253, 248, 0.94);
+  --text: #2a2520;
+  --muted: #7f746a;
+  --line: #ead8dc;
+  --accent: #7A2638;
+  --accent-dark: #541B2B;
+  --accent-soft: #F3E4E8;
+  --sage: #849a72;
+  --sage-dark: #667957;
+  --cream: #f6efe7;
+  --danger: #a33b34;
+}
+
+body {
+  background-color: var(--bg);
+  background-image:
+    radial-gradient(circle at 8% 18%, rgba(132, 154, 114, 0.16), transparent 22%),
+    radial-gradient(circle at 82% 12%, rgba(122, 38, 56, 0.12), transparent 24%),
+    linear-gradient(rgba(251, 242, 230, 0.64), rgba(251, 242, 230, 0.82)),
+    url("/images/reading-background.png");
+  background-size: auto, auto, auto, cover;
+  background-position: left top, right top, center, right bottom;
+  font-family: "Pretendard", "Noto Sans KR", -apple-system, BlinkMacSystemFont, "Apple SD Gothic Neo", "Segoe UI", sans-serif;
+  letter-spacing: -0.025em;
+}
+
+.container {
+  padding: 30px 20px 92px;
+}
+
+.appContainer {
+  max-width: 460px;
+  min-height: 100vh;
+  padding-bottom: 112px;
+}
+
+.appHeader {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  min-height: 44px;
+  margin-bottom: 16px;
+  color: #1f1c19;
+}
+.appHeader strong {
+  font-size: 17px;
+  font-weight: 900;
+  letter-spacing: -0.04em;
+}
+.appHeader span {
+  position: absolute;
+  right: 2px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--accent-dark);
+  font-size: 20px;
+}
+
+.card {
+  background: var(--card);
+  border: 1px solid rgba(234, 222, 210, 0.92);
+  border-radius: 28px;
+  padding: 24px;
+  box-shadow: 0 14px 34px rgba(84, 27, 43, 0.09);
+  backdrop-filter: blur(8px);
+}
+
+h1 {
+  color: var(--text);
+  font-size: 30px;
+  font-weight: 950;
+  line-height: 1.22;
+  letter-spacing: -0.065em;
+}
+h2 {
+  color: var(--text);
+  font-size: 23px;
+  font-weight: 950;
+  letter-spacing: -0.055em;
+}
+h3 { color: var(--text); }
+p { color: var(--muted); }
+
+input, textarea, select {
+  border-color: #e8d6da;
+  background: rgba(255, 253, 249, 0.96);
+  border-radius: 18px;
+}
+
+button, .button {
+  min-height: 54px;
+  border-radius: 20px;
+  background: var(--accent);
+  color: #fffaf4;
+  font-weight: 950;
+  box-shadow: 0 10px 20px rgba(84, 27, 43, 0.12);
+}
+button:hover, .button:hover { background: var(--accent-dark); }
+button.secondary, .button.secondary {
+  background: var(--accent-soft);
+  color: #541B2B;
+  box-shadow: none;
+}
+button.compact, .button.compact {
+  min-height: auto;
+  border-radius: 999px;
+  padding: 9px 13px;
+}
+
+.brandHero {
+  position: relative;
+  overflow: hidden;
+  min-height: 214px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  background:
+    radial-gradient(circle at 80% 82%, rgba(255, 255, 255, 0.13), transparent 24%),
+    linear-gradient(135deg, #7A2638, #541B2B);
+  border: 0;
+  border-radius: 30px;
+  padding: 30px 26px;
+  margin-bottom: 22px;
+  box-shadow: 0 18px 36px rgba(84, 27, 43, 0.2);
+}
+.brandHero::after {
+  content: "〰";
+  position: absolute;
+  right: 22px;
+  bottom: 16px;
+  color: rgba(255, 250, 244, 0.46);
+  font-size: 48px;
+  transform: rotate(-14deg);
+}
+.heroCard h1 {
+  color: #fffaf4;
+  font-size: 33px;
+  letter-spacing: -0.075em;
+  line-height: 1.18;
+}
+.heroCard p {
+  color: rgba(255, 250, 244, 0.92);
+  font-size: 18px;
+  font-weight: 900;
+}
+.heroCard .eyebrow {
+  align-self: flex-start;
+  padding: 8px 13px;
+  background: rgba(255, 250, 244, 0.18);
+  color: #fffaf4;
+  font-size: 13px;
+  font-weight: 900;
+}
+
+.homeCard {
+  margin-bottom: 18px;
+}
+.sectionTitleRow h2 { margin: 0; }
+.textLink {
+  color: #8b8178;
+  font-size: 14px;
+  font-weight: 900;
+}
+
+.miniScheduleItem {
+  padding: 18px;
+  border-radius: 22px;
+  border: 1px solid #ead8dc;
+  background: rgba(255, 253, 249, 0.98);
+  box-shadow: inset 0 0 0 1px rgba(255,255,255,0.45);
+}
+.miniScheduleItem span,
+.scheduleKind {
+  background: #efe3d7;
+  color: #6E2A3A;
+  padding: 6px 10px;
+  margin-bottom: 10px;
+}
+.miniScheduleItem strong {
+  font-size: 19px;
+  font-weight: 950;
+  color: var(--text);
+}
+.miniScheduleItem p {
+  color: #776d63;
+  font-weight: 800;
+}
+
+.appMenu {
+  grid-template-columns: 1fr;
+  gap: 14px;
+}
+.appMenu .button {
+  justify-content: space-between;
+  min-height: 68px;
+  padding: 18px 22px;
+  border-radius: 23px;
+  font-size: 18px;
+}
+.appMenu .button::after {
+  content: "›";
+  font-size: 28px;
+  line-height: 1;
+  opacity: 0.9;
+}
+
+.bookingHero {
+  position: relative;
+  overflow: hidden;
+}
+.bookingHero::after {
+  content: "✽";
+  position: absolute;
+  right: 28px;
+  top: 30px;
+  color: rgba(132, 154, 114, 0.48);
+  font-size: 34px;
+}
+.pageKicker {
+  display: inline-flex;
+  margin: 0 0 10px;
+  padding: 7px 11px;
+  border-radius: 999px;
+  background: #F3E4E8;
+  color: #6E2A3A;
+  font-size: 13px;
+  font-weight: 950;
+}
+.bookingChoiceGrid {
+  display: grid;
+  gap: 16px;
+  margin: 18px 0;
+}
+.bookingChoiceCard {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  gap: 16px;
+  align-items: center;
+  min-height: 112px;
+  padding: 22px;
+  border-radius: 26px;
+  box-shadow: 0 14px 30px rgba(84, 27, 43, 0.1);
+}
+.bookingChoiceCard.primary {
+  background: linear-gradient(135deg, #7A2638, #541B2B);
+  color: #fffaf4;
+}
+.bookingChoiceCard.soft {
+  background: #F3E4E8;
+  color: #541B2B;
+}
+.bookingChoiceCard strong {
+  display: block;
+  margin-bottom: 5px;
+  font-size: 19px;
+  font-weight: 950;
+}
+.bookingChoiceCard p {
+  margin: 0;
+  line-height: 1.45;
+  color: inherit;
+  opacity: 0.75;
+  font-size: 14px;
+}
+.bookingChoiceCard em {
+  font-style: normal;
+  font-size: 28px;
+  opacity: 0.8;
+}
+.choiceIcon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 46px;
+  height: 46px;
+  border-radius: 18px;
+  background: rgba(255, 250, 244, 0.16);
+  font-size: 24px;
+}
+.bookingChoiceCard.soft .choiceIcon {
+  background: rgba(122, 38, 56, 0.10);
+}
+.compactCalendarCard p {
+  margin: 5px 0;
+}
+
+.installCard {
+  border-radius: 24px;
+  background: rgba(255, 253, 248, 0.94);
+  box-shadow: 0 14px 34px rgba(84, 27, 43, 0.08);
+}
+
+.bottomNav {
+  width: min(460px, 100%);
+  padding: 10px 12px calc(12px + env(safe-area-inset-bottom));
+  border-top: 1px solid rgba(234, 222, 210, 0.9);
+  background: rgba(255, 251, 245, 0.96);
+  box-shadow: 0 -10px 28px rgba(84, 27, 43, 0.1);
+}
+.bottomNavItem {
+  min-height: 64px;
+  border-radius: 21px;
+  color: #8c8278;
+  font-size: 12px;
+  font-weight: 950;
+}
+.bottomNavItem.active {
+  background: #F3E4E8;
+  color: var(--accent-dark);
+}
+.bottomNavIcon {
+  width: 31px;
+  height: 31px;
+  border-radius: 13px;
+  color: inherit;
+  font-size: 22px;
+  font-weight: 950;
+}
+.bottomNavItem.active .bottomNavIcon {
+  background: var(--accent);
+  color: #fffaf4;
+}
+
+.profileIdentityCard {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  align-items: center;
+  gap: 17px;
+}
+.profileIdentityCard h1 {
+  margin-bottom: 4px;
+  font-size: 24px;
+}
+.profileIdentityCard p { margin: 0 0 10px; }
+.profileAvatar {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 82px;
+  height: 82px;
+  border-radius: 30px;
+  background: linear-gradient(135deg, #F3E4E8, #d9c5b1);
+  color: var(--accent-dark);
+  font-size: 28px;
+  font-weight: 950;
+  box-shadow: inset 0 0 0 1px rgba(255,255,255,0.42);
+}
+.profileInfoCard {
+  display: grid;
+  gap: 0;
+}
+.profileLine {
+  padding: 16px 0;
+  border-color: #ead8dc;
+}
+.profileLine strong {
+  color: var(--accent-dark);
+}
+.greenStrong { color: var(--sage-dark) !important; }
+.mutedStrong { color: #8b8178 !important; }
+.sageButton {
+  background: var(--sage);
+  color: #fffaf4;
+}
+.sageButton:hover { background: var(--sage-dark); }
+.outlineButton {
+  border: 1px solid #dcc6cc;
+  background: rgba(255, 253, 249, 0.8) !important;
+  color: var(--accent-dark) !important;
+}
+.profileActions {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 10px;
+  margin-top: 18px;
+}
+.profileActions button,
+.profileActions .button {
+  width: 100%;
+  margin-top: 0;
+}
+.profileLoginCard h1 { font-size: 26px; }
+
+/* 예약내역과 일반 리스트도 브랜딩 카드 톤으로 정리 */
+.item,
+.bookingItem,
+.scheduleItem,
+.monthGroup,
+.statBox {
+  border-radius: 22px;
+  border-color: #ead8dc;
+  background: rgba(255, 253, 249, 0.95);
+}
+.bookingSectionTab {
+  border-radius: 17px;
+  background: #F3E4E8;
+  color: #6E2A3A;
+}
+.bookingSectionTab.active {
+  background: var(--accent);
+  color: #fffaf4;
+}
+.noticeBox {
+  border-radius: 20px;
+  background: rgba(255, 250, 242, 0.9);
+}
+
+@media (max-width: 560px) {
+  .container { padding: 20px 18px 92px; }
+  .appContainer { padding-bottom: 106px; }
+  .appHeader { margin-bottom: 14px; }
+  .brandHero { min-height: 206px; border-radius: 28px; padding: 28px 22px; }
+  .heroCard h1 { font-size: 31px; }
+  .card { border-radius: 26px; padding: 22px; }
+  .bottomNav { padding-left: 8px; padding-right: 8px; }
+  .bottomNavItem { min-height: 61px; font-size: 11px; border-radius: 18px; }
+  .bottomNavIcon { width: 29px; height: 29px; font-size: 20px; }
+  .bookingChoiceCard { min-height: 106px; padding: 20px; }
+}
+
+.timeButton small {
+  display: block;
+  margin-top: 4px;
+  font-size: 12px;
+  font-weight: 600;
+  opacity: 0.82;
+}
+
+.selectedClassBox {
+  margin: 10px 0 14px;
+  padding: 14px 16px;
+  border: 1px solid #ead8dc;
+  border-radius: 18px;
+  background: rgba(122, 38, 56, .06);
+}
+.selectedClassBox strong {
+  color: #541b2b;
+}
+
+/* 관리자 홈: 수강권 소진 알림 */
+.todaySummaryBox.warning {
+  border-color: rgba(163, 59, 52, 0.24);
+  background: #fff5ef;
+}
+.todaySummaryBox.warning span,
+.todaySummaryBox.warning strong {
+  color: var(--danger);
+}
+.zeroCreditCard {
+  border-color: rgba(163, 59, 52, 0.22);
+}
+.zeroCreditList {
+  display: grid;
+  gap: 10px;
+  margin-top: 14px;
+}
+.zeroCreditItem {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  border: 1px solid rgba(163, 59, 52, 0.22);
+  background: #fffdfb;
+  border-radius: 18px;
+  padding: 14px 16px;
+}
+.zeroCreditItem strong {
+  display: inline-block;
+  margin-bottom: 4px;
+}
+.zeroCreditItem span {
+  flex: 0 0 auto;
+  border-radius: 999px;
+  background: #fff1ea;
+  color: var(--danger);
+  font-weight: 900;
+  padding: 7px 11px;
+}
+.zeroCreditEmpty {
+  margin-top: 14px;
+}
+.creditBadge {
+  display: inline-flex;
+  align-items: center;
+  margin-left: 8px;
+  border-radius: 999px;
+  background: #fff1ea;
+  color: var(--danger);
+  font-size: 12px;
+  font-weight: 900;
+  padding: 5px 8px;
+  vertical-align: middle;
+}
+@media (max-width: 560px) {
+  .zeroCreditItem {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+  .zeroCreditItem button {
+    width: 100%;
+  }
+}
