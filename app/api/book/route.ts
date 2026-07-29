@@ -19,7 +19,90 @@ import {
   shouldApplyRegularPassPolicy,
 } from "../../../lib/passPolicy";
 import { getErrorMessage, isMissingPassColumnError } from "../../../lib/supabaseCompat";
+export async function GET() {
+  try {
+    const supabase = getSupabaseAdmin();
 
+    const nowIso = new Date().toISOString();
+
+    const { data: slots, error } = await supabase
+      .from("available_slots")
+      .select("id, start_at, end_at, is_open, created_at")
+      .eq("is_open", true)
+      .gte("start_at", nowIso)
+      .order("start_at", { ascending: true });
+
+    if (error) throw error;
+
+    const normalizedSlots = (slots || []).map((slot) => ({
+      id: slot.id,
+      start_at: slot.start_at,
+      end_at: slot.end_at,
+      is_open: slot.is_open,
+      created_at: slot.created_at,
+    }));
+
+    const availableMonths = Array.from(
+      new Set(
+        normalizedSlots
+          .map((slot) => {
+            const date = new Date(slot.start_at);
+            const kst = new Date(date.getTime() + 9 * 60 * 60 * 1000);
+            const year = kst.getUTCFullYear();
+            const month = String(kst.getUTCMonth() + 1).padStart(2, "0");
+            return `${year}-${month}`;
+          })
+      )
+    ).sort();
+
+    const today = new Date();
+    const kstNow = new Date(today.getTime() + 9 * 60 * 60 * 1000);
+    const currentYear = kstNow.getUTCFullYear();
+    const currentMonth = kstNow.getUTCMonth() + 1;
+    const currentDay = kstNow.getUTCDate();
+
+    let preferredMonth = `${currentYear}-${String(currentMonth).padStart(2, "0")}`;
+
+    if (currentDay >= 25) {
+      const nextMonthDate = new Date(Date.UTC(currentYear, currentMonth, 1));
+      preferredMonth = `${nextMonthDate.getUTCFullYear()}-${String(
+        nextMonthDate.getUTCMonth() + 1
+      ).padStart(2, "0")}`;
+    }
+
+    const openMonth =
+      availableMonths.includes(preferredMonth)
+        ? preferredMonth
+        : availableMonths[0] || preferredMonth;
+
+    return NextResponse.json(
+      {
+        ok: true,
+        slots: normalizedSlots,
+        availableMonths,
+        openMonth,
+        debug: {
+          table: "available_slots",
+          dateColumn: "start_at",
+          openColumn: "is_open",
+          slotCount: normalizedSlots.length,
+          availableMonths,
+          openMonth,
+        },
+      },
+      {
+        headers: {
+          "Cache-Control": "no-store, no-cache, must-revalidate, max-age=0",
+        },
+      }
+    );
+  } catch (error) {
+    return NextResponse.json(
+      { ok: false, message: getErrorMessage(error), slots: [] },
+      { status: 500 }
+    );
+  }
+}
 export async function POST(request: Request) {
   try {
     const body = await request.json();
