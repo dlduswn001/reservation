@@ -250,8 +250,12 @@ export async function GET(request: Request) {
     const activeOnedayBlocks = (onedayClasses || []).filter((klass: any) => klass.is_open !== false);
     const activeBlockedTimes = blockedTimes || [];
 
-    const isSlotAvailable = (slot: SlotRow) => {
-      if (!isLessonWithinOperatingHours(slot.start_at, lessonMinutes)) return false;
+  const isSlotAvailable = (slot: SlotRow) => {
+  const isSundayManuallyOpenedSlot = isSundayKst(slot.start_at) && slot.is_open === true;
+
+  if (!isSundayManuallyOpenedSlot && !isLessonWithinOperatingHours(slot.start_at, lessonMinutes)) {
+    return false;
+  }
 
       const candidateEndAt = lessonEndIso(slot.start_at, lessonMinutes);
       if (studentPassPolicy && !canBookWithRegularPassPolicy(studentPassPolicy, slot.start_at).ok) return false;
