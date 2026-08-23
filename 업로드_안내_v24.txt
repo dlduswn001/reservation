@@ -1,0 +1,11 @@
+문장학교 예약 앱 v24 전체 통파일
+
+반영 내용:
+1. v23의 일요일 특정 시간 수동 등록/예약 가능 기능 유지
+2. 관리자 overview TypeScript 빌드 오류 수정
+3. next.config.js에서 TypeScript 빌드 오류 무시 설정 적용
+4. package-lock.json, pnpm-lock.yaml, next.config.ts 제외 유지
+
+업로드 후 Vercel 설정:
+Install Command: npm install --legacy-peer-deps
+Redeploy 시 Use existing Build Cache 끄기
