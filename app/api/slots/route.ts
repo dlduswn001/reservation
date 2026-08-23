@@ -49,6 +49,15 @@ function daysInMonth(year: number, month: number) {
   return new Date(Date.UTC(year, month, 0)).getUTCDate();
 }
 
+function isSundayKst(value: string) {
+  const weekday = new Intl.DateTimeFormat("en-US", {
+    timeZone: "Asia/Seoul",
+    weekday: "short",
+  }).format(new Date(value));
+
+  return weekday === "Sun";
+}
+
 function addMonth(year: number, month: number, amount: number) {
   const date = new Date(Date.UTC(year, month - 1 + amount, 1));
   return {
