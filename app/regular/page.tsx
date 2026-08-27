@@ -52,7 +52,7 @@ type OpenMonth = {
 };
 
 const STUDENT_LOGIN_STORAGE_KEY = "munjangStudentLogin";
-const SLOT_CACHE_STORAGE_KEY = "munjangRegularSlotCacheV26";
+const SLOT_CACHE_STORAGE_KEY = "munjangRegularSlotCacheV31";
 
 const STATUS_LABELS: Record<string, string> = {
   booked: "예약 완료",
@@ -266,11 +266,9 @@ export default function RegularPage() {
     const slotParams = new URLSearchParams({
       studentId,
       lessonMinutes: String(lessonMinutes),
-      v: "29",
+      v: "32",
       _: String(Date.now()),
     });
-    // v29: 월별로 따로 요청하지 않고, 이번 달 남은 일정과 다음 달 일정을 함께 불러옵니다.
-
     const slotRequest = fetch(`/api/slots?${slotParams.toString()}`, { cache: "no-store" })
       .then(async (slotRes) => {
         const slotJson = await slotRes.json();
@@ -289,7 +287,7 @@ export default function RegularPage() {
         setIsLoadingData(false);
       });
 
-    const bookingRequest = fetch(`/api/student/bookings?studentId=${studentId}&v=29&_=${Date.now()}`, { cache: "no-store" })
+    const bookingRequest = fetch(`/api/student/bookings?studentId=${studentId}&v=32&_=${Date.now()}`, { cache: "no-store" })
       .then(async (bookingRes) => {
         const bookingJson = await bookingRes.json();
         if (!bookingRes.ok) throw new Error(bookingJson.message || "예약 내역을 불러오지 못했습니다.");
