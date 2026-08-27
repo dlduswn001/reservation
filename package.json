@@ -1,6 +1,6 @@
 {
-  "name": "munjang-reservation-v25",
-  "version": "1.0.26",
+  "name": "munjang-reservation-v28",
+  "version": "1.0.28",
   "private": true,
   "engines": {
     "node": "24.x"

@@ -295,8 +295,7 @@ export async function GET(request: Request) {
       : searchRange.currentMonthKey;
 
     if (!requestedMonthKey) {
-      // v26 핵심: 25일 이후라도 이번 달에 남은 예약 가능 시간이 있으면 이번 달을 먼저 보여줍니다.
-      // 이번 달 남은 시간이 모두 사라졌을 때만 다음 달 일정을 자동으로 보여줍니다.
+      // v28 핵심: 25일 이후라도 이번 달 남은 일정을 먼저 보여주되 다음 달 일정도 함께 반환합니다.
       if (hasCurrentMonthSlots || hasCurrentRawSlots) {
         visibleMonthKey = searchRange.currentMonthKey;
       } else if (hasNextMonthSlots || hasNextRawSlots) {
@@ -308,7 +307,18 @@ export async function GET(request: Request) {
       }
     }
 
-    const visibleAvailable = available.filter((slot) => kstMonthKeyFromIso(slot.start_at) === visibleMonthKey);
+    // v28: 수강생 화면에서는 이번 달 남은 일정과 다음 달 일정을 함께 보여줍니다.
+    // 이번 달 남은 일정이 있으면 8월 말에도 8월을 먼저 보이게 하되,
+    // 9월 일정도 같은 화면 아래쪽에 같이 표시합니다.
+    const visibleMonthKeys = requestedMonthKey && hasRequestedMonthSlots
+      ? [visibleMonthKey]
+      : Array.from(new Set([
+          searchRange.currentMonthKey,
+          searchRange.nextMonthKey,
+          visibleMonthKey,
+        ]));
+
+    const visibleAvailable = available.filter((slot) => visibleMonthKeys.includes(kstMonthKeyFromIso(slot.start_at)));
     const visibleMonth = monthInfoFromKey(visibleMonthKey);
     const visibleRange = buildMonthRangeIso(visibleMonthKey);
 
@@ -330,7 +340,7 @@ export async function GET(request: Request) {
         raw_months: rawMonths,
         pass_policy: studentPassStatus,
         debug: {
-          version: "v26",
+          version: "v28",
           raw_slot_count: slots.length,
           available_slot_count: available.length,
           returned_slot_count: visibleAvailable.length,
@@ -342,7 +352,7 @@ export async function GET(request: Request) {
           available_month_keys: availableMonths.map((month) => month.key),
           raw_month_keys: rawMonths.map((month) => month.key),
           used_slot_select_fallback: slotLoad.usedFallback,
-          note: "v26은 이번 달 남은 예약 가능 시간이 있으면 월말에도 이번 달을 먼저 보여주고, 이번 달 시간이 없을 때만 다음 달을 보여줍니다.",
+          note: "v28은 이번 달 남은 예약 가능 시간을 먼저 보여주고, 다음 달 일정도 같은 화면에 함께 보여줍니다.",
         },
       },
       {
@@ -354,6 +364,6 @@ export async function GET(request: Request) {
       },
     );
   } catch (error) {
-    return NextResponse.json({ message: getErrorMessage(error), version: "v26" }, { status: 500 });
+    return NextResponse.json({ message: getErrorMessage(error), version: "v28" }, { status: 500 });
   }
 }

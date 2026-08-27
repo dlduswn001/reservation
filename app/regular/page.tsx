@@ -266,7 +266,7 @@ export default function RegularPage() {
     const slotParams = new URLSearchParams({
       studentId,
       lessonMinutes: String(lessonMinutes),
-      v: "26",
+      v: "28",
       _: String(Date.now()),
     });
     if (monthKey) slotParams.set("month", monthKey);
@@ -289,7 +289,7 @@ export default function RegularPage() {
         setIsLoadingData(false);
       });
 
-    const bookingRequest = fetch(`/api/student/bookings?studentId=${studentId}&v=26&_=${Date.now()}`, { cache: "no-store" })
+    const bookingRequest = fetch(`/api/student/bookings?studentId=${studentId}&v=28&_=${Date.now()}`, { cache: "no-store" })
       .then(async (bookingRes) => {
         const bookingJson = await bookingRes.json();
         if (!bookingRes.ok) throw new Error(bookingJson.message || "예약 내역을 불러오지 못했습니다.");
@@ -563,7 +563,7 @@ export default function RegularPage() {
             <div style={styles.reservationHeader}>
               <div>
                 <h2 style={styles.reservationTitle}>예약 가능한 날짜</h2>
-                <p style={styles.helperText}>이번 달의 남은 예약 가능 시간이 먼저 보입니다. 이번 달 예약 가능 시간이 모두 마감되면 다음 달 일정이 자동으로 표시됩니다.</p>
+                <p style={styles.helperText}>이번 달의 남은 예약 가능 시간이 먼저 보이고, 다음 달 일정도 함께 확인할 수 있어요.</p>
               </div>
               <button
                 className="secondary compact"
