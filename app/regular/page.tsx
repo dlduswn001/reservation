@@ -266,10 +266,10 @@ export default function RegularPage() {
     const slotParams = new URLSearchParams({
       studentId,
       lessonMinutes: String(lessonMinutes),
-      v: "28",
+      v: "29",
       _: String(Date.now()),
     });
-    if (monthKey) slotParams.set("month", monthKey);
+    // v29: 월별로 따로 요청하지 않고, 이번 달 남은 일정과 다음 달 일정을 함께 불러옵니다.
 
     const slotRequest = fetch(`/api/slots?${slotParams.toString()}`, { cache: "no-store" })
       .then(async (slotRes) => {
@@ -289,7 +289,7 @@ export default function RegularPage() {
         setIsLoadingData(false);
       });
 
-    const bookingRequest = fetch(`/api/student/bookings?studentId=${studentId}&v=28&_=${Date.now()}`, { cache: "no-store" })
+    const bookingRequest = fetch(`/api/student/bookings?studentId=${studentId}&v=29&_=${Date.now()}`, { cache: "no-store" })
       .then(async (bookingRes) => {
         const bookingJson = await bookingRes.json();
         if (!bookingRes.ok) throw new Error(bookingJson.message || "예약 내역을 불러오지 못했습니다.");
@@ -493,10 +493,22 @@ export default function RegularPage() {
             <div className="inlineActions">
               <button type="button" className="secondary compact" onClick={logoutStudent}>로그아웃 / 다른 수강생으로 로그인</button>
             </div>
-            <div className="noticeBox">
-              <p>수업 예약은 시작 3시간 전까지 가능합니다.</p>
-              <p>수업 취소는 3시간 전까지 가능하며, 3시간 이내 취소 시 수강권이 차감됩니다.</p>
-              <p>4회 수강권은 첫 수업일로부터 10주 동안 사용할 수 있어요.</p>
+            <div className="noticeBox reservationNoticeBox" aria-label="정규수업 예약 안내">
+              <div className="noticeTitle">정규수업 예약 안내</div>
+              <div className="noticeGrid">
+                <div className="noticeItem">
+                  <span className="noticeIcon">예약</span>
+                  <p>수업 신청은 시작 <strong>3시간 전까지</strong> 가능합니다.</p>
+                </div>
+                <div className="noticeItem">
+                  <span className="noticeIcon">취소</span>
+                  <p>수업 시작 <strong>3시간 전까지 취소</strong>해야 수강권이 차감되지 않습니다.</p>
+                </div>
+                <div className="noticeItem">
+                  <span className="noticeIcon">기간</span>
+                  <p><strong>4회 정규수강권</strong>은 첫 수업일로부터 <strong>10주 동안</strong> 사용할 수 있습니다.</p>
+                </div>
+              </div>
             </div>
           </div>
         )}
@@ -563,7 +575,7 @@ export default function RegularPage() {
             <div style={styles.reservationHeader}>
               <div>
                 <h2 style={styles.reservationTitle}>예약 가능한 날짜</h2>
-                <p style={styles.helperText}>이번 달의 남은 예약 가능 시간이 먼저 보이고, 다음 달 일정도 함께 확인할 수 있어요.</p>
+                <p style={styles.helperText}>표시되지 않는 일정은 예약 마감된 일정입니다.</p>
               </div>
               <button
                 className="secondary compact"

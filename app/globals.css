@@ -1369,3 +1369,42 @@ button.compact, .button.compact {
   margin-bottom: 6px;
   color: #241712;
 }
+
+
+.reservationNoticeBox {
+  gap: 12px;
+  padding: 16px;
+}
+.noticeTitle {
+  font-size: 14px;
+  font-weight: 800;
+  color: #6E2A3A;
+  letter-spacing: -0.01em;
+}
+.noticeGrid {
+  display: grid;
+  gap: 9px;
+}
+.noticeItem {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+}
+.noticeIcon {
+  flex: 0 0 auto;
+  min-width: 42px;
+  padding: 4px 8px;
+  border-radius: 999px;
+  background: rgba(122, 38, 56, 0.1);
+  color: #7A2638;
+  font-size: 12px;
+  font-weight: 800;
+  text-align: center;
+}
+.noticeItem p {
+  margin: 0;
+  line-height: 1.55;
+}
+.noticeItem strong {
+  color: #6E2A3A;
+}
