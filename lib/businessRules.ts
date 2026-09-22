@@ -60,9 +60,13 @@ export function isAutoAdjustmentCandidate(startAt: string, lessonMinutes: unknow
 export const WEEKDAY_START_TIME = "14:00";
 export const WEEKDAY_LAST_START_TIME = "20:30";
 export const WEEKDAY_END_TIME = "22:00";
-export const SATURDAY_START_TIME = "10:00";
-export const SATURDAY_LAST_START_TIME = "16:30";
-export const SATURDAY_END_TIME = "18:00";
+export const WEEKEND_START_TIME = "10:00";
+export const WEEKEND_LAST_START_TIME = "16:30";
+export const WEEKEND_END_TIME = "18:00";
+// 예전 이름을 쓰는 코드와의 호환을 위해 남겨둡니다.
+export const SATURDAY_START_TIME = WEEKEND_START_TIME;
+export const SATURDAY_LAST_START_TIME = WEEKEND_LAST_START_TIME;
+export const SATURDAY_END_TIME = WEEKEND_END_TIME;
 
 export function normalizeLessonDurationMinutes(value: unknown) {
   const minutes = Number(value);
@@ -122,7 +126,8 @@ function buildThirtyMinuteTimes(startTime: string, lastStartTime: string) {
 }
 
 export const WEEKDAY_TIMES = buildThirtyMinuteTimes(WEEKDAY_START_TIME, WEEKDAY_LAST_START_TIME);
-export const SATURDAY_TIMES = buildThirtyMinuteTimes(SATURDAY_START_TIME, SATURDAY_LAST_START_TIME);
+export const WEEKEND_TIMES = buildThirtyMinuteTimes(WEEKEND_START_TIME, WEEKEND_LAST_START_TIME);
+export const SATURDAY_TIMES = WEEKEND_TIMES;
 
 export function bookingCutoffDate(now = new Date()) {
   return new Date(now.getTime() + BOOKING_MIN_HOURS_BEFORE_LESSON * 60 * 60 * 1000);
@@ -291,13 +296,11 @@ export function isLessonWithinOperatingHours(startAt: string, lessonMinutes: unk
   const rule = regularLessonRule(startAt, lessonMinutes);
   const { weekday, hour, minute } = kstDateTimeParts(startAt);
 
-  // 일요일은 정규수업을 열지 않습니다.
-  if (weekday === "Sun") return false;
-
+  const isWeekend = weekday === "Sat" || weekday === "Sun";
   const startMinutes = hour * 60 + minute;
   const endMinutes = startMinutes + rule.lessonMinutes;
-  const operatingEnd = weekday === "Sat" ? timeToMinutes(SATURDAY_END_TIME) : timeToMinutes(WEEKDAY_END_TIME);
-  const operatingStart = weekday === "Sat" ? timeToMinutes(SATURDAY_START_TIME) : timeToMinutes(WEEKDAY_START_TIME);
+  const operatingEnd = isWeekend ? timeToMinutes(WEEKEND_END_TIME) : timeToMinutes(WEEKDAY_END_TIME);
+  const operatingStart = isWeekend ? timeToMinutes(WEEKEND_START_TIME) : timeToMinutes(WEEKDAY_START_TIME);
 
   return startMinutes >= operatingStart && endMinutes <= operatingEnd;
 }
@@ -332,10 +335,9 @@ export function buildTimetableSlots(startDateKey: string, weeks: number) {
   for (let i = 0; i < totalDays; i += 1) {
     const current = new Date(start.getTime() + i * 24 * 60 * 60 * 1000);
     const weekday = current.getUTCDay();
-    if (weekday === 0) continue;
 
     const dateKey = dateKeyInKst(current);
-    const times = weekday === 6 ? SATURDAY_TIMES : WEEKDAY_TIMES;
+    const times = weekday === 0 || weekday === 6 ? WEEKEND_TIMES : WEEKDAY_TIMES;
 
     for (const time of times) {
       const startAt = kstDateTimeToUtcIso(dateKey, time);

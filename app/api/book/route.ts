@@ -104,7 +104,7 @@ export async function POST(request: Request) {
     const rule = regularLessonRule(slot.start_at, requestedLessonMinutes);
     const candidateEndAt = lessonEndIso(slot.start_at, requestedLessonMinutes);
 
-    // v23: 일요일은 자동 영업일로 열지 않지만, 관리자가 직접 연 일요일 슬롯은 예약 가능하게 둡니다.
+    // v33: 일요일도 토요일과 같은 운영시간(10:00-18:00)으로 예약 가능하게 둡니다.
     const isSundayManuallyOpenedSlot = !autoStartAt && isSundayKst(slot.start_at) && slot.is_open === true;
 
     if (!isSundayManuallyOpenedSlot && !isLessonWithinOperatingHours(slot.start_at, requestedLessonMinutes)) {

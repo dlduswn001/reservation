@@ -251,7 +251,7 @@ export async function GET(request: Request) {
     const activeBlockedTimes = blockedTimes || [];
 
     const isSlotAvailable = (slot: SlotRow) => {
-      // v23: 일요일은 자동 스케줄 생성 대상은 아니지만, 관리자가 직접 열어 둔 시간은 수강생 화면에 보여줍니다.
+      // v33: 일요일도 토요일과 같은 운영시간(10:00-18:00)으로 수강생 화면에 보여줍니다.
       const isSundayManuallyOpenedSlot = isSundayKst(slot.start_at) && slot.is_open === true;
 
       if (!isSundayManuallyOpenedSlot && !isLessonWithinOperatingHours(slot.start_at, lessonMinutes)) {

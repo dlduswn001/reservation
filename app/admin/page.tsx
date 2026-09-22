@@ -1920,7 +1920,7 @@ export default function AdminPage() {
               </section>
               <section className="card">
                 <h2>기본 타임테이블 자동 생성</h2>
-                <p className="small">월-금 14:00-20:30, 토 10:00-16:30 사이를 30분 단위로 엽니다. 2026년 6월 30일까지는 80분 수업 + 10분 휴식, 2026년 7월 1일부터는 수강생별 90분/120분 수업 + 30분 휴식으로 자동 계산됩니다. 이미 있는 시간은 중복 등록되지 않습니다.</p>
+                <p className="small">월-금은 14:00-22:00, 토-일은 10:00-18:00 운영시간 안에서 예약 가능 시간을 30분 단위로 엽니다. 실제 마지막 예약 시작 시간은 수업 길이에 맞춰 자동 계산됩니다. 이미 있는 시간은 중복 등록되지 않습니다.</p>
                 <label>시작 날짜</label>
                 <input type="date" value={generateStartDate} onChange={(e) => setGenerateStartDate(e.target.value)} />
                 <label>몇 주치 만들까요?</label>
