@@ -4,6 +4,10 @@ import {
   isLessonWithinOperatingHours,
   lessonEndIso,
   normalizeLessonDurationMinutes,
+  getReservationLessonMinutes,
+  getReservationCreditCost,
+  isLifestyleLessonSlot,
+  EXTENDED_LESSON_MINUTES,
   conflictsWithOneDayBlocks,
   conflictsWithRegularBookings,
   reservationCutoffDate,
@@ -215,6 +219,29 @@ export async function GET(request: Request) {
       }
     }
 
+    if (lessonMinutes === EXTENDED_LESSON_MINUTES) {
+      return NextResponse.json(
+        {
+          slots: [],
+          lesson_minutes: lessonMinutes,
+          requires_direct_scheduling: true,
+          kakao_chat_url: "http://pf.kakao.com/_xcxbGwn/chat",
+          message: "120분 수업은 문장학교 카카오톡 채널로 직접 일정을 조율해 주세요.",
+          available_months: [],
+          raw_months: [],
+          pass_policy: studentPassStatus,
+          debug: { version: "v36", note: "120분 수강생은 앱 자동예약 대신 직접 조율 안내를 표시합니다." },
+        },
+        {
+          headers: {
+            "Cache-Control": "no-store, no-cache, must-revalidate, max-age=0",
+            Pragma: "no-cache",
+            Expires: "0",
+          },
+        },
+      );
+    }
+
     const slotLoad = await loadAvailableSlots(supabase, searchRange.rangeStartIso, searchRange.rangeEndIso);
 
     // v22 핵심: 다음 달 시간표가 있는데 is_open 값 때문에 통째로 숨는 일을 막기 위해
@@ -251,14 +278,13 @@ export async function GET(request: Request) {
     const activeBlockedTimes = blockedTimes || [];
 
     const isSlotAvailable = (slot: SlotRow) => {
-      // v33: 일요일도 토요일과 같은 운영시간(10:00-18:00)으로 수강생 화면에 보여줍니다.
-      const isSundayManuallyOpenedSlot = isSundayKst(slot.start_at) && slot.is_open === true;
+      const slotLessonMinutes = getReservationLessonMinutes(slot.start_at, lessonMinutes);
 
-      if (!isSundayManuallyOpenedSlot && !isLessonWithinOperatingHours(slot.start_at, lessonMinutes)) {
+      if (!isLessonWithinOperatingHours(slot.start_at, slotLessonMinutes)) {
         return false;
       }
 
-      const candidateEndAt = lessonEndIso(slot.start_at, lessonMinutes);
+      const candidateEndAt = lessonEndIso(slot.start_at, slotLessonMinutes);
       if (studentPassPolicy && !canBookWithRegularPassPolicy(studentPassPolicy, slot.start_at).ok) return false;
       if (conflictsWithOneDayBlocks(slot.start_at, candidateEndAt, activeOnedayBlocks)) return false;
       if (overlapsAnyTimeBlock(slot.start_at, candidateEndAt, activeBlockedTimes)) return false;
@@ -271,14 +297,22 @@ export async function GET(request: Request) {
 
     const available = slots
       .filter((slot) => isSlotAvailable(slot))
-      .map((slot) => ({
-        id: slot.id,
-        start_at: slot.start_at,
-        end_at: lessonEndIso(slot.start_at, lessonMinutes),
-        lesson_minutes: lessonMinutes,
-        break_minutes: 30,
-        rule_label: `${lessonMinutes}분 수업`,
-      }))
+      .map((slot) => {
+        const slotLessonMinutes = getReservationLessonMinutes(slot.start_at, lessonMinutes);
+        const isLifestyle = isLifestyleLessonSlot(slot.start_at);
+        return {
+          id: slot.id,
+          start_at: slot.start_at,
+          end_at: lessonEndIso(slot.start_at, slotLessonMinutes),
+          lesson_minutes: slotLessonMinutes,
+          break_minutes: isLifestyle ? 0 : 30,
+          credit_cost: getReservationCreditCost(slot.start_at, lessonMinutes),
+          is_lifestyle: isLifestyle,
+          rule_label: isLifestyle
+            ? `${slotLessonMinutes}분 1:1 서평생활/필사생활 · 수강권 ${getReservationCreditCost(slot.start_at, lessonMinutes)}회 차감`
+            : `${slotLessonMinutes}분 정규수업 · 수강권 1회 차감`,
+        };
+      })
       .sort((a, b) => new Date(a.start_at).getTime() - new Date(b.start_at).getTime());
 
     const availableMonthCountMap = countByMonth(available);
@@ -336,7 +370,7 @@ export async function GET(request: Request) {
         raw_months: rawMonths,
         pass_policy: studentPassStatus,
         debug: {
-          version: "v32",
+          version: "v36",
           raw_slot_count: slots.length,
           available_slot_count: available.length,
           returned_slot_count: visibleAvailable.length,
@@ -348,7 +382,7 @@ export async function GET(request: Request) {
           available_month_keys: availableMonths.map((month) => month.key),
           raw_month_keys: rawMonths.map((month) => month.key),
           used_slot_select_fallback: slotLoad.usedFallback,
-          note: "v31은 이번 달 남은 예약 가능 시간과 다음 달 예약 가능 시간을 함께 반환합니다.",
+          note: "v36은 45분/90분 정규수강권과 120분 직접 조율 방식을 반영합니다.",
         },
       },
       {
@@ -360,6 +394,6 @@ export async function GET(request: Request) {
       },
     );
   } catch (error) {
-    return NextResponse.json({ message: getErrorMessage(error), version: "v32" }, { status: 500 });
+    return NextResponse.json({ message: getErrorMessage(error), version: "v36" }, { status: 500 });
   }
 }

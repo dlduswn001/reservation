@@ -25,6 +25,8 @@ type Slot = {
   lesson_minutes?: number;
   break_minutes?: number;
   rule_label?: string;
+  credit_cost?: number;
+  is_lifestyle?: boolean;
 };
 
 type Booking = {
@@ -52,7 +54,7 @@ type OpenMonth = {
 };
 
 const STUDENT_LOGIN_STORAGE_KEY = "munjangStudentLogin";
-const SLOT_CACHE_STORAGE_KEY = "munjangRegularSlotCacheV31";
+const SLOT_CACHE_STORAGE_KEY = "munjangRegularSlotCacheV36";
 
 const STATUS_LABELS: Record<string, string> = {
   booked: "예약 완료",
@@ -266,7 +268,7 @@ export default function RegularPage() {
     const slotParams = new URLSearchParams({
       studentId,
       lessonMinutes: String(lessonMinutes),
-      v: "32",
+      v: "36",
       _: String(Date.now()),
     });
     const slotRequest = fetch(`/api/slots?${slotParams.toString()}`, { cache: "no-store" })
@@ -287,7 +289,7 @@ export default function RegularPage() {
         setIsLoadingData(false);
       });
 
-    const bookingRequest = fetch(`/api/student/bookings?studentId=${studentId}&v=32&_=${Date.now()}`, { cache: "no-store" })
+    const bookingRequest = fetch(`/api/student/bookings?studentId=${studentId}&v=36&_=${Date.now()}`, { cache: "no-store" })
       .then(async (bookingRes) => {
         const bookingJson = await bookingRes.json();
         if (!bookingRes.ok) throw new Error(bookingJson.message || "예약 내역을 불러오지 못했습니다.");
@@ -414,20 +416,26 @@ export default function RegularPage() {
 
   const selectedSlots = selectedDate ? slotsByDate[selectedDate] || [] : [];
 
-  async function book(slotId: string) {
+  async function book(slot: Slot, lifestyleClassName?: "1:1 서평생활" | "1:1 필사생활") {
     if (!student) return;
+    if (slot.is_lifestyle && !lifestyleClassName) {
+      setMessage("1:1 서평생활 또는 1:1 필사생활을 선택해 주세요.");
+      return;
+    }
     setMessage("");
     const res = await fetch("/api/book", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ studentId: student.id, slotId }),
+      body: JSON.stringify({ studentId: student.id, slotId: slot.id, lifestyleClassName }),
     });
     const json = await res.json();
     if (!res.ok) {
       setMessage(json.message || "예약할 수 없습니다.");
       return;
     }
-    setMessage("예약이 완료되었습니다. 수강권 1회가 차감되었습니다.");
+    const cost = Number(json.credit_cost ?? slot.credit_cost ?? 1);
+    const name = json.class_name || lifestyleClassName || "정규수업";
+    setMessage(`예약이 완료되었습니다. ${name} 예약으로 수강권 ${cost}회가 차감되었습니다.`);
     await refreshStudent();
     await loadData(student.id, { useCache: false });
   }
@@ -442,6 +450,10 @@ export default function RegularPage() {
     setSelectedDate(null);
     setMessage("자동 로그인 정보를 지웠습니다. 다시 로그인해 주세요.");
   }
+
+  const studentLessonMinutes = Number(student?.lesson_duration_minutes ?? 90);
+  const isDirectScheduleStudent = studentLessonMinutes === 120;
+  const lifestyleCreditText = studentLessonMinutes === 45 ? "수강권 1회" : "수강권 0.5회";
 
   async function cancel(bookingId: string) {
     if (!student) return;
@@ -506,6 +518,10 @@ export default function RegularPage() {
                   <span className="noticeIcon">기간</span>
                   <p><strong>4회 정규수강권</strong>은 첫 수업일로부터 <strong>10주 동안</strong> 사용할 수 있습니다.</p>
                 </div>
+                <div className="noticeItem">
+                  <span className="noticeIcon">생활</span>
+                  <p><strong>1:1 서평생활</strong>과 <strong>1:1 필사생활</strong>은 45분 수업입니다. 45분 수강권은 <strong>1회</strong>, 90분 수강권은 <strong>0.5회</strong>가 차감됩니다.</p>
+                </div>
               </div>
             </div>
           </div>
@@ -569,6 +585,17 @@ export default function RegularPage() {
             </div>
           </section>
 
+          {isDirectScheduleStudent ? (
+            <section className="card" style={styles.cardFix}>
+              <h2>120분 수업 예약 안내</h2>
+              <div className="noticeBox reservationNoticeBox" aria-label="120분 수업 직접 조율 안내">
+                <div className="noticeTitle">120분 수업은 직접 일정을 조율합니다</div>
+                <p style={styles.helperText}>120분 수업은 충분한 수업 시간을 확보하기 위해 선생님과 직접 일정을 조율하고 있어요. 희망 요일과 시간을 보내주시면 가능한 시간을 확인해 안내드릴게요.</p>
+                <p style={styles.helperText}>관리자가 배정한 수업은 위의 <strong>내 수업 일정</strong>과 하단 <strong>예약내역</strong>에서 확인할 수 있습니다.</p>
+                <a className="button" href="http://pf.kakao.com/_xcxbGwn/chat" target="_blank" rel="noopener noreferrer" style={styles.kakaoButton}>문장학교 카카오톡으로 일정 문의하기</a>
+              </div>
+            </section>
+          ) : (
           <section className="card" style={styles.cardFix}>
             <div style={styles.reservationHeader}>
               <div>
@@ -628,21 +655,48 @@ export default function RegularPage() {
                   {selectedSlots.length === 0 && <p>선택한 날짜에는 예약 가능한 시간이 없습니다.</p>}
                   <div className="timeGrid" style={styles.timeGridFix}>
                     {selectedSlots.map((slot) => (
-                      <button
-                        className="timeButton"
-                        key={slot.id}
-                        onClick={() => book(slot.id)}
-                        disabled={(student.lesson_credits ?? 0) <= 0}
-                        style={styles.timeButtonFix}
-                      >
-                        <span>{formatTime(slot.start_at)} - {formatTime(slot.end_at)} 예약하기</span>
-                      </button>
+                      slot.is_lifestyle ? (
+                        <div className="timeButton" key={slot.id} style={styles.lifestyleSlotCard}>
+                          <strong>{formatTime(slot.start_at)} - {formatTime(slot.end_at)}</strong>
+                          <span style={styles.slotSubText}>{slot.rule_label || `1:1 서평생활/필사생활 · ${lifestyleCreditText} 차감`}</span>
+                          <div style={styles.lifestyleButtonGrid}>
+                            <button
+                              type="button"
+                              onClick={() => book(slot, "1:1 서평생활")}
+                              disabled={(student.lesson_credits ?? 0) < Number(slot.credit_cost ?? 0.5)}
+                              style={styles.lifestyleButton}
+                            >
+                              1:1 서평생활
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => book(slot, "1:1 필사생활")}
+                              disabled={(student.lesson_credits ?? 0) < Number(slot.credit_cost ?? 0.5)}
+                              style={styles.lifestyleButton}
+                            >
+                              1:1 필사생활
+                            </button>
+                          </div>
+                        </div>
+                      ) : (
+                        <button
+                          className="timeButton"
+                          key={slot.id}
+                          onClick={() => book(slot)}
+                          disabled={(student.lesson_credits ?? 0) < 1}
+                          style={styles.timeButtonFix}
+                        >
+                          <span>{formatTime(slot.start_at)} - {formatTime(slot.end_at)} 예약하기</span>
+                          <small style={styles.slotSubText}>{slot.rule_label || "정규수업 · 수강권 1회 차감"}</small>
+                        </button>
+                      )
                     ))}
                   </div>
                 </div>
               </>
             )}
           </section>
+          )}
         </>
       )}
       <BottomNav />
@@ -714,6 +768,13 @@ const styles: Record<string, CSSProperties> = {
     flexShrink: 0,
     marginTop: 0,
     whiteSpace: "nowrap",
+  },
+  kakaoButton: {
+    display: "inline-flex",
+    alignItems: "center",
+    justifyContent: "center",
+    marginTop: 14,
+    textDecoration: "none",
   },
   emptyItem: {
     marginTop: 8,
@@ -799,7 +860,37 @@ const styles: Record<string, CSSProperties> = {
     padding: "14px 10px",
     lineHeight: 1.3,
     whiteSpace: "normal",
+    display: "flex",
     flexDirection: "column",
     gap: 4,
+  },
+  slotSubText: {
+    fontSize: 12,
+    lineHeight: 1.4,
+    opacity: 0.78,
+  },
+  lifestyleSlotCard: {
+    minWidth: 0,
+    marginTop: 0,
+    padding: "13px 12px",
+    borderRadius: 18,
+    border: "1px solid #ead8dc",
+    background: "#fffdfb",
+    color: "#541B2B",
+    display: "flex",
+    flexDirection: "column",
+    gap: 9,
+  },
+  lifestyleButtonGrid: {
+    display: "grid",
+    gridTemplateColumns: "1fr 1fr",
+    gap: 8,
+  },
+  lifestyleButton: {
+    marginTop: 0,
+    minWidth: 0,
+    padding: "10px 8px",
+    borderRadius: 999,
+    fontSize: 13,
   },
 };

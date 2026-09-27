@@ -542,6 +542,11 @@ export default function AdminPage() {
     return { year: now.getFullYear(), month: now.getMonth() + 1 };
   });
   const [selectedBookingDate, setSelectedBookingDate] = useState<string | null>(null);
+  const [adminBookingStudentId, setAdminBookingStudentId] = useState("");
+  const [adminBookingStartAt, setAdminBookingStartAt] = useState("");
+  const [adminBookingLessonMinutes, setAdminBookingLessonMinutes] = useState("120");
+  const [adminBookingMemo, setAdminBookingMemo] = useState("");
+  const [adminBookingDeductCredit, setAdminBookingDeductCredit] = useState(true);
   const [selectedOneDayClassId, setSelectedOneDayClassId] = useState("all");
   const oneDayClassOptions = useMemo(
     () => buildOneDayClassOptions(overview?.classes || [], overview?.onedayBookings || []),
@@ -826,6 +831,35 @@ export default function AdminPage() {
     setActiveTab("history");
   }
 
+  async function createAdminRegularBooking() {
+    setMessage("");
+    const res = await fetch("/api/admin/regular-bookings/create", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        password,
+        student_id: adminBookingStudentId,
+        start_at: adminBookingStartAt,
+        lesson_minutes: Number(adminBookingLessonMinutes || 120),
+        memo: adminBookingMemo,
+        deduct_credit: adminBookingDeductCredit,
+      }),
+    });
+    const json = await res.json();
+    if (!res.ok) {
+      setMessage(json.message || "관리자 예약을 등록할 수 없습니다.");
+      return;
+    }
+    setAdminBookingStudentId("");
+    setAdminBookingStartAt("");
+    setAdminBookingLessonMinutes("120");
+    setAdminBookingMemo("");
+    setAdminBookingDeductCredit(true);
+    setMessage(json.message || "관리자 예약을 등록했습니다.");
+    await loadOverview();
+    setActiveTab("bookings");
+  }
+
   async function addSlot() {
     setMessage("");
     const res = await fetch("/api/admin/slots", {
@@ -846,7 +880,7 @@ export default function AdminPage() {
 
   async function addAdjustedSlot() {
     setMessage("");
-    const minutes = Number(adjustedLessonMinutes) === 120 ? 120 : 90;
+    const minutes = Number(adjustedLessonMinutes) === 45 ? 45 : Number(adjustedLessonMinutes) === 120 ? 120 : 90;
     const adjustedEndAt = addMinutesToLocalDateTime(adjustedStartAt, minutes);
     if (!adjustedStartAt || !adjustedEndAt) {
       setMessage("조율 슬롯 시작 시간을 입력해 주세요.");
@@ -949,6 +983,25 @@ export default function AdminPage() {
     setMessage(`기본 시간표를 만들었습니다. 새로 추가된 시간: ${json.count}개 / 확인한 시간: ${json.attempted}개`);
     await loadOverview();
     setActiveTab("slots");
+  }
+
+  async function reassignOctoberBookings() {
+    const ok = window.confirm("10월에 미리 예약된 정규수업을 가장 가까운 10월 정규수업 시간대로 정리할까요? 이미 정규시간에 맞는 예약은 그대로 둡니다.");
+    if (!ok) return;
+    setMessage("10월 기존 예약을 정규수업 시간대로 정리하는 중입니다...");
+    const res = await fetch("/api/admin/reassign-october-bookings", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ password }),
+    });
+    const json = await res.json();
+    if (!res.ok) {
+      setMessage(json.message || "10월 기존 예약을 정리할 수 없습니다.");
+      return;
+    }
+    setMessage(`10월 기존 예약 정리 완료: 이동 ${json.moved || 0}건 / 유지 ${json.kept || 0}건 / 확인 필요 ${json.skipped || 0}건`);
+    await loadOverview();
+    setActiveTab("bookings");
   }
 
   async function addOnedayClass() {
@@ -1679,13 +1732,14 @@ export default function AdminPage() {
                 <label>핸드폰번호 뒷자리 4자리</label>
                 <input value={phoneLast4} onChange={(e) => setPhoneLast4(e.target.value)} placeholder="예: 6789" maxLength={4} />
                 <label>수강권 잔여 횟수</label>
-                <input type="number" min="0" value={lessonCredits} onChange={(e) => setLessonCredits(e.target.value)} placeholder="예: 4" />
+                <input type="number" min="0" step="0.5" value={lessonCredits} onChange={(e) => setLessonCredits(e.target.value)} placeholder="예: 4" />
                 <label>정규수업 유형</label>
                 <select value={lessonDurationMinutes} onChange={(e) => setLessonDurationMinutes(e.target.value)}>
+                  <option value="45">45분 수강생</option>
                   <option value="90">90분 수강생</option>
                   <option value="120">120분 수강생</option>
                 </select>
-                <p className="small">관리자가 정하는 수강생별 수업 유형입니다. 수강생은 예약할 때 90분/120분을 직접 선택하지 않습니다. 이 선택은 2026년 7월 1일부터 적용되고, 2026년 6월 30일까지는 기존대로 80분 수업으로 운영됩니다.</p>
+                <p className="small">관리자가 정하는 수강생별 수업 유형입니다. 수강생은 예약할 때 수강권 유형을 직접 선택하지 않습니다. 이 선택은 2026년 7월 1일부터 적용되고, 2026년 6월 30일까지는 기존대로 80분 수업으로 운영됩니다.</p>
                 <div className="policyBox">
                   <strong>8월 1일 이후 4회 수강권 사용기한</strong>
                   <p className="small">8월 1일 이후 결제·재등록한 수강권만 적용됩니다. 기존 수강생은 수강권 등록/재등록일을 비워두거나 2026-08-01 이전 날짜로 두면 정책 적용 전으로 처리됩니다.</p>
@@ -1779,9 +1833,10 @@ export default function AdminPage() {
                             <label>핸드폰번호 뒷자리 4자리</label>
                             <input maxLength={4} value={edit.phone_last4} onChange={(e) => setStudentEdits((current) => ({ ...current, [s.id]: { ...edit, phone_last4: e.target.value } }))} />
                             <label>수강권 잔여 횟수</label>
-                            <input type="number" min="0" value={edit.lesson_credits} onChange={(e) => setStudentEdits((current) => ({ ...current, [s.id]: { ...edit, lesson_credits: e.target.value } }))} />
+                            <input type="number" min="0" step="0.5" value={edit.lesson_credits} onChange={(e) => setStudentEdits((current) => ({ ...current, [s.id]: { ...edit, lesson_credits: e.target.value } }))} />
                             <label>정규수업 유형</label>
                             <select value={edit.lesson_duration_minutes} onChange={(e) => setStudentEdits((current) => ({ ...current, [s.id]: { ...edit, lesson_duration_minutes: e.target.value } }))}>
+                              <option value="45">45분 수강생</option>
                               <option value="90">90분 수강생</option>
                               <option value="120">120분 수강생</option>
                             </select>
@@ -1920,12 +1975,14 @@ export default function AdminPage() {
               </section>
               <section className="card">
                 <h2>기본 타임테이블 자동 생성</h2>
-                <p className="small">월-금은 14:00-22:00, 토-일은 10:00-18:00 운영시간 안에서 예약 가능 시간을 30분 단위로 엽니다. 실제 마지막 예약 시작 시간은 수업 길이에 맞춰 자동 계산됩니다. 이미 있는 시간은 중복 등록되지 않습니다.</p>
+                <p className="small">10월부터는 45분/90분 수강권 중심으로 예약 가능 시간을 엽니다. 수·목·금은 90분 정규수업 14:00, 17:00, 19:00, 20:40과 45분 정규수업 분할 시간, 1:1 생활수업 15:40을 엽니다. 토·일은 90분 정규수업 10:00, 13:00, 14:40과 45분 정규수업 분할 시간, 1:1 생활수업 12:00, 16:30을 엽니다. 120분 수강생은 자동예약 대신 관리자 직접 예약으로 운영합니다.</p>
                 <label>시작 날짜</label>
                 <input type="date" value={generateStartDate} onChange={(e) => setGenerateStartDate(e.target.value)} />
                 <label>몇 주치 만들까요?</label>
                 <input type="number" min="1" max="26" value={generateWeeks} onChange={(e) => setGenerateWeeks(e.target.value)} />
                 <button onClick={generateTimetable}>기본 시간표 만들기</button>
+                <button className="secondary" onClick={reassignOctoberBookings}>10월 기존 예약 정규시간대로 정리</button>
+                <p className="small">10월에 미리 예약된 정규수업이 있으면, 같은 날 또는 가까운 날짜의 가장 가까운 정규수업 시간으로 옮깁니다. 생활수업 시간으로는 옮기지 않습니다.</p>
               </section>
 
               <section className="card">
@@ -1945,11 +2002,12 @@ export default function AdminPage() {
                 <input type="datetime-local" value={adjustedStartAt} onChange={(e) => setAdjustedStartAt(e.target.value)} />
                 <label>조율할 수업 유형</label>
                 <select value={adjustedLessonMinutes} onChange={(e) => setAdjustedLessonMinutes(e.target.value)}>
+                  <option value="45">45분 수업</option>
                   <option value="90">90분 수업</option>
                   <option value="120">120분 수업</option>
                 </select>
                 {adjustedStartAt && (
-                  <p className="small">예상 수업 시간: {adjustedStartAt.replace("T", " ")} - {addMinutesToLocalDateTime(adjustedStartAt, Number(adjustedLessonMinutes) === 120 ? 120 : 90).replace("T", " ")}</p>
+                  <p className="small">예상 수업 시간: {adjustedStartAt.replace("T", " ")} - {addMinutesToLocalDateTime(adjustedStartAt, Number(adjustedLessonMinutes) === 45 ? 45 : Number(adjustedLessonMinutes) === 120 ? 120 : 90).replace("T", " ")}</p>
                 )}
                 <button onClick={addAdjustedSlot}>조율 슬롯 등록</button>
               </section>
@@ -2039,6 +2097,35 @@ export default function AdminPage() {
                 <button className="secondary compact" onClick={() => openTab("schedule")}>← 스케줄 메뉴로</button>
               </div>
               <p className="small">예약된 정규수업을 날짜별로 확인할 수 있습니다. 정상 취소된 예약은 숨기고, 수강권이 차감된 취소건만 표시합니다.</p>
+              <div className="policyBox">
+                <strong>관리자 직접 예약</strong>
+                <p className="small">120분 수강생처럼 선생님이 직접 일정을 조율한 경우 여기서 정규수업을 등록합니다. 등록된 수업은 수강생 예약 앱의 내 수업 일정과 예약내역에 바로 표시됩니다.</p>
+                <label>수강생</label>
+                <select value={adminBookingStudentId} onChange={(e) => setAdminBookingStudentId(e.target.value)}>
+                  <option value="">수강생 선택</option>
+                  {overview.students.filter((student) => student.is_active !== false).map((student) => (
+                    <option key={student.id} value={student.id}>{student.name} / {student.phone_last4} / {student.lesson_duration_minutes ?? 90}분</option>
+                  ))}
+                </select>
+                <label>수업 시작 시간</label>
+                <input type="datetime-local" value={adminBookingStartAt} onChange={(e) => setAdminBookingStartAt(e.target.value)} />
+                <label>수업 길이</label>
+                <select value={adminBookingLessonMinutes} onChange={(e) => setAdminBookingLessonMinutes(e.target.value)}>
+                  <option value="45">45분 수업</option>
+                  <option value="90">90분 수업</option>
+                  <option value="120">120분 수업</option>
+                </select>
+                {adminBookingStartAt && (
+                  <p className="small">예상 수업 시간: {adminBookingStartAt.replace("T", " ")} - {addMinutesToLocalDateTime(adminBookingStartAt, Number(adminBookingLessonMinutes) === 45 ? 45 : Number(adminBookingLessonMinutes) === 120 ? 120 : 90).replace("T", " ")}</p>
+                )}
+                <label className="checkboxLabel">
+                  <input type="checkbox" checked={adminBookingDeductCredit} onChange={(e) => setAdminBookingDeductCredit(e.target.checked)} />
+                  수강권 1회 차감
+                </label>
+                <label>예약 메모</label>
+                <input value={adminBookingMemo} onChange={(e) => setAdminBookingMemo(e.target.value)} placeholder="예: 120분 수업 직접 조율" />
+                <button onClick={createAdminRegularBooking}>관리자 예약 등록</button>
+              </div>
               <div className="calendarHeader">
                 <button className="secondary compact" onClick={() => moveBookingMonth(-1)}>이전 달</button>
                 <h2>{bookingCalendarMonth.year}년 {bookingCalendarMonth.month}월</h2>
@@ -2091,7 +2178,7 @@ export default function AdminPage() {
                 </div>
                 <div className="item">
                   <strong>정규수업 운영</strong>
-                  <p className="small">수강생별 90분/120분 수업 유형을 수강생 관리에서 지정합니다.</p>
+                  <p className="small">수강생별 45분/90분/120분 수업 유형을 수강생 관리에서 지정합니다. 120분 수업은 관리자 직접 예약으로 운영합니다.</p>
                 </div>
                 <div className="item">
                   <strong>스케줄 관리</strong>

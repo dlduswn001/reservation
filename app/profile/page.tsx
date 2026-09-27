@@ -160,7 +160,7 @@ export default function ProfilePage() {
 
           <section className="card profileInfoCard">
             <div className="profileLine"><span>잔여 수강권</span><strong>{student.lesson_credits ?? 0}회</strong></div>
-            <div className="profileLine"><span>정규수업 수강권</span><strong>{Number(student.lesson_duration_minutes ?? 90) === 120 ? "120분 수강권" : "90분 수강권"}</strong></div>
+            <div className="profileLine"><span>정규수업 수강권</span><strong>{Number(student.lesson_duration_minutes ?? 90) === 45 ? "45분 수강권" : Number(student.lesson_duration_minutes ?? 90) === 120 ? "120분 수강권" : "90분 수강권"}</strong></div>
             <div className="profileLine"><span>이번 달 원데이 무료 혜택</span><strong className={freeBenefitUsed ? "mutedStrong" : "greenStrong"}>{freeBenefitUsed ? "사용 완료" : "사용 가능"}</strong></div>
             {(() => {
               const passStatus = getRegularPassPolicyStatus(student);
@@ -172,7 +172,7 @@ export default function ProfilePage() {
                   <div className="profileLine"><span>수강권 등록일</span><strong>{passStatus.registeredAt || "-"}</strong></div>
                   <div className="profileLine"><span>첫 수업일</span><strong>{passStatus.firstLessonAt || "예약 후 자동 등록"}</strong></div>
                   <div className="profileLine"><span>사용기한</span><strong className={passStatus.expired ? "mutedStrong" : passStatus.expiringSoon ? "greenStrong" : ""}>{passStatus.expiresAt || "첫 수업일 기준 산정"}</strong></div>
-                  <p className="small">8월 1일 이후 결제 및 재등록한 4회 수강권은 첫 수업일로부터 8주 이내 사용을 안내드립니다. 부득이한 경우 1회에 한해 최대 2주 연장 가능합니다.</p>
+                  <p className="small">8월 1일 이후 결제 및 재등록한 4회 수강권은 첫 수업일로부터 10주 이내 사용을 안내드립니다. 필요 시 관리자 판단에 따라 1주 단위로 연장할 수 있습니다.</p>
                 </>
               );
             })()}

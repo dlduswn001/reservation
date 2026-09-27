@@ -5,6 +5,12 @@ import {
   isLessonWithinOperatingHours,
   lessonEndIso,
   normalizeLessonDurationMinutes,
+  EXTENDED_LESSON_MINUTES,
+  getReservationLessonMinutes,
+  getReservationCreditCost,
+  isLifestyleLessonSlot,
+  reservationKindLabel,
+  normalizeLifestyleClassName,
   conflictsWithOneDayBlocks,
   conflictsWithRegularBookings,
   regularLessonRule,
@@ -34,6 +40,7 @@ export async function POST(request: Request) {
     const body = await request.json();
     const studentId = String(body.studentId || "");
     const slotId = String(body.slotId || "");
+    const lifestyleClassName = normalizeLifestyleClassName(body.lifestyleClassName || body.lessonType);
     if (!studentId || !slotId) {
       return NextResponse.json({ message: "예약 정보가 부족합니다." }, { status: 400 });
     }
@@ -65,6 +72,9 @@ export async function POST(request: Request) {
     }
 
     const requestedLessonMinutes = normalizeLessonDurationMinutes(student.lesson_duration_minutes);
+    if (requestedLessonMinutes === EXTENDED_LESSON_MINUTES) {
+      return NextResponse.json({ message: "120분 수업은 문장학교 카카오톡 채널로 직접 일정을 조율해 주세요." }, { status: 400 });
+    }
 
     const autoStartAt = parseAutoAdjustmentSlotId(slotId);
     let slot: { id: string; start_at: string; end_at: string | null; is_open: boolean };
@@ -101,13 +111,17 @@ export async function POST(request: Request) {
       }, { status: 400 });
     }
 
-    const rule = regularLessonRule(slot.start_at, requestedLessonMinutes);
-    const candidateEndAt = lessonEndIso(slot.start_at, requestedLessonMinutes);
+    const slotLessonMinutes = getReservationLessonMinutes(slot.start_at, requestedLessonMinutes);
+    const creditCost = getReservationCreditCost(slot.start_at, requestedLessonMinutes);
+    const isLifestyle = isLifestyleLessonSlot(slot.start_at);
+    const rule = regularLessonRule(slot.start_at, slotLessonMinutes);
+    const candidateEndAt = lessonEndIso(slot.start_at, slotLessonMinutes);
 
-    // v33: 일요일도 토요일과 같은 운영시간(10:00-18:00)으로 예약 가능하게 둡니다.
-    const isSundayManuallyOpenedSlot = !autoStartAt && isSundayKst(slot.start_at) && slot.is_open === true;
+    if (currentCredits < creditCost) {
+      return NextResponse.json({ message: `잔여 수강권이 부족합니다. 이 수업은 수강권 ${creditCost}회가 필요합니다.` }, { status: 400 });
+    }
 
-    if (!isSundayManuallyOpenedSlot && !isLessonWithinOperatingHours(slot.start_at, requestedLessonMinutes)) {
+    if (!isLessonWithinOperatingHours(slot.start_at, slotLessonMinutes)) {
       return NextResponse.json({ message: "해당 시간은 예약할 수 없습니다. 다른 시간을 선택해 주세요." }, { status: 400 });
     }
 
@@ -165,7 +179,7 @@ export async function POST(request: Request) {
       start_at: slot.start_at,
       end_at: candidateEndAt,
       status: "booked",
-      memo: `수강생 직접 예약 / ${rule.policyLabel} / ${autoStartAt ? "자동 조율 슬롯 / " : ""}${rule.label} / 수강권 1회 차감`,
+      memo: `수강생 직접 예약 / ${reservationKindLabel(slot.start_at, lifestyleClassName)} / ${rule.policyLabel} / ${autoStartAt ? "자동 조율 슬롯 / " : ""}${rule.label} / 수강권 ${creditCost}회 차감${isLifestyle ? ` / 선택: ${lifestyleClassName}` : ""}`,
     });
     if (error) {
       if (error.message.includes("duplicate")) {
@@ -174,7 +188,8 @@ export async function POST(request: Request) {
       throw error;
     }
 
-    const studentUpdate: Record<string, unknown> = { lesson_credits: currentCredits - 1 };
+    const nextCredits = Math.max(0, Number((currentCredits - creditCost).toFixed(2)));
+    const studentUpdate: Record<string, unknown> = { lesson_credits: nextCredits };
     if (shouldApplyRegularPassPolicy(student) && !student.pass_first_lesson_at) {
       const firstLessonDateKey = dateKeyInKst(new Date(slot.start_at));
       studentUpdate.pass_first_lesson_at = firstLessonDateKey;
@@ -187,7 +202,7 @@ export async function POST(request: Request) {
       .eq("id", studentId);
 
     if (creditError && isMissingPassColumnError(creditError)) {
-      const fallbackUpdate: Record<string, unknown> = { lesson_credits: currentCredits - 1 };
+      const fallbackUpdate: Record<string, unknown> = { lesson_credits: nextCredits };
       const fallbackResult = await supabase
         .from("students")
         .update(fallbackUpdate)
@@ -197,7 +212,7 @@ export async function POST(request: Request) {
 
     if (creditError) throw creditError;
 
-    return NextResponse.json({ ok: true, lesson_credits: currentCredits - 1 });
+    return NextResponse.json({ ok: true, lesson_credits: nextCredits, credit_cost: creditCost, class_name: isLifestyle ? lifestyleClassName : "정규수업" });
   } catch (error) {
     return NextResponse.json({ message: getErrorMessage(error) }, { status: 500 });
   }

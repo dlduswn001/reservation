@@ -8,6 +8,7 @@ export const LEGACY_POLICY_END_DATE_KEY = "2026-06-30";
 export const NEW_POLICY_START_DATE_KEY = "2026-07-01";
 export const LEGACY_LESSON_MINUTES = 80;
 export const LEGACY_BREAK_MINUTES = 10;
+export const SHORT_LESSON_MINUTES = 45;
 export const DEFAULT_LESSON_MINUTES = 90;
 export const EXTENDED_LESSON_MINUTES = 120;
 export const BREAK_MINUTES = 30;
@@ -58,11 +59,36 @@ export function isAutoAdjustmentCandidate(startAt: string, lessonMinutes: unknow
 }
 
 export const WEEKDAY_START_TIME = "14:00";
-export const WEEKDAY_LAST_START_TIME = "20:30";
-export const WEEKDAY_END_TIME = "22:00";
+export const WEEKDAY_LAST_START_TIME = "20:40";
+export const WEEKDAY_END_TIME = "22:10";
 export const WEEKEND_START_TIME = "10:00";
 export const WEEKEND_LAST_START_TIME = "16:30";
-export const WEEKEND_END_TIME = "18:00";
+export const WEEKEND_END_TIME = "17:15";
+export const OCTOBER_TIMETABLE_START_DATE_KEY = "2026-10-01";
+export const LIFESTYLE_CLASS_CREDIT_COST_FOR_90 = 0.5;
+export const LIFESTYLE_CLASS_CREDIT_COST_FOR_45 = 1;
+export const REGULAR_CLASS_CREDIT_COST = 1;
+export const LIFESTYLE_CLASS_NAMES = ["1:1 서평생활", "1:1 필사생활"] as const;
+export type LifestyleClassName = typeof LIFESTYLE_CLASS_NAMES[number];
+
+export const WEEKDAY_REGULAR_START_TIMES = ["14:00", "17:00", "19:00", "20:40"];
+export const WEEKDAY_REGULAR_START_TIMES_45 = ["14:00", "14:45", "17:00", "17:45", "19:00", "19:45", "20:40", "21:25"];
+export const WEEKDAY_LIFESTYLE_START_TIMES = ["15:40"];
+export const WEEKEND_REGULAR_START_TIMES = ["10:00", "13:00", "14:40"];
+export const WEEKEND_REGULAR_START_TIMES_45 = ["10:00", "10:45", "13:00", "13:45", "14:40", "15:25"];
+export const WEEKEND_LIFESTYLE_START_TIMES = ["12:00", "16:30"];
+
+export const WEEKDAY_ALL_TIMETABLE_START_TIMES = Array.from(new Set([
+  ...WEEKDAY_REGULAR_START_TIMES,
+  ...WEEKDAY_REGULAR_START_TIMES_45,
+  ...WEEKDAY_LIFESTYLE_START_TIMES,
+]));
+export const WEEKEND_ALL_TIMETABLE_START_TIMES = Array.from(new Set([
+  ...WEEKEND_REGULAR_START_TIMES,
+  ...WEEKEND_REGULAR_START_TIMES_45,
+  ...WEEKEND_LIFESTYLE_START_TIMES,
+]));
+
 // 예전 이름을 쓰는 코드와의 호환을 위해 남겨둡니다.
 export const SATURDAY_START_TIME = WEEKEND_START_TIME;
 export const SATURDAY_LAST_START_TIME = WEEKEND_LAST_START_TIME;
@@ -70,11 +96,86 @@ export const SATURDAY_END_TIME = WEEKEND_END_TIME;
 
 export function normalizeLessonDurationMinutes(value: unknown) {
   const minutes = Number(value);
-  return minutes === EXTENDED_LESSON_MINUTES ? EXTENDED_LESSON_MINUTES : DEFAULT_LESSON_MINUTES;
+  if (minutes === SHORT_LESSON_MINUTES) return SHORT_LESSON_MINUTES;
+  if (minutes === EXTENDED_LESSON_MINUTES) return EXTENDED_LESSON_MINUTES;
+  return DEFAULT_LESSON_MINUTES;
 }
 
 export function lessonDurationLabel(value: unknown) {
   return `${normalizeLessonDurationMinutes(value)}분 수업`;
+}
+
+export function lifestyleLessonMinutesForStudent(_value: unknown) {
+  return SHORT_LESSON_MINUTES;
+}
+
+export function normalizeLifestyleClassName(value: unknown): LifestyleClassName {
+  return value === "1:1 필사생활" ? "1:1 필사생활" : "1:1 서평생활";
+}
+
+export function isOctoberTimetableDate(startAt: string) {
+  return dateKeyInKst(new Date(startAt)) >= OCTOBER_TIMETABLE_START_DATE_KEY;
+}
+
+export function isLifestyleLessonSlot(startAt: string) {
+  if (!isOctoberTimetableDate(startAt)) return false;
+  const { weekday, hour, minute } = kstDateTimeParts(startAt);
+  const time = minutesToTime(hour * 60 + minute);
+  if (["Sat", "Sun"].includes(weekday)) return WEEKEND_LIFESTYLE_START_TIMES.includes(time);
+  if (["Wed", "Thu", "Fri"].includes(weekday)) return WEEKDAY_LIFESTYLE_START_TIMES.includes(time);
+  return false;
+}
+
+export function isRegularLessonSlot(startAt: string) {
+  if (!isOctoberTimetableDate(startAt)) return false;
+  const { weekday, hour, minute } = kstDateTimeParts(startAt);
+  const time = minutesToTime(hour * 60 + minute);
+  if (["Sat", "Sun"].includes(weekday)) return WEEKEND_REGULAR_START_TIMES.includes(time);
+  if (["Wed", "Thu", "Fri"].includes(weekday)) return WEEKDAY_REGULAR_START_TIMES.includes(time);
+  return false;
+}
+
+export function isRegularLessonSlotForStudent(startAt: string, lessonMinutes: unknown = DEFAULT_LESSON_MINUTES) {
+  if (!isOctoberTimetableDate(startAt)) return false;
+  const normalized = normalizeLessonDurationMinutes(lessonMinutes);
+  const { weekday, hour, minute } = kstDateTimeParts(startAt);
+  const time = minutesToTime(hour * 60 + minute);
+
+  if (normalized === EXTENDED_LESSON_MINUTES) return false;
+
+  if (["Sat", "Sun"].includes(weekday)) {
+    return (normalized === SHORT_LESSON_MINUTES
+      ? WEEKEND_REGULAR_START_TIMES_45
+      : WEEKEND_REGULAR_START_TIMES
+    ).includes(time);
+  }
+
+  if (["Wed", "Thu", "Fri"].includes(weekday)) {
+    return (normalized === SHORT_LESSON_MINUTES
+      ? WEEKDAY_REGULAR_START_TIMES_45
+      : WEEKDAY_REGULAR_START_TIMES
+    ).includes(time);
+  }
+
+  return false;
+}
+
+export function getReservationLessonMinutes(startAt: string, studentLessonMinutes: unknown) {
+  return isLifestyleLessonSlot(startAt)
+    ? lifestyleLessonMinutesForStudent(studentLessonMinutes)
+    : normalizeLessonDurationMinutes(studentLessonMinutes);
+}
+
+export function getReservationCreditCost(startAt: string, studentLessonMinutes: unknown = DEFAULT_LESSON_MINUTES) {
+  if (!isLifestyleLessonSlot(startAt)) return REGULAR_CLASS_CREDIT_COST;
+  return normalizeLessonDurationMinutes(studentLessonMinutes) === SHORT_LESSON_MINUTES
+    ? LIFESTYLE_CLASS_CREDIT_COST_FOR_45
+    : LIFESTYLE_CLASS_CREDIT_COST_FOR_90;
+}
+
+export function reservationKindLabel(startAt: string, lifestyleClassName?: unknown) {
+  if (isLifestyleLessonSlot(startAt)) return normalizeLifestyleClassName(lifestyleClassName);
+  return "정규수업";
 }
 
 export function isBeforeNewLessonPolicy(startAt: string) {
@@ -93,12 +194,13 @@ export function regularLessonRule(startAt: string, lessonMinutes: unknown = DEFA
   }
 
   const normalizedLessonMinutes = normalizeLessonDurationMinutes(lessonMinutes);
+  const isLifestyleMinutes = normalizedLessonMinutes === SHORT_LESSON_MINUTES;
   return {
     lessonMinutes: normalizedLessonMinutes,
-    breakMinutes: BREAK_MINUTES,
-    blockMinutes: normalizedLessonMinutes + BREAK_MINUTES,
-    label: `${normalizedLessonMinutes}분 수업 + 30분 휴식`,
-    policyLabel: "2026년 7월 1일부터 새 규칙",
+    breakMinutes: isLifestyleMinutes ? 0 : BREAK_MINUTES,
+    blockMinutes: normalizedLessonMinutes + (isLifestyleMinutes ? 0 : BREAK_MINUTES),
+    label: isLifestyleMinutes ? `${normalizedLessonMinutes}분 수업` : `${normalizedLessonMinutes}분 수업 + 30분 휴식`,
+    policyLabel: isLifestyleMinutes ? "2026년 10월부터 생활수업 규칙" : "2026년 7월 1일부터 새 규칙",
   };
 }
 
@@ -185,6 +287,12 @@ export function requiredBreakBetweenRegularLessons(earlierStartAt: string, later
     return LEGACY_BREAK_MINUTES;
   }
 
+  // 2026년 10월부터는 확정 시간표 자체에 10분~30분 휴식이 반영되어 있습니다.
+  // 예: 수-금 20:30 종료 후 20:40 시작, 토-일 14:30 종료 후 14:40 시작.
+  if (isOctoberTimetableDate(earlierStartAt) && isOctoberTimetableDate(laterStartAt)) {
+    return 10;
+  }
+
   // 관리자가 17:50처럼 직접 여는 조율 슬롯은 하루 수업 수를 확보하기 위해
   // 정규수업 사이 최소 20분 휴식을 허용합니다. 일반 30분 단위 슬롯은 30분 휴식을 유지합니다.
   if (isAdjustmentSlotTime(earlierStartAt) || isAdjustmentSlotTime(laterStartAt)) {
@@ -192,6 +300,24 @@ export function requiredBreakBetweenRegularLessons(earlierStartAt: string, later
   }
 
   return BREAK_MINUTES;
+}
+
+function lessonDurationFromRange(startAt: string, endAt: string) {
+  return Math.round((new Date(endAt).getTime() - new Date(startAt).getTime()) / 60000);
+}
+
+function requiredBreakForRanges(earlierStartAt: string, earlierEndAt: string, laterStartAt: string, laterEndAt: string) {
+  const earlierMinutes = lessonDurationFromRange(earlierStartAt, earlierEndAt);
+  const laterMinutes = lessonDurationFromRange(laterStartAt, laterEndAt);
+
+  // 45분 정규수업은 90분 정규수업 한 칸을 둘로 나누어 운영할 수 있으므로
+  // 45분 수업끼리는 바로 이어서 예약할 수 있습니다.
+  if (isOctoberTimetableDate(earlierStartAt) && isOctoberTimetableDate(laterStartAt)
+    && earlierMinutes === SHORT_LESSON_MINUTES && laterMinutes === SHORT_LESSON_MINUTES) {
+    return 0;
+  }
+
+  return requiredBreakBetweenRegularLessons(earlierStartAt, laterStartAt);
 }
 
 export function regularBookingConflict(
@@ -205,13 +331,13 @@ export function regularBookingConflict(
 
   // 후보 수업이 기존 수업보다 먼저 끝나는 경우: 후보 수업 후 휴식 시간이 필요합니다.
   if (new Date(candidateEndAt).getTime() <= new Date(existingStartAt).getTime()) {
-    const requiredBreak = requiredBreakBetweenRegularLessons(candidateStartAt, existingStartAt);
+    const requiredBreak = requiredBreakForRanges(candidateStartAt, candidateEndAt, existingStartAt, existingEndAt);
     return minutesBetweenIso(candidateEndAt, existingStartAt) < requiredBreak;
   }
 
   // 기존 수업이 후보 수업보다 먼저 끝나는 경우: 기존 수업 후 휴식 시간이 필요합니다.
   if (new Date(existingEndAt).getTime() <= new Date(candidateStartAt).getTime()) {
-    const requiredBreak = requiredBreakBetweenRegularLessons(existingStartAt, candidateStartAt);
+    const requiredBreak = requiredBreakForRanges(existingStartAt, existingEndAt, candidateStartAt, candidateEndAt);
     return minutesBetweenIso(existingEndAt, candidateStartAt) < requiredBreak;
   }
 
@@ -296,6 +422,10 @@ export function isLessonWithinOperatingHours(startAt: string, lessonMinutes: unk
   const rule = regularLessonRule(startAt, lessonMinutes);
   const { weekday, hour, minute } = kstDateTimeParts(startAt);
 
+  if (isOctoberTimetableDate(startAt)) {
+    return isRegularLessonSlotForStudent(startAt, lessonMinutes) || isLifestyleLessonSlot(startAt);
+  }
+
   const isWeekend = weekday === "Sat" || weekday === "Sun";
   const startMinutes = hour * 60 + minute;
   const endMinutes = startMinutes + rule.lessonMinutes;
@@ -335,15 +465,38 @@ export function buildTimetableSlots(startDateKey: string, weeks: number) {
   for (let i = 0; i < totalDays; i += 1) {
     const current = new Date(start.getTime() + i * 24 * 60 * 60 * 1000);
     const weekday = current.getUTCDay();
-
     const dateKey = dateKeyInKst(current);
-    const times = weekday === 0 || weekday === 6 ? WEEKEND_TIMES : WEEKDAY_TIMES;
 
-    for (const time of times) {
-      const startAt = kstDateTimeToUtcIso(dateKey, time);
+    let timeRows: Array<{ time: string; minutes: number }> = [];
+
+    if (dateKey >= OCTOBER_TIMETABLE_START_DATE_KEY) {
+      if ([3, 4, 5].includes(weekday)) {
+        timeRows = [
+          ...WEEKDAY_ALL_TIMETABLE_START_TIMES.map((time) => ({
+            time,
+            minutes: WEEKDAY_REGULAR_START_TIMES.includes(time) ? DEFAULT_LESSON_MINUTES : SHORT_LESSON_MINUTES,
+          })),
+        ];
+      } else if (weekday === 0 || weekday === 6) {
+        timeRows = [
+          ...WEEKEND_ALL_TIMETABLE_START_TIMES.map((time) => ({
+            time,
+            minutes: WEEKEND_REGULAR_START_TIMES.includes(time) ? DEFAULT_LESSON_MINUTES : SHORT_LESSON_MINUTES,
+          })),
+        ];
+      } else {
+        timeRows = [];
+      }
+    } else {
+      const times = weekday === 0 || weekday === 6 ? WEEKEND_TIMES : WEEKDAY_TIMES;
+      timeRows = times.map((time) => ({ time, minutes: DEFAULT_LESSON_MINUTES }));
+    }
+
+    for (const row of timeRows) {
+      const startAt = kstDateTimeToUtcIso(dateKey, row.time);
       rows.push({
         start_at: startAt,
-        end_at: lessonEndIso(startAt, DEFAULT_LESSON_MINUTES),
+        end_at: addMinutesToIso(startAt, row.minutes),
         is_open: true,
       });
     }

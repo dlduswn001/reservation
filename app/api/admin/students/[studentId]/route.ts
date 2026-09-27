@@ -68,7 +68,7 @@ export async function PATCH(request: Request, context: { params: Promise<{ stude
       name,
       phone_last4: phoneLast4,
       memo,
-      lesson_credits: Math.floor(lessonCredits),
+      lesson_credits: Number(lessonCredits.toFixed(2)),
       lesson_duration_minutes: lessonDurationMinutes,
       is_active: isActive,
     };
