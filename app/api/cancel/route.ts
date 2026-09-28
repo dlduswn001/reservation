@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { getSupabaseAdmin } from "../../../lib/supabaseAdmin";
-import { isAtLeastCancelHoursBefore } from "../../../lib/businessRules";
+import { creditCostFromBookingMemo, isAtLeastCancelHoursBefore } from "../../../lib/businessRules";
 
 export async function POST(request: Request) {
   try {
@@ -14,7 +14,7 @@ export async function POST(request: Request) {
     const supabase = getSupabaseAdmin();
     const { data: booking, error: findError } = await supabase
       .from("regular_bookings")
-      .select("id, student_id, start_at, end_at, status")
+      .select("id, student_id, start_at, end_at, status, memo")
       .eq("id", bookingId)
       .eq("student_id", studentId)
       .maybeSingle();
@@ -61,8 +61,9 @@ export async function POST(request: Request) {
 
     const isEarlyCancel = isAtLeastCancelHoursBefore(booking.start_at);
     const nextStatus = isEarlyCancel ? "cancelled" : "late_cancelled";
+    const creditCost = creditCostFromBookingMemo(booking.memo, 1);
     const nextMemo = isEarlyCancel
-      ? "수강생 직접 취소 / 수업 3시간 전 취소로 수강권 1회 복구"
+      ? `수강생 직접 취소 / 수업 3시간 전 취소로 수강권 ${creditCost}회 복구`
       : "수강생 직접 취소 / 수업 3시간 이내 취소로 수강권 차감 유지";
 
     const { error } = await supabase
@@ -81,7 +82,7 @@ export async function POST(request: Request) {
         .eq("id", studentId)
         .single();
       if (studentError) throw studentError;
-      nextCredits = Number(student.lesson_credits || 0) + 1;
+      nextCredits = Number((Number(student.lesson_credits || 0) + creditCost).toFixed(2));
       const { error: creditError } = await supabase
         .from("students")
         .update({ lesson_credits: nextCredits })
@@ -94,7 +95,7 @@ export async function POST(request: Request) {
       early_cancel: isEarlyCancel,
       lesson_credits: nextCredits,
       message: isEarlyCancel
-        ? "예약이 취소되었습니다. 수강권 1회가 복구되었습니다."
+        ? `예약이 취소되었습니다. 수강권 ${creditCost}회가 복구되었습니다.`
         : "예약이 취소되었습니다. 수업 3시간 이내 취소라 수강권은 차감된 상태로 유지됩니다.",
     });
   } catch (error) {

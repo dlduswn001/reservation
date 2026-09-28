@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import BottomNav from "./components/BottomNav";
 import PWAInstallPrompt from "./components/PWAInstallPrompt";
+import { bookingDisplayNameFromMemo } from "../lib/businessRules";
 
 type Student = { id: string; name: string; phone_last4: string; lesson_credits?: number };
 type UpcomingSummary = { label: string; title: string; time: string; rawDate: string; status?: string };
@@ -70,13 +71,16 @@ export default function Home() {
       const now = Date.now();
       const regular = (historyJson.bookings || [])
         .filter((booking: any) => booking.status === "booked" && new Date(booking.end_at).getTime() > now)
-        .map((booking: any) => ({
-          label: "정규수업",
-          title: "정규수업",
-          time: formatDateTime(booking.start_at),
-          rawDate: booking.start_at,
-          status: "예약 완료",
-        }));
+        .map((booking: any) => {
+          const className = bookingDisplayNameFromMemo(booking.memo);
+          return {
+            label: className === "정규수업" ? "정규수업" : "생활수업",
+            title: className,
+            time: formatDateTime(booking.start_at),
+            rawDate: booking.start_at,
+            status: "예약 완료",
+          };
+        });
 
       const oneday = (historyJson.onedayBookings || [])
         .filter((booking: any) => {

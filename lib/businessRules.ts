@@ -173,6 +173,24 @@ export function getReservationCreditCost(startAt: string, studentLessonMinutes: 
     : LIFESTYLE_CLASS_CREDIT_COST_FOR_90;
 }
 
+
+export function creditCostFromBookingMemo(memo: unknown, fallback = REGULAR_CLASS_CREDIT_COST) {
+  const text = String(memo || "");
+  const match = text.match(/수강권\s*([0-9]+(?:\.[0-9]+)?)회\s*차감/);
+  if (match) {
+    const value = Number(match[1]);
+    if (Number.isFinite(value) && value > 0) return value;
+  }
+  return fallback;
+}
+
+export function bookingDisplayNameFromMemo(memo: unknown) {
+  const text = String(memo || "");
+  if (text.includes("1:1 필사생활")) return "1:1 필사생활";
+  if (text.includes("1:1 서평생활")) return "1:1 서평생활";
+  return "정규수업";
+}
+
 export function reservationKindLabel(startAt: string, lifestyleClassName?: unknown) {
   if (isLifestyleLessonSlot(startAt)) return normalizeLifestyleClassName(lifestyleClassName);
   return "정규수업";

@@ -3,7 +3,11 @@
 -- 기존 수강생/예약/원데이 신청 데이터는 삭제하지 않습니다.
 
 alter table students
-add column if not exists lesson_credits integer not null default 0;
+add column if not exists lesson_credits numeric(8,2) not null default 0;
+
+alter table students
+alter column lesson_credits type numeric(8,2) using lesson_credits::numeric,
+alter column lesson_credits set default 0;
 
 update students
 set lesson_credits = 0
@@ -22,7 +26,7 @@ begin
   end if;
 end $$;
 
--- 2026년 7월 1일부터 정규수업은 90분/120분 수강생으로 구분합니다.
+-- 2026년 10월 1일부터 정규수업은 45분/90분 중심으로 운영하고, 120분 수강생은 별도 조율합니다.
 -- 2026년 6월 30일까지는 기존대로 80분 수업 + 10분 휴식으로 운영합니다.
 -- 기존 수강생은 기본값을 90분으로 둡니다.
 alter table students
@@ -31,7 +35,7 @@ add column if not exists lesson_duration_minutes integer not null default 90;
 update students
 set lesson_duration_minutes = 90
 where lesson_duration_minutes is null
-   or lesson_duration_minutes not in (90, 120);
+   or lesson_duration_minutes not in (45, 90, 120);
 
 do $$
 begin
@@ -42,7 +46,7 @@ begin
   ) then
     alter table students
     add constraint students_lesson_duration_valid
-    check (lesson_duration_minutes in (90, 120));
+    check (lesson_duration_minutes in (45, 90, 120));
   end if;
 end $$;
 

@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import BottomNav from "../components/BottomNav";
+import { bookingDisplayNameFromMemo } from "../../lib/businessRules";
 
 type Student = { id: string; name: string; phone_last4: string; lesson_credits?: number };
 type Booking = { id: string; start_at: string; end_at: string; status: string; memo?: string; created_at?: string };
@@ -317,7 +318,7 @@ export default function HistoryPage() {
                 if (item.kind === "regular") {
                   return (
                     <div className="item" key={`regular-${item.booking.id}`}>
-                      <strong>정규수업</strong>
+                      <strong>{bookingDisplayNameFromMemo(item.booking.memo)}</strong>
                       <p>{formatDateTime(item.booking.start_at)} - {formatTime(item.booking.end_at)}</p>
                       <p className="small">상태: {regularStatusLabel(item.booking, currentTime)}</p>
                       <p className="small">메모: {mergeMemo("수강생 직접 예약", item.booking.memo)}</p>
@@ -364,7 +365,7 @@ export default function HistoryPage() {
                 if (item.kind === "regular") {
                   return (
                     <div className="item" key={`regular-history-${item.booking.id}`}>
-                      <strong>정규수업</strong>
+                      <strong>{bookingDisplayNameFromMemo(item.booking.memo)}</strong>
                       <p>{formatDateTime(item.booking.start_at)} - {formatTime(item.booking.end_at)}</p>
                       <p className="small">상태: {regularStatusLabel(item.booking, currentTime)}</p>
                       <p className="small">메모: {mergeMemo("수강생 직접 예약", item.booking.memo)}</p>

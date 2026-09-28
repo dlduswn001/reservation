@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import BottomNav from "../components/BottomNav";
+import { bookingDisplayNameFromMemo } from "../../lib/businessRules";
 
 type Student = { id: string; name: string; phone_last4: string; lesson_credits?: number };
 type Booking = { id: string; start_at: string; end_at: string; status: string; memo?: string };
@@ -111,14 +112,17 @@ export default function SchedulePage() {
 
       const regularItems = (historyJson.bookings || [])
         .filter((booking: Booking) => ["booked", "done", "late_cancelled"].includes(String(booking.status || "")))
-        .map((booking: Booking) => ({
-          id: `regular-${booking.id}`,
-          date: booking.start_at,
-          kind: "정규수업",
-          title: "정규수업",
-          time: formatTimeRange(booking.start_at, booking.end_at),
-          status: statusLabel(booking.status),
-        }));
+        .map((booking: Booking) => {
+          const className = bookingDisplayNameFromMemo(booking.memo);
+          return {
+            id: `regular-${booking.id}`,
+            date: booking.start_at,
+            kind: className === "정규수업" ? "정규수업" : "생활수업",
+            title: className,
+            time: formatTimeRange(booking.start_at, booking.end_at),
+            status: statusLabel(booking.status),
+          };
+        });
 
       const onedayItems = (historyJson.onedayBookings || [])
         .filter((booking: OneDayBooking) => booking.oneday_classes && ACTIVE_ONEDAY_STATUSES.has(String(booking.status || "")))
