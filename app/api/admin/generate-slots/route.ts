@@ -3,7 +3,7 @@ import { checkAdminPassword, getAdminPasswordErrorMessage } from "../../../../li
 import { getSupabaseAdmin } from "../../../../lib/supabaseAdmin";
 import {
   buildTimetableSlots,
-  WEEKDAY_ALL_TIMETABLE_START_TIMES,
+  WEEKDAY_VISIBLE_TIMETABLE_START_TIMES,
   WEEKDAY_REGULAR_START_TIMES,
   DEFAULT_LESSON_MINUTES,
   SHORT_LESSON_MINUTES,
@@ -33,7 +33,7 @@ export async function POST(request: Request) {
         return NextResponse.json({ message: "2026년 10월 이후의 월요일 또는 화요일만 선택할 수 있습니다." }, { status: 400 });
       }
 
-      const rows = WEEKDAY_ALL_TIMETABLE_START_TIMES.map((time) => {
+      const rows = WEEKDAY_VISIBLE_TIMETABLE_START_TIMES.map((time) => {
         const startAt = kstDateTimeToUtcIso(dateKey, time);
         const minutes = WEEKDAY_REGULAR_START_TIMES.includes(time) ? DEFAULT_LESSON_MINUTES : SHORT_LESSON_MINUTES;
         return { start_at: startAt, end_at: addMinutesToIso(startAt, minutes), is_open: true };
