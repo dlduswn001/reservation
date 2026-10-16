@@ -76,6 +76,11 @@ export const WEEKDAY_REGULAR_START_TIMES = ["14:00", "17:00", "19:00", "20:40"];
 // 수업 길이와 수강권 차감 방식은 학생별 기존 설정을 유지합니다.
 export const WEEKDAY_REGULAR_START_TIMES_45 = [...WEEKDAY_REGULAR_START_TIMES];
 export const WEEKDAY_LIFESTYLE_START_TIMES = ["15:40"];
+// 실제 예약창에 표시되는 월~금 공통 5개 시작 시간입니다.
+export const WEEKDAY_VISIBLE_TIMETABLE_START_TIMES = Array.from(new Set([
+  ...WEEKDAY_REGULAR_START_TIMES,
+  ...WEEKDAY_LIFESTYLE_START_TIMES,
+]));
 export const WEEKEND_REGULAR_START_TIMES = ["10:00", "13:00", "14:40"];
 export const WEEKEND_REGULAR_START_TIMES_45 = ["10:00", "10:45", "13:00", "13:45", "14:40", "15:25"];
 export const WEEKEND_LIFESTYLE_START_TIMES = ["12:00", "16:30"];
@@ -513,7 +518,7 @@ export function buildTimetableSlots(startDateKey: string, weeks: number) {
     if (dateKey >= OCTOBER_TIMETABLE_START_DATE_KEY) {
       if ([3, 4, 5].includes(weekday)) {
         timeRows = [
-          ...WEEKDAY_ALL_TIMETABLE_START_TIMES.map((time) => ({
+          ...WEEKDAY_VISIBLE_TIMETABLE_START_TIMES.map((time) => ({
             time,
             minutes: WEEKDAY_REGULAR_START_TIMES.includes(time) ? DEFAULT_LESSON_MINUTES : SHORT_LESSON_MINUTES,
           })),
