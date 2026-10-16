@@ -131,11 +131,8 @@ export default function ProfilePage() {
   }
 
   return (
-    <main className="container appContainer">
-      <header className="appHeader">
-        <strong>프로필</strong>
-        <span aria-hidden="true">♧</span>
-      </header>
+    <main className="container appContainer studioApp">
+      <header className="studioPageHeader"><h1>마이페이지</h1></header>
 
       {!student ? (
         <section className="card profileLoginCard">
@@ -154,12 +151,14 @@ export default function ProfilePage() {
             <div>
               <h1>{student.name}님</h1>
               <p>휴대폰 뒷자리 {student.phone_last4}</p>
-              <Link className="button compact secondary" href="/history">예약내역 보기</Link>
+              <Link className="studioProfileLink" href="/history">이용내역 확인하기 →</Link>
             </div>
           </section>
 
           <section className="card profileInfoCard">
+            <h2 className="studioProfileSectionTitle">내 이용 정보</h2>
             <div className="profileLine"><span>잔여 수강권</span><strong>{student.lesson_credits ?? 0}회</strong></div>
+            <Link href="/passes" className="studioProfileLink">수강권 자세히 보기 →</Link>
             <div className="profileLine"><span>정규수업 수강권</span><strong>{Number(student.lesson_duration_minutes ?? 90) === 45 ? "45분 수강권" : Number(student.lesson_duration_minutes ?? 90) === 120 ? "120분 수강권" : "90분 수강권"}</strong></div>
             <div className="profileLine"><span>이번 달 원데이 무료 혜택</span><strong className={freeBenefitUsed ? "mutedStrong" : "greenStrong"}>{freeBenefitUsed ? "사용 완료" : "사용 가능"}</strong></div>
             {(() => {
