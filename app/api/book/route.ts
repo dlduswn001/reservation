@@ -3,6 +3,7 @@ import { getSupabaseAdmin } from "../../../lib/supabaseAdmin";
 import {
   isAtLeastThreeHoursBefore,
   isLessonWithinOperatingHours,
+  isAdminOpenedMondayTuesdaySlot,
   lessonEndIso,
   normalizeLessonDurationMinutes,
   EXTENDED_LESSON_MINUTES,
@@ -121,7 +122,12 @@ export async function POST(request: Request) {
       return NextResponse.json({ message: `잔여 수강권이 부족합니다. 이 수업은 수강권 ${creditCost}회가 필요합니다.` }, { status: 400 });
     }
 
-    if (!isLessonWithinOperatingHours(slot.start_at, slotLessonMinutes)) {
+    const isAdminOpenedMonTue =
+      !autoStartAt &&
+      slot.is_open === true &&
+      isAdminOpenedMondayTuesdaySlot(slot.start_at, slot.end_at, slotLessonMinutes);
+
+    if (!isAdminOpenedMonTue && !isLessonWithinOperatingHours(slot.start_at, slotLessonMinutes)) {
       return NextResponse.json({ message: "해당 시간은 예약할 수 없습니다. 다른 시간을 선택해 주세요." }, { status: 400 });
     }
 
