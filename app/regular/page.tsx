@@ -474,9 +474,9 @@ export default function RegularPage() {
   }
 
   return (
-    <main className="container appContainer" style={styles.appContainer}>
+    <main className="container appContainer studioApp studioRegularPage" style={styles.appContainer}>
+      <header className="studioPageHeader"><h1>정규수업 예약</h1></header>
       <section className="card" style={styles.topCardFix}>
-        <h1>정규수업 예약</h1>
         {!student ? (
           <div>
             <p>정규 수강생 전용 예약 페이지입니다. 이름과 핸드폰번호 뒷자리 4자리를 입력해 주세요.</p>
