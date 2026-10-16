@@ -281,9 +281,10 @@ export default function HistoryPage() {
   }
 
   return (
-    <main className="container appContainer">
+    <main className="container appContainer studioApp">
+      <header className="studioPageHeader"><h1>이용내역</h1></header>
       <section className="card">
-        <h1>내 수강 기록</h1>
+        <h2>내 수강 기록</h2>
         <p>이름과 핸드폰번호 뒷자리 4자리를 입력하면, 앞으로 예정된 수업과 지난 수강 기록을 한 번에 확인할 수 있습니다.</p>
         {!student && (
           <div>

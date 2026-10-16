@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import { CalendarDays, ChevronRight, PenLine, UserRound, BookOpenText } from "lucide-react";
 import BottomNav from "./components/BottomNav";
 import PWAInstallPrompt from "./components/PWAInstallPrompt";
 import { bookingDisplayNameFromMemo } from "../lib/businessRules";
@@ -105,40 +106,63 @@ export default function Home() {
   }, []);
 
   return (
-    <main className="container appContainer">
-      <header className="appHeader">
-        <strong>문장학교 예약 앱</strong>
-        <span aria-hidden="true">♧</span>
+    <main className="container appContainer studioApp">
+      <header className="studioHeader">
+        <div className="studioWordmark">문장학교</div>
+        <Link href="/profile" className="studioIconLink" aria-label="마이페이지로 이동"><UserRound size={23} strokeWidth={1.8} /></Link>
       </header>
 
-      <section className="heroCard brandHero">
-        <p className="eyebrow">문장학교 예약 앱</p>
-        <h1>{student ? `안녕하세요, ${student.name}님.` : "안녕하세요, 문장학교님."}</h1>
-        <p>{student ? `잔여 수강권: ${student.lesson_credits ?? 0}회` : "정규수업과 원데이 클래스를 편하게 예약할 수 있어요."}</p>
+
+      <section className="studioPassOverview" aria-label="수강권 요약">
+        <div>
+          <span className="studioCardKicker">MY CLASS PASS</span>
+          <h2>나의 수강권</h2>
+          {student ? <p><strong>{student.lesson_credits ?? 0}</strong>회 남아 있어요</p> : <p>로그인하면 수강권 정보를 확인할 수 있어요.</p>}
+        </div>
+        <Link href={student ? "/passes" : "/profile"} aria-label="수강권 확인하기" className="studioCircleArrow"><ChevronRight size={23}/></Link>
       </section>
 
-      <section className="card homeCard">
-        <div className="sectionTitleRow">
-          <h2>다가오는 수업</h2>
-          <Link className="textLink" href="/history">더보기 ›</Link>
+      <section className="studioSection">
+        <div className="studioSectionHeading">
+          <h2>수업 예약</h2>
+          <Link href="/book" className="studioMore">전체 보기 <ChevronRight size={17} /></Link>
         </div>
-        <div className="list">
-          {upcoming.length === 0 && <p>현재 표시할 다가오는 수업이 없습니다.</p>}
+        <div className="studioQuickGrid">
+          <Link href="/regular" className="studioQuickLink">
+            <span className="studioQuickIcon"><PenLine size={24} strokeWidth={1.8}/></span>
+            <strong>정규수업</strong>
+            <small>45분 · 90분 1:1</small>
+            <ChevronRight className="studioQuickArrow" size={17} />
+          </Link>
+          <Link href="/oneday" className="studioQuickLink">
+            <span className="studioQuickIcon"><BookOpenText size={24} strokeWidth={1.8}/></span>
+            <strong>원데이 클래스</strong>
+            <small>함께 읽고 쓰는 시간</small>
+            <ChevronRight className="studioQuickArrow" size={17} />
+          </Link>
+        </div>
+      </section>
+
+      <section className="studioSection">
+        <div className="studioSectionHeading">
+          <h2>다가오는 수업</h2>
+          <Link href="/history" className="studioMore">전체 보기 <ChevronRight size={17}/></Link>
+        </div>
+        <div className="studioScheduleList">
+          {upcoming.length === 0 && (
+            <div className="studioEmpty">
+              <CalendarDays size={29} strokeWidth={1.45}/>
+              <strong>예정된 수업이 없어요</strong>
+              <p>예약한 수업이 생기면 이곳에서 확인할 수 있어요.</p>
+            </div>
+          )}
           {upcoming.map((item, index) => (
-            <div className="miniScheduleItem" key={`${item.label}-${index}`}>
-              <span>{item.label}</span>
+            <div className="studioScheduleRow" key={`${item.label}-${index}`}>
+              <div className="studioScheduleTop"><span>{item.label}</span><small>{item.status}</small></div>
               <strong>{item.title}</strong>
-              <p>{item.time} · {item.status}</p>
+              <p>{item.time}</p>
             </div>
           ))}
-        </div>
-      </section>
-
-      <section className="card homeCard">
-        <h2>예약하기</h2>
-        <div className="menu appMenu">
-          <Link className="button" href="/regular">정규수업 예약하기</Link>
-          <Link className="button secondary" href="/oneday">원데이 클래스 신청하기</Link>
         </div>
       </section>
 

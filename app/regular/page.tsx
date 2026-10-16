@@ -474,9 +474,9 @@ export default function RegularPage() {
   }
 
   return (
-    <main className="container appContainer" style={styles.appContainer}>
+    <main className="container appContainer studioApp studioRegularPage" style={styles.appContainer}>
+      <header className="studioPageHeader"><h1>정규수업 예약</h1></header>
       <section className="card" style={styles.topCardFix}>
-        <h1>정규수업 예약</h1>
         {!student ? (
           <div>
             <p>정규 수강생 전용 예약 페이지입니다. 이름과 핸드폰번호 뒷자리 4자리를 입력해 주세요.</p>
@@ -626,27 +626,41 @@ export default function RegularPage() {
             {!isLoadingData && availableDateKeys.length > 0 && (
               <>
                 <div style={styles.monthList}>
-                  {Object.entries(dateKeysByMonth).map(([monthKey, dateKeys]) => (
-                    <div key={monthKey} style={styles.monthBlock}>
-                      <h3 style={styles.monthTitle}>{formatMonthTitle(`${monthKey}-01`)}</h3>
-                      <div style={styles.datePillGrid}>
-                        {dateKeys.map((dateKey) => {
-                          const isSelected = selectedDate === dateKey;
-                          return (
-                            <button
-                              key={dateKey}
-                              type="button"
-                              onClick={() => setSelectedDate(dateKey)}
-                              style={isSelected ? styles.selectedDatePill : styles.datePill}
-                            >
-                              <span style={styles.datePillDate}>{formatShortDateLabel(dateKey)}</span>
-                              <span style={isSelected ? styles.selectedDatePillCount : styles.datePillCount}>예약 가능</span>
-                            </button>
-                          );
-                        })}
+                  {Object.entries(dateKeysByMonth).map(([monthKey, dateKeys]) => {
+                    const [year, month] = monthKey.split("-").map(Number);
+                    const firstWeekday = new Date(Date.UTC(year, month - 1, 1)).getUTCDay();
+                    const daysInMonth = new Date(Date.UTC(year, month, 0)).getUTCDate();
+                    return (
+                      <div key={monthKey} className="studioMonthBlock">
+                        <h3 className="studioMonthTitle">{formatMonthTitle(`${monthKey}-01`)}</h3>
+                        <div className="studioCalendarWeekdays">
+                          {["일", "월", "화", "수", "목", "금", "토"].map((weekday) => <span key={weekday}>{weekday}</span>)}
+                        </div>
+                        <div className="studioCalendarDates">
+                          {Array.from({ length: firstWeekday }, (_, i) => <span key={`blank-${i}`} aria-hidden="true" />)}
+                          {Array.from({ length: daysInMonth }, (_, i) => i + 1).map((day) => {
+                            const dateKey = `${monthKey}-${String(day).padStart(2, "0")}`;
+                            const available = dateKeys.includes(dateKey);
+                            const selected = selectedDate === dateKey;
+                            return (
+                              <button
+                                key={dateKey}
+                                type="button"
+                                className={`studioCalendarDate ${selected ? "selected" : ""} ${available ? "available" : ""}`}
+                                disabled={!available}
+                                aria-label={`${dateKey} ${available ? "예약 가능" : "예약 불가"}`}
+                                aria-pressed={selected}
+                                onClick={() => setSelectedDate(dateKey)}
+                              >
+                                {day}
+                                {available && !selected && <span className="studioCalendarDot" aria-hidden="true" />}
+                              </button>
+                            );
+                          })}
+                        </div>
                       </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
 
                 <div className="selectedSlots" style={styles.selectedSlots}>

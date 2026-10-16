@@ -464,7 +464,7 @@ export default function OneDayPage() {
   );
 
   return (
-    <main className="container onedayPage">
+    <main className="container onedayPage studioApp">
       <section className="card onedayHero">
         <span className="onedayHeroBadge">문장학교 정규수강생 전용</span>
         <h1>원데이 클래스</h1>

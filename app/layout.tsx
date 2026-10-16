@@ -3,9 +3,9 @@ import type { Metadata, Viewport } from "next";
 import PWAProvider from "./components/PWAProvider";
 
 export const metadata: Metadata = {
-  title: "문장학교 수업 예약",
+  title: "문장학교",
   description: "문장학교 정규수업과 원데이 클래스 예약 페이지",
-  applicationName: "문장학교 예약",
+  applicationName: "문장학교",
   manifest: "/manifest.webmanifest",
   formatDetection: {
     telephone: false,
@@ -13,7 +13,7 @@ export const metadata: Metadata = {
   appleWebApp: {
     capable: true,
     statusBarStyle: "default",
-    title: "문장학교 예약",
+    title: "문장학교",
   },
   icons: {
     icon: [
@@ -28,7 +28,7 @@ export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
   viewportFit: "cover",
-  themeColor: "#7A2638",
+  themeColor: "#ffffff",
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

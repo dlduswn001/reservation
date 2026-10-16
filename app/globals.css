@@ -12,12 +12,8 @@
 body {
   margin: 0;
   min-height: 100vh;
-  background-color: #fbf1e4;
-  background-image: linear-gradient(rgba(251, 241, 228, 0.1), rgba(251, 241, 228, 0.1)), url("/images/reading-background.png");
-  background-size: cover;
-  background-position: right bottom;
-  background-repeat: no-repeat;
-  background-attachment: fixed;
+  background-color: #ffffff;
+  background-image: none;
   color: var(--text);
   font-family: -apple-system, BlinkMacSystemFont, "Apple SD Gothic Neo", "Noto Sans KR", "Segoe UI", sans-serif;
 }
@@ -866,14 +862,8 @@ button:disabled, .button:disabled {
 }
 
 body {
-  background-color: var(--bg);
-  background-image:
-    radial-gradient(circle at 8% 18%, rgba(132, 154, 114, 0.16), transparent 22%),
-    radial-gradient(circle at 82% 12%, rgba(122, 38, 56, 0.12), transparent 24%),
-    linear-gradient(rgba(251, 242, 230, 0.64), rgba(251, 242, 230, 0.82)),
-    url("/images/reading-background.png");
-  background-size: auto, auto, auto, cover;
-  background-position: left top, right top, center, right bottom;
+  background-color: #ffffff;
+  background-image: none;
   font-family: "Pretendard", "Noto Sans KR", -apple-system, BlinkMacSystemFont, "Apple SD Gothic Neo", "Segoe UI", sans-serif;
   letter-spacing: -0.025em;
 }
@@ -1408,3 +1398,400 @@ button.compact, .button.compact {
 .noticeItem strong {
   color: #6E2A3A;
 }
+
+
+/* 문장학교 모바일 앱 · 화이트 스튜디오 UI (2026-10)
+   예약 및 관리자 기능은 유지하고 학생용 화면 표현만 정리합니다. */
+:root {
+  --bg: #ffffff;
+  --paper: #ffffff;
+  --card: #ffffff;
+  --text: #242424;
+  --muted: #888888;
+  --line: #e9e9eb;
+}
+html, body {
+  background-color: #ffffff !important;
+  background-image: none !important;
+}
+body { color: var(--text); }
+.container.appContainer.studioApp,
+.container.onedayPage.studioApp {
+  max-width: 480px !important;
+  min-height: 100dvh;
+  margin: 0 auto;
+  padding: 22px 20px calc(112px + env(safe-area-inset-bottom));
+  overflow-x: clip;
+  background: #fff;
+}
+.studioApp .card {
+  background: #fff;
+  border: 1px solid #e9e9eb;
+  border-radius: 18px;
+  box-shadow: none;
+  backdrop-filter: none;
+  padding: 20px;
+  margin-bottom: 16px;
+}
+.studioApp .item {
+  background: #fff;
+  border-color: #e9e9eb;
+  border-radius: 16px;
+  box-shadow: none;
+}
+.studioApp h1, .studioApp h2, .studioApp h3 {
+  color: #252525;
+  letter-spacing: -0.055em;
+}
+.studioApp p { color: #797979; }
+.studioApp input, .studioApp textarea, .studioApp select {
+  background: #fff;
+  border-color: #e4e4e7;
+  border-radius: 11px;
+}
+.studioApp button, .studioApp .button {
+  box-shadow: none;
+  border-radius: 12px;
+}
+.studioApp .bottomNav {
+  position: fixed;
+  left: 50%;
+  bottom: 0;
+  transform: translateX(-50%);
+  width: min(480px, 100%);
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 0;
+  padding: 8px 6px calc(7px + env(safe-area-inset-bottom));
+  background: rgba(255,255,255,0.98);
+  border-top: 1px solid #ebebee;
+  box-shadow: none;
+  z-index: 40;
+}
+.studioApp .bottomNavItem {
+  min-width: 0;
+  min-height: 56px;
+  padding: 5px 1px;
+  border-radius: 0;
+  background: transparent;
+  color: #b4b5bd;
+  gap: 3px;
+  font-size: 10.5px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+.studioApp .bottomNavItem.active {
+  background: transparent;
+  color: #7A2638;
+}
+.studioApp .bottomNavIcon,
+.studioApp .bottomNavItem.active .bottomNavIcon {
+  width: 26px;
+  height: 27px;
+  background: transparent;
+  border-radius: 0;
+  color: inherit;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.studioApp .bottomNavItem:focus-visible { outline: 2px solid #7A2638; outline-offset: -3px; }
+.studioHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 0 18px;
+  border-bottom: 1px solid #f0f0f0;
+}
+.studioWordmark {
+  font-size: 25px;
+  line-height: 1.3;
+  font-weight: 900;
+  letter-spacing: -0.075em;
+  color: #262626;
+}
+.studioIconLink {
+  width: 38px;
+  height: 38px;
+  display: inline-flex;
+  justify-content: center;
+  align-items: center;
+  color: #343434;
+  border: 1px solid #ededee;
+  border-radius: 50%;
+}
+.studioIntro { padding: 28px 0 20px; }
+.studioEyebrow, .studioApp .studioEyebrow {
+  margin: 0 0 9px;
+  font-weight: 650;
+  font-size: 12px;
+  color: #8c7a80;
+  letter-spacing: -0.03em;
+}
+.studioIntro h1 {
+  margin: 0 0 9px;
+  line-height: 1.27;
+  font-size: 27px;
+  font-weight: 850;
+}
+.studioIntro > p:last-child {
+  font-size: 14px;
+  margin: 0;
+  line-height: 1.55;
+  font-weight: 400;
+}
+.studioPassOverview {
+  background: linear-gradient(118deg, #692233, #8B3447);
+  border-radius: 19px;
+  color: #fff;
+  padding: 23px 22px;
+  display: flex;
+  align-items: end;
+  justify-content: space-between;
+  min-height: 162px;
+  margin: 12px 0 32px;
+}
+.studioApp .studioCardKicker {
+  font-size: 10px;
+  font-weight: 750;
+  letter-spacing: 0.12em;
+  color: rgba(255,255,255,.65);
+}
+.studioPassOverview h2, .studioPassOverview p, .studioPassOverview strong {
+  color: #fff;
+}
+.studioPassOverview h2 {
+  margin: 9px 0 4px;
+  font-size: 21px;
+}
+.studioPassOverview p { margin: 0; font-size: 14px; }
+.studioPassOverview p strong { font-size: 24px; letter-spacing: -.03em; }
+.studioCircleArrow {
+  flex: 0 0 auto;
+  width: 37px;
+  height: 37px;
+  border-radius: 50%;
+  background: rgba(255,255,255,.2);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+.studioSection { margin: 0 0 30px; }
+.studioSectionHeading {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+.studioSectionHeading h2, .studioSection > h2 {
+  margin: 0;
+  font-size: 21px;
+  font-weight: 800;
+}
+.studioMore {
+  display: inline-flex;
+  gap: 2px;
+  align-items: center;
+  color: #888;
+  font-size: 12px;
+  font-weight: 550;
+}
+.studioQuickGrid { display: grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap: 12px; }
+.studioQuickLink {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  border: 1px solid #eeeef0;
+  border-radius: 16px;
+  min-width: 0;
+  padding: 20px 16px 15px;
+  gap: 4px;
+}
+.studioQuickIcon {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  color: #7A2638;
+  background: #faf0f2;
+  border-radius: 13px;
+  width: 46px;
+  height: 46px;
+  margin-bottom: 15px;
+}
+.studioQuickLink strong { color: #282828; font-size: 16px; font-weight: 800; }
+.studioQuickLink small { font-size: 11px; color: #8e8e93; line-height: 1.5; }
+.studioQuickArrow { align-self: flex-end; color: #9b9b9b; margin-top: 7px; }
+.studioScheduleList { display: grid; gap: 10px; }
+.studioScheduleRow {
+  padding: 17px 18px;
+  border: 1px solid #ededee;
+  border-radius: 14px;
+}
+.studioScheduleTop { display: flex; justify-content: space-between; gap: 10px; }
+.studioScheduleTop span { color: #7A2638; font-size: 12px; font-weight: 750; }
+.studioScheduleTop small { color: #a4a4a4; font-size: 11px; }
+.studioScheduleRow > strong { display:block; margin: 9px 0 3px; font-size: 16px; }
+.studioScheduleRow p { margin:0; font-size: 12px; }
+.studioEmpty {
+  padding: 47px 12px;
+  text-align: center;
+  color: #b2b2b7;
+  display: flex;
+  align-items: center;
+  flex-direction: column;
+  gap: 8px;
+}
+.studioEmpty strong { color: #888; font-size: 15px; }
+.studioEmpty p { margin: 0; color: #aaa; font-size: 13px; }
+.studioPageHeader { padding: 7px 0 15px; margin-bottom: 17px; }
+.studioPageHeader h1 { margin: 0; font-size: 25px; font-weight: 850; }
+.studioPageDescription { font-size: 14px; margin: 2px 0 22px; }
+.studioBookingOptions { display: grid; gap: 13px; margin-bottom: 30px; }
+.studioBookingOption {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  border: 1px solid #eeeeef;
+  padding: 24px 16px;
+  border-radius: 18px;
+}
+.studioOptionIcon {
+  width: 53px;
+  height: 53px;
+  border-radius: 14px;
+  background: #faf0f2;
+  color: #7A2638;
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+}
+.studioBookingOption > div:nth-child(2) { flex: 1; min-width: 0; }
+.studioBookingOption > div:nth-child(2) span { font-size: 10px; letter-spacing: .1em; font-weight: 700; color: #a68590; }
+.studioBookingOption h2 { font-size: 17px; margin: 6px 0; font-weight: 800; }
+.studioBookingOption p { font-size: 12px; margin: 0; line-height: 1.5; }
+.studioBookingOption > svg { color: #a0a0a0; }
+.studioBookingPolicy {
+  border-radius: 16px;
+  background: #f8f8f9;
+  padding: 20px;
+}
+.studioBookingPolicy h2 { display: flex; align-items: center; gap: 8px; font-size: 17px; margin: 0 0 16px; }
+.studioPolicyLine { display:flex; align-items:flex-start; gap:10px; color:#555; margin-bottom:12px; font-size:13px; line-height:1.6; }
+.studioPolicyLine svg { flex:0 0 auto; color:#8b6772; margin-top:1px; }
+.studioBookingPolicy > p { padding-top:12px; border-top:1px solid #e5e5e7; margin:0; font-size:12px; }
+.studioPassLabel, .studioApp .studioPassLabel { font-weight: 700; color: #6b6b70; font-size: 14px; margin: 6px 0 17px; }
+.studioTicketCard {
+  position:relative;
+  overflow:hidden;
+  min-height: 249px;
+  padding: 27px 24px;
+  background: linear-gradient(118deg, #5b1c2d 0%, #8A3145 100%);
+  border-radius: 18px;
+  box-shadow: 0 10px 25px rgba(80,22,36,0.14);
+  color:white;
+}
+.studioTicketCard::after {
+  content: "";
+  position:absolute;
+  width:200px; height:200px;
+  border:1px solid rgba(255,255,255,.12);
+  border-radius:50%;
+  right:-105px; top:-76px;
+}
+.studioTicketCard h2 {
+  color: white;
+  font-size: 27px;
+  margin: 14px 0 6px;
+}
+.studioTicketCard > p { color: rgba(255,255,255,.65); margin: 0; font-size: 13px; }
+.studioTicketType { display: block; color: rgba(255,255,255,.8); font-size: 12px; margin-top:18px; }
+.studioTicketStatus {
+  background: rgba(255,255,255,.19);
+  padding: 7px 10px;
+  border-radius: 100px;
+  font-size: 11px;
+  font-weight: 650;
+}
+.studioTicketBalance {
+  display:flex; align-items:baseline; justify-content:space-between;
+  gap:12px; margin-top:34px;
+  border-top:1px solid rgba(255,255,255,.22); padding-top:17px;
+}
+.studioTicketBalance span { font-size: 13px; color: rgba(255,255,255,.78); }
+.studioTicketBalance strong { font-size: 25px; color: white; }
+.studioPassDetails { margin-top:31px; }
+.studioPassDetails > h2 { font-size: 20px; margin-bottom: 14px; }
+.studioDetailRows { display:grid; border-top: 1px solid #eee; }
+.studioDetailRows > div { display:flex; justify-content:space-between; gap:12px; border-bottom:1px solid #eee; padding: 17px 0; }
+.studioDetailRows span { font-size: 13px; color:#85858b; }
+.studioDetailRows strong { font-size: 13px; color:#303036; text-align:right; }
+.studioFootnote { font-size: 12px; line-height:1.6; margin-top:17px; }
+.studioFullLink, .studioTextButton {
+  display:flex; align-items:center; justify-content:center; gap:10px;
+  border-radius:12px;
+  background:#7A2638;
+  color:white;
+  font-size:14px; font-weight:750;
+  padding:16px 14px;
+  margin-top:16px;
+}
+.studioFullLink svg:last-child { margin-left:auto; }
+.studioBlankCard {
+  display:flex; align-items:center; flex-direction:column; justify-content:center;
+  text-align:center; border:1px solid #ececee; border-radius:16px;
+  padding:47px 25px; color:#7A2638; gap:11px;
+}
+.studioBlankCard h2 { margin:0; font-size:19px; }
+.studioBlankCard p { margin:0; font-size:13px; }
+.studioBlankCard .studioTextButton { width:100%; }
+.studioApp .profileIdentityCard { border:0; border-bottom:1px solid #eee; border-radius:0; padding:15px 0 24px; }
+.studioApp .profileIdentityCard h1 { font-size:22px; }
+.studioApp .profileAvatar { background:#f1f1f4; color:#999; border-radius:50%; width:70px; height:70px; box-shadow:none; }
+.studioApp .profileInfoCard { border:0; padding:16px 0; }
+.studioProfileSectionTitle { font-size:18px; margin: 0 0 10px; }
+.studioProfileLink { display:inline-block; font-size:13px; font-weight:700; color:#7A2638; padding:6px 0; }
+.studioApp .profileLine { border-color:#eee; }
+.studioApp .profileLine span { color:#818185; font-size:13px; }
+.studioApp .profileLine strong { color:#333; font-size:13px; }
+.studioApp .profileLoginCard h1 { font-size:20px; }
+.studioApp .installCard { background:#fafafa; box-shadow:none; border:1px solid #eee; border-radius:16px; }
+/* 달력 중심 정규수업 예약 */
+.studioRegularPage .studioMonthBlock { border-top:1px solid #eeeeef; padding-top:17px; }
+.studioRegularPage .studioMonthTitle { font-size:19px; margin:0 0 18px; text-align:center; }
+.studioRegularPage .studioCalendarWeekdays, .studioRegularPage .studioCalendarDates {
+  display:grid; grid-template-columns:repeat(7,minmax(0,1fr)); gap:4px; text-align:center;
+}
+.studioRegularPage .studioCalendarWeekdays { margin-bottom:7px; }
+.studioRegularPage .studioCalendarWeekdays span { font-size:12px; color:#9a9a9e; padding:8px 0; }
+.studioRegularPage .studioCalendarWeekdays span:first-child { color:#c67b86; }
+.studioRegularPage .studioCalendarWeekdays span:last-child { color:#7185b2; }
+.studioRegularPage .studioCalendarDate {
+  width:100%; aspect-ratio:1; min-width:0; min-height:40px; max-height:54px;
+  position:relative; padding: 0; margin:0; border:0;
+  border-radius:50%;
+  display:grid; place-items:center;
+  color:#45454b; background:#fff; font-weight:650; font-size:15px;
+  box-shadow:none;
+}
+.studioRegularPage .studioCalendarDate:hover:not(:disabled) { background:#f9f0f2; }
+.studioRegularPage .studioCalendarDate:disabled { opacity:1; background:transparent; color:#d2d2d6; cursor:default; }
+.studioRegularPage .studioCalendarDate.selected { background:#7A2638!important; color:#fff!important; }
+.studioRegularPage .studioCalendarDot { width:4px; height:4px; background:#aa6677; border-radius:50%; position:absolute; bottom:6px; }
+.studioRegularPage .selectedSlots { border-color:#eee!important; margin-top:27px!important; }
+.studioRegularPage .timeButton { border:1px solid #e9e9eb; }
+.studioRegularPage .timeButton:not(:disabled) { background:#fff; color:#7A2638; }
+.studioRegularPage .timeButton:hover:not(:disabled) { background:#fdf5f7; }
+.studioRegularPage .noticeBox { background:#f9f9f9; border:1px solid #eee; }
+.studioRegularPage .bookingSectionTab { background:#f3f3f4!important; color:#777!important; box-shadow:none; }
+.studioRegularPage .bookingSectionTab.active { background:#7A2638!important; color:white!important; }
+@media(max-width:380px) {
+  .container.appContainer.studioApp, .container.onedayPage.studioApp { padding-left:14px; padding-right:14px; }
+  .studioApp .bottomNavItem { font-size:10px; }
+  .studioBookingOption { padding:18px 12px; gap:10px; }
+}
+
+/* 메인 첫 화면은 브랜드명만 보여주고 곧바로 수강권으로 연결합니다. */
+.studioApp .studioHeader { margin-bottom: 20px; }
+.studioApp .studioPassOverview { margin-top: 0; }
