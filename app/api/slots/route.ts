@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { getSupabaseAdmin } from "../../../lib/supabaseAdmin";
 import {
   isLessonWithinOperatingHours,
+  isAdminOpenedMondayTuesdaySlot,
   lessonEndIso,
   normalizeLessonDurationMinutes,
   getReservationLessonMinutes,
@@ -280,7 +281,11 @@ export async function GET(request: Request) {
     const isSlotAvailable = (slot: SlotRow) => {
       const slotLessonMinutes = getReservationLessonMinutes(slot.start_at, lessonMinutes);
 
-      if (!isLessonWithinOperatingHours(slot.start_at, slotLessonMinutes)) {
+      const isAdminOpenedMonTue =
+        slot.is_open === true &&
+        isAdminOpenedMondayTuesdaySlot(slot.start_at, slot.end_at, slotLessonMinutes);
+
+      if (!isAdminOpenedMonTue && !isLessonWithinOperatingHours(slot.start_at, slotLessonMinutes)) {
         return false;
       }
 
