@@ -1,4 +1,4 @@
-const CACHE_VERSION = "munjang-pwa-v40-white-studio-20261016";
+const CACHE_VERSION = "munjang-pwa-v41-moonjang-app-name-20261016";
 const STATIC_CACHE = `${CACHE_VERSION}-static`;
 const RUNTIME_CACHE = `${CACHE_VERSION}-runtime`;
 
