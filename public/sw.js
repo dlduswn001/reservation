@@ -1,4 +1,4 @@
-const CACHE_VERSION = "munjang-pwa-v21-20260728-august-fix";
+const CACHE_VERSION = "munjang-pwa-v40-white-studio-20261016";
 const STATIC_CACHE = `${CACHE_VERSION}-static`;
 const RUNTIME_CACHE = `${CACHE_VERSION}-runtime`;
 
@@ -8,7 +8,6 @@ const APP_SHELL = [
   "/icons/icon-192x192.png",
   "/icons/icon-512x512.png",
   "/icons/apple-touch-icon.png",
-  "/images/reading-background.png",
 ];
 
 self.addEventListener("install", (event) => {
