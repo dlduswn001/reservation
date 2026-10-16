@@ -12,12 +12,8 @@
 body {
   margin: 0;
   min-height: 100vh;
-  background-color: #fbf1e4;
-  background-image: linear-gradient(rgba(251, 241, 228, 0.1), rgba(251, 241, 228, 0.1)), url("/images/reading-background.png");
-  background-size: cover;
-  background-position: right bottom;
-  background-repeat: no-repeat;
-  background-attachment: fixed;
+  background-color: #ffffff;
+  background-image: none;
   color: var(--text);
   font-family: -apple-system, BlinkMacSystemFont, "Apple SD Gothic Neo", "Noto Sans KR", "Segoe UI", sans-serif;
 }
@@ -866,14 +862,8 @@ button:disabled, .button:disabled {
 }
 
 body {
-  background-color: var(--bg);
-  background-image:
-    radial-gradient(circle at 8% 18%, rgba(132, 154, 114, 0.16), transparent 22%),
-    radial-gradient(circle at 82% 12%, rgba(122, 38, 56, 0.12), transparent 24%),
-    linear-gradient(rgba(251, 242, 230, 0.64), rgba(251, 242, 230, 0.82)),
-    url("/images/reading-background.png");
-  background-size: auto, auto, auto, cover;
-  background-position: left top, right top, center, right bottom;
+  background-color: #ffffff;
+  background-image: none;
   font-family: "Pretendard", "Noto Sans KR", -apple-system, BlinkMacSystemFont, "Apple SD Gothic Neo", "Segoe UI", sans-serif;
   letter-spacing: -0.025em;
 }
