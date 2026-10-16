@@ -1791,3 +1791,7 @@ body { color: var(--text); }
   .studioApp .bottomNavItem { font-size:10px; }
   .studioBookingOption { padding:18px 12px; gap:10px; }
 }
+
+/* 메인 첫 화면은 브랜드명만 보여주고 곧바로 수강권으로 연결합니다. */
+.studioApp .studioHeader { margin-bottom: 20px; }
+.studioApp .studioPassOverview { margin-top: 0; }
