@@ -1,48 +1,17 @@
 import Link from "next/link";
+import { ArrowRight, BookOpenText, CalendarDays, Clock3 } from "lucide-react";
 import BottomNav from "../components/BottomNav";
 
 export default function BookPage() {
   return (
-    <main className="container appContainer">
-      <header className="appHeader">
-        <strong>예약하기</strong>
-        <span aria-hidden="true">♡</span>
-      </header>
-
-      <section className="bookingHero card">
-        <p className="pageKicker">문장학교 예약 앱</p>
-        <h1>원하는 수업을 선택해 예약해 보세요.</h1>
-        <p>정규수업 예약과 원데이 클래스 신청을 한곳에서 진행할 수 있어요.</p>
+    <main className="container appContainer studentBookingLanding">
+      <header className="appHeader"><strong>수업예약</strong></header>
+      <div className="pageLead"><h1>어떤 수업을 예약할까요?</h1><p>문장학교에서 나만의 글쓰기 시간을 예약하세요.</p></div>
+      <section className="studentBookingChoices">
+        <Link className="studentBookingChoice" href="/regular"><span className="studentChoiceIcon"><CalendarDays size={24} /></span><span><strong>정규 1:1 글쓰기</strong><small>45분·90분 정규수업 및 생활수업</small></span><ArrowRight size={20} className="studentChoiceArrow" /></Link>
+        <Link className="studentBookingChoice" href="/oneday"><span className="studentChoiceIcon"><BookOpenText size={24} /></span><span><strong>원데이 클래스</strong><small>함께 배우고 쓰는 월간 클래스</small></span><ArrowRight size={20} className="studentChoiceArrow" /></Link>
       </section>
-
-      <section className="bookingChoiceGrid">
-        <Link className="bookingChoiceCard primary" href="/regular">
-          <span className="choiceIcon">✒</span>
-          <div>
-            <strong>정규수업 예약하기</strong>
-            <p>주 1회 정기 수업 일정을 예약할 수 있어요.</p>
-          </div>
-          <em>›</em>
-        </Link>
-
-        <Link className="bookingChoiceCard soft" href="/oneday">
-          <span className="choiceIcon">☕</span>
-          <div>
-            <strong>원데이 클래스 신청하기</strong>
-            <p>원하는 날짜의 원데이 클래스를 신청할 수 있어요.</p>
-          </div>
-          <em>›</em>
-        </Link>
-      </section>
-
-      <section className="card compactCalendarCard">
-        <div className="sectionTitleRow">
-          <h2>예약 안내</h2>
-        </div>
-        <p>수업 예약은 시작 3시간 전까지 가능합니다.</p>
-        <p>수업 취소는 3시간 전까지 가능하며, 3시간 이내 취소 시 수강권이 차감됩니다.</p>
-      </section>
-
+      <section className="studentBookingNotice"><div className="sectionTitleRow"><h2><Clock3 size={20}/> 예약 안내</h2></div><p>수업 신청은 시작 3시간 전까지 가능합니다.</p><p>시작 3시간 전까지 취소하면 수강권이 복구됩니다. 이후 취소 시에는 차감됩니다.</p><p>4회 정규수강권은 첫 수업일로부터 10주 동안 사용할 수 있습니다.</p></section>
       <BottomNav />
     </main>
   );
