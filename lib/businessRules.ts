@@ -436,6 +436,27 @@ export function overlapsAnyTimeBlock(startAt: string, endAt: string, blocks: Tim
 
 
 
+// 월·화요일은 자동 시간표 대신 관리자가 직접 연 DB 슬롯만 예약 가능합니다.
+// 기존 수·목·금 및 토·일 시간표의 허용 조건에는 영향을 주지 않습니다.
+export function isAdminOpenedMondayTuesdaySlot(
+  startAt: string,
+  endAt: string | null | undefined,
+  lessonMinutes: unknown = DEFAULT_LESSON_MINUTES
+) {
+  if (!isOctoberTimetableDate(startAt) || !endAt) return false;
+  const { weekday } = kstDateTimeParts(startAt);
+  if (weekday !== "Mon" && weekday !== "Tue") return false;
+
+  const minutes = normalizeLessonDurationMinutes(lessonMinutes);
+  if (minutes === EXTENDED_LESSON_MINUTES) return false;
+
+  const startMs = new Date(startAt).getTime();
+  const endMs = new Date(endAt).getTime();
+  return Number.isFinite(startMs)
+    && Number.isFinite(endMs)
+    && endMs - startMs >= minutes * 60 * 1000;
+}
+
 export function isLessonWithinOperatingHours(startAt: string, lessonMinutes: unknown = DEFAULT_LESSON_MINUTES) {
   const rule = regularLessonRule(startAt, lessonMinutes);
   const { weekday, hour, minute } = kstDateTimeParts(startAt);
