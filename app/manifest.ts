@@ -3,8 +3,8 @@ import type { MetadataRoute } from "next";
 export default function manifest(): MetadataRoute.Manifest {
   return {
     id: "/",
-    name: "문장학교 수업 예약",
-    short_name: "문장학교 예약",
+    name: "문장학교",
+    short_name: "문장학교",
     description: "문장학교 정규수업과 원데이 클래스를 예약하고 수강 기록을 확인하는 앱",
     start_url: "/",
     scope: "/",
