@@ -278,6 +278,14 @@ export async function GET(request: Request) {
     const activeBlockedTimes = blockedTimes || [];
 
     const isSlotAvailable = (slot: SlotRow) => {
+      // 월·화요일은 관리자가 열어 둔 DB 슬롯만 노출합니다.
+      // 수·목·금은 기존 is_open 처리 방식을 유지합니다.
+      const weekday = new Intl.DateTimeFormat("en-US", {
+        timeZone: "Asia/Seoul",
+        weekday: "short",
+      }).format(new Date(slot.start_at));
+      if (["Mon", "Tue"].includes(weekday) && slot.is_open === false) return false;
+
       const slotLessonMinutes = getReservationLessonMinutes(slot.start_at, lessonMinutes);
 
       // 월·화요일도 수요일과 같은 시작 시간만 표시합니다.
