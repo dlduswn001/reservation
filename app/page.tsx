@@ -112,11 +112,6 @@ export default function Home() {
         <Link href="/profile" className="studioIconLink" aria-label="마이페이지로 이동"><UserRound size={23} strokeWidth={1.8} /></Link>
       </header>
 
-      <section className="studioIntro" aria-label="문장학교 소개">
-        <p className="studioEyebrow">읽고, 이해하고, 나만의 문장을 쓰는 곳</p>
-        <h1>{student ? `${student.name}님, 반가워요.` : "당신의 문장을 쓰는 시간."}</h1>
-        <p>{student ? "오늘도 나만의 속도로 글을 써볼까요?" : "문장학교에서 글쓰기를 시작해 보세요."}</p>
-      </section>
 
       <section className="studioPassOverview" aria-label="수강권 요약">
         <div>
