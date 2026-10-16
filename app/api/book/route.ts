@@ -3,7 +3,6 @@ import { getSupabaseAdmin } from "../../../lib/supabaseAdmin";
 import {
   isAtLeastThreeHoursBefore,
   isLessonWithinOperatingHours,
-  isAdminOpenedMondayTuesdaySlot,
   lessonEndIso,
   normalizeLessonDurationMinutes,
   EXTENDED_LESSON_MINUTES,
@@ -81,6 +80,14 @@ export async function POST(request: Request) {
     let slot: { id: string; start_at: string; end_at: string | null; is_open: boolean };
 
     if (autoStartAt) {
+      // 관리자가 열지 않은 월·화요일은 임의의 자동 조율 슬롯으로도 예약할 수 없습니다.
+      const autoWeekday = new Intl.DateTimeFormat("en-US", {
+        timeZone: "Asia/Seoul",
+        weekday: "short",
+      }).format(new Date(autoStartAt));
+      if (["Mon", "Tue"].includes(autoWeekday)) {
+        return NextResponse.json({ message: "월·화요일은 관리자가 연 시간만 예약할 수 있습니다." }, { status: 400 });
+      }
       if (!isAutoAdjustmentCandidate(autoStartAt, requestedLessonMinutes)) {
         return NextResponse.json({ message: "해당 조율 시간은 예약할 수 없습니다. 다른 시간을 선택해 주세요." }, { status: 400 });
       }
@@ -122,12 +129,8 @@ export async function POST(request: Request) {
       return NextResponse.json({ message: `잔여 수강권이 부족합니다. 이 수업은 수강권 ${creditCost}회가 필요합니다.` }, { status: 400 });
     }
 
-    const isAdminOpenedMonTue =
-      !autoStartAt &&
-      slot.is_open === true &&
-      isAdminOpenedMondayTuesdaySlot(slot.start_at, slot.end_at, slotLessonMinutes);
-
-    if (!isAdminOpenedMonTue && !isLessonWithinOperatingHours(slot.start_at, slotLessonMinutes)) {
+    // 월·화요일도 수요일의 정규 시간표를 적용합니다.
+    if (!isLessonWithinOperatingHours(slot.start_at, slotLessonMinutes)) {
       return NextResponse.json({ message: "해당 시간은 예약할 수 없습니다. 다른 시간을 선택해 주세요." }, { status: 400 });
     }
 

@@ -2,7 +2,6 @@ import { NextResponse } from "next/server";
 import { getSupabaseAdmin } from "../../../lib/supabaseAdmin";
 import {
   isLessonWithinOperatingHours,
-  isAdminOpenedMondayTuesdaySlot,
   lessonEndIso,
   normalizeLessonDurationMinutes,
   getReservationLessonMinutes,
@@ -281,11 +280,9 @@ export async function GET(request: Request) {
     const isSlotAvailable = (slot: SlotRow) => {
       const slotLessonMinutes = getReservationLessonMinutes(slot.start_at, lessonMinutes);
 
-      const isAdminOpenedMonTue =
-        slot.is_open === true &&
-        isAdminOpenedMondayTuesdaySlot(slot.start_at, slot.end_at, slotLessonMinutes);
-
-      if (!isAdminOpenedMonTue && !isLessonWithinOperatingHours(slot.start_at, slotLessonMinutes)) {
+      // 월·화요일도 수요일과 같은 시작 시간만 표시합니다.
+      // 실제 DB에 등록된 시간만 조회하므로 미개방 날짜는 예약할 수 없습니다.
+      if (!isLessonWithinOperatingHours(slot.start_at, slotLessonMinutes)) {
         return false;
       }
 

@@ -506,6 +506,7 @@ export default function AdminPage() {
   const [adjustedStartAt, setAdjustedStartAt] = useState("");
   const [adjustedLessonMinutes, setAdjustedLessonMinutes] = useState("90");
   const [generateStartDate, setGenerateStartDate] = useState("");
+  const [openMondayTuesdayDate, setOpenMondayTuesdayDate] = useState("");
   const [generateWeeks, setGenerateWeeks] = useState("8");
   const [creditEdits, setCreditEdits] = useState<Record<string, string>>({});
   const [editingStudentId, setEditingStudentId] = useState<string | null>(null);
@@ -966,6 +967,38 @@ export default function AdminPage() {
     setMessage("차단 일정을 삭제했습니다.");
     await loadOverview();
     setActiveTab("blocks");
+  }
+
+  async function openMondayTuesdaySlots() {
+    if (!openMondayTuesdayDate) {
+      setMessage("수업을 열 월요일 또는 화요일 날짜를 선택해 주세요.");
+      return;
+    }
+    const selectedDay = new Date(`${openMondayTuesdayDate}T12:00:00Z`).getUTCDay();
+    if (![1, 2].includes(selectedDay)) {
+      setMessage("월요일 또는 화요일 날짜만 선택할 수 있습니다.");
+      return;
+    }
+    if (!window.confirm(`${openMondayTuesdayDate}의 수업 시간을 수요일과 동일하게 열까요? 기존 예약은 변경되지 않습니다.`)) return;
+
+    setMessage("");
+    try {
+      const res = await fetch("/api/admin/generate-slots", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ password, open_weekday_date: openMondayTuesdayDate }),
+      });
+      const json = await res.json();
+      if (!res.ok) {
+        setMessage(json.message || "월·화요일 시간표를 열 수 없습니다.");
+        return;
+      }
+      setMessage(json.message || "월·화요일 시간표를 열었습니다.");
+      await loadOverview();
+      setActiveTab("slots");
+    } catch {
+      setMessage("수업 시간 등록 중 오류가 발생했습니다. 다시 시도해 주세요.");
+    }
   }
 
   async function generateTimetable() {
@@ -1983,6 +2016,14 @@ export default function AdminPage() {
                 <button onClick={generateTimetable}>기본 시간표 만들기</button>
                 <button className="secondary" onClick={reassignOctoberBookings}>10월 기존 예약 정규시간대로 정리</button>
                 <p className="small">10월에 미리 예약된 정규수업이 있으면, 같은 날 또는 가까운 날짜의 가장 가까운 정규수업 시간으로 옮깁니다. 생활수업 시간으로는 옮기지 않습니다.</p>
+              </section>
+
+              <section className="card">
+                <h2>월·화요일 수업 열기</h2>
+                <p className="small">월·화요일은 자동으로 열리지 않습니다. 수업할 날짜를 선택하면 수요일과 동일한 45분·90분 정규수업 및 15:40 생활수업 시간표가 등록됩니다. 기존 예약과 수강권은 변경되지 않습니다.</p>
+                <label>수업을 열 날짜 (월요일 또는 화요일)</label>
+                <input type="date" min="2026-10-01" value={openMondayTuesdayDate} onChange={(e) => setOpenMondayTuesdayDate(e.target.value)} />
+                <button onClick={openMondayTuesdaySlots}>선택한 월·화요일 수업 열기</button>
               </section>
 
               <section className="card">

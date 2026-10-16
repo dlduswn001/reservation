@@ -122,7 +122,7 @@ export function isLifestyleLessonSlot(startAt: string) {
   const { weekday, hour, minute } = kstDateTimeParts(startAt);
   const time = minutesToTime(hour * 60 + minute);
   if (["Sat", "Sun"].includes(weekday)) return WEEKEND_LIFESTYLE_START_TIMES.includes(time);
-  if (["Wed", "Thu", "Fri"].includes(weekday)) return WEEKDAY_LIFESTYLE_START_TIMES.includes(time);
+  if (["Mon", "Tue", "Wed", "Thu", "Fri"].includes(weekday)) return WEEKDAY_LIFESTYLE_START_TIMES.includes(time);
   return false;
 }
 
@@ -131,7 +131,7 @@ export function isRegularLessonSlot(startAt: string) {
   const { weekday, hour, minute } = kstDateTimeParts(startAt);
   const time = minutesToTime(hour * 60 + minute);
   if (["Sat", "Sun"].includes(weekday)) return WEEKEND_REGULAR_START_TIMES.includes(time);
-  if (["Wed", "Thu", "Fri"].includes(weekday)) return WEEKDAY_REGULAR_START_TIMES.includes(time);
+  if (["Mon", "Tue", "Wed", "Thu", "Fri"].includes(weekday)) return WEEKDAY_REGULAR_START_TIMES.includes(time);
   return false;
 }
 
@@ -150,7 +150,7 @@ export function isRegularLessonSlotForStudent(startAt: string, lessonMinutes: un
     ).includes(time);
   }
 
-  if (["Wed", "Thu", "Fri"].includes(weekday)) {
+  if (["Mon", "Tue", "Wed", "Thu", "Fri"].includes(weekday)) {
     return (normalized === SHORT_LESSON_MINUTES
       ? WEEKDAY_REGULAR_START_TIMES_45
       : WEEKDAY_REGULAR_START_TIMES
