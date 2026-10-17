@@ -231,9 +231,10 @@ const ONEDAY_STATUS_LABELS: Record<string, string> = {
   "등록대기": "무료 등록 대기",
   "입금완료": "등록 완료",
   "등록완료": "등록 완료",
+  "대기": "대기 신청",
 };
 
-const ACTIVE_ONEDAY_STATUSES = new Set(["booked", "입금대기", "등록대기", "입금완료", "등록완료"]);
+const ACTIVE_ONEDAY_STATUSES = new Set(["booked", "입금대기", "등록대기", "입금완료", "등록완료", "대기"]);
 
 function isActiveOneDayBooking(status?: string) {
   return ACTIVE_ONEDAY_STATUSES.has(String(status || ""));
