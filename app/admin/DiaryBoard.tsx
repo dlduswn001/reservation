@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import type { CSSProperties } from "react";
 
 type DiaryStudent = { id: string; name: string; phone_last4: string; is_active: boolean };
 type Diary = {
@@ -51,12 +52,12 @@ const blankDraft = (): Draft => ({
   lesson_at: seoulLocalNow(), title: "", lesson_notes: "", feedback: "",
   homework: "", message_text: "",
 });
-const miniButton = { padding: "9px 13px", fontSize: 13, marginTop: 0, borderRadius: 9 };
-const fieldLabel = { marginTop: 14, fontSize: 13 };
-const field = { borderRadius: 9, padding: "11px 12px", background: "#fff", borderColor: "#e1e1e1" };
-const muted = { fontSize: 13, color: "#717171", lineHeight: 1.65 };
-const card = { background: "#fff", padding: 18, border: "1px solid #e5e5e5", borderRadius: 14, marginBottom: 12 };
-const row = { display: "flex", gap: 8, flexWrap: "wrap" as const, alignItems: "center" };
+const miniButton: CSSProperties = { padding: "9px 13px", fontSize: 13, marginTop: 0, borderRadius: 9 };
+const fieldLabel: CSSProperties = { marginTop: 14, fontSize: 13 };
+const field: CSSProperties = { borderRadius: 9, padding: "11px 12px", background: "#fff", borderColor: "#e1e1e1" };
+const muted: CSSProperties = { fontSize: 13, color: "#717171", lineHeight: 1.65 };
+const card: CSSProperties = { background: "#fff", padding: 18, border: "1px solid #e5e5e5", borderRadius: 14, marginBottom: 12 };
+const row: CSSProperties = { display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" };
 
 export default function DiaryBoard({
   students, password, initialStudentId,
