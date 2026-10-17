@@ -1576,17 +1576,33 @@ export default function AdminPage() {
   return (
     <main className="container adminShell">
       <Link href="/" className="small">← 처음으로</Link>
-      <section className="card">
-        <h1>문장학교 관리</h1>
-        <p>관리자 비밀번호를 입력해 주세요.</p>
-        <label>관리자 비밀번호</label>
-        <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="관리자 비밀번호" />
-        <button onClick={loadOverview}>관리자 페이지 열기</button>
-        {message && <p className={message.includes("등록") || message.includes("변경") || message.includes("삭제") || message.includes("만들") ? "success" : "error"}>{message}</p>}
-      </section>
+      {!overview ? (
+        <section className="card">
+          <h1>문장학교 관리</h1>
+          <p>관리자 비밀번호를 입력해 주세요.</p>
+          <label>관리자 비밀번호</label>
+          <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="관리자 비밀번호" />
+          <button onClick={loadOverview}>관리자 페이지 열기</button>
+          {message && <p className="error">{message}</p>}
+        </section>
+      ) : (
+        <div className="adminHeaderStrip">
+          <div>
+            <h1>문장학교 관리</h1>
+            <p>수업과 수강생을 한 곳에서 관리합니다.</p>
+          </div>
+          <button type="button" className="secondary compact" onClick={() => {
+            setOverview(null);
+            setPassword("");
+            setActiveTab("dashboard");
+            setMessage("");
+          }}>로그아웃</button>
+        </div>
+      )}
 
       {overview && (
         <>
+          {message && <p className="adminStatusText" role="status">{message}</p>}
           <section className="card adminTabsCard">
             <div className="adminTabs">
               {TAB_LABELS.map((tab) => (
@@ -1883,7 +1899,7 @@ export default function AdminPage() {
               </details>
 
               <details className="card adminDetails">
-                <summary>수강권 0회 수강생 · ${zeroCreditStudents.length}명</summary>
+                <summary>수강권 0회 수강생 · {zeroCreditStudents.length}명</summary>
                 <p className="small">추가 등록 안내가 필요한 수강생입니다. 수강권을 추가하면 이 목록에서 자동으로 사라집니다.</p>
                 {zeroCreditStudents.length === 0 ? (
                   <p>수강권 0회 수강생이 없습니다.</p>
