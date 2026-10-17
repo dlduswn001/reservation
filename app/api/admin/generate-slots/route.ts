@@ -18,6 +18,14 @@ export async function POST(request: Request) {
       return NextResponse.json({ message: getAdminPasswordErrorMessage() }, { status: 401 });
     }
 
+    // 대표님이 수동 개방한 4개 날짜는 어떤 월·화 개방/마감 작업에서도 변경하지 않습니다.
+    const protectedOctoberDates = new Set(["2026-10-19", "2026-10-20", "2026-10-26", "2026-10-27"]);
+    for (const field of ["open_weekday_date", "close_weekday_date"] as const) {
+      if (body[field] !== undefined && protectedOctoberDates.has(String(body[field]))) {
+        return NextResponse.json({ message: "이 날짜는 기존에 직접 열어둔 보호 일정입니다. 수업 시간과 예약을 변경하지 않습니다." }, { status: 409 });
+      }
+    }
+
     // 월·화요일은 자동 생성에서 제외하고 관리자가 지정한 날짜에만 개방합니다.
     if (body.open_weekday_date !== undefined) {
       const dateKey = String(body.open_weekday_date || "");
