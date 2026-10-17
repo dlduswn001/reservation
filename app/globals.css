@@ -1795,3 +1795,56 @@ body { color: var(--text); }
 /* 메인 첫 화면은 브랜드명만 보여주고 곧바로 수강권으로 연결합니다. */
 .studioApp .studioHeader { margin-bottom: 20px; }
 .studioApp .studioPassOverview { margin-top: 0; }
+
+
+/* Munjang admin: restrained, task-first visual system. Scope only to manager UI. */
+.adminShell { max-width: 960px; padding-top: 24px; color: #262626; }
+.adminShell > .small { color: #777; font-size: 13px; }
+.adminShell .card {
+  background: #fff;
+  background-image: none;
+  border: 1px solid #e8e8e8;
+  border-radius: 16px;
+  box-shadow: none;
+  backdrop-filter: none;
+  padding: 22px;
+}
+.adminShell .adminTabsCard {
+  position: sticky; top: 0; z-index: 8;
+  padding: 8px; background: #fff;
+  border-color: #ededed;
+  box-shadow: 0 3px 15px rgba(0,0,0,.035);
+}
+.adminShell .adminTabs { display: grid; grid-template-columns: repeat(6,minmax(0,1fr)); gap: 5px; }
+.adminShell .tabButton { width: 100%; margin: 0; border-radius: 10px; padding: 12px 5px;
+  font-size: 13px; font-weight: 600; background: #f7f7f7; color: #5c5c5c; }
+.adminShell .tabButton:hover { background: #eaeaea; color: #292929; }
+.adminShell .tabButton.active { background: #262626; color: #fff; }
+.adminShell .todayCard, .adminShell .dashboardFirstCard { background: #fff; border-color: #e8e8e8; box-shadow: none; }
+.adminShell .quickCard { background: #fff; border: 1px solid #e8e8e8; border-radius: 12px; min-height: 74px; }
+.adminShell .quickCard:hover { background: #fafafa; border-color: #bcbcbc; }
+.adminShell .adminDetails > summary {
+  list-style: none; cursor: pointer; color: #323232;
+  font-size: 15px; font-weight: 700; padding: 4px 0;
+}
+.adminShell .adminDetails > summary::-webkit-details-marker { display: none; }
+.adminShell .adminDetails[open] > summary { padding-bottom: 14px; border-bottom: 1px solid #ebebeb; margin-bottom: 12px; }
+.adminShell .studentFilterTabs { display:flex; flex-wrap:wrap; gap:7px; margin: 13px 0; }
+.adminShell .studentFilterTabs button {
+  margin:0; padding:10px 16px; border-radius: 10px;
+  font-size: 14px; background:#f4f4f4; color:#5a5a5a; font-weight:600;
+}
+.adminShell .studentFilterTabs .studentFilterActive { background:#282828; color:#fff; }
+.adminShell .studentFilterTabs span { margin-left:4px; font-size:12px; opacity:.75; }
+.adminShell .studentSearchInput { background: #fff; max-width: 400px; margin-bottom: 16px; border-radius: 10px; border-color: #dedede; }
+.adminShell .list > .item { border: 1px solid #ececec; border-radius: 12px; background: #fff; }
+.adminShell .compactMenuCard { background: #fafafa; }
+.adminShell .compactMenuCard .activeSoft { background:#282828!important; border-color:#282828!important; color:#fff!important; }
+@media(max-width:720px){
+  .adminShell { padding:16px 12px 80px; }
+  .adminShell .card { padding: 16px; }
+  .adminShell .adminTabs { grid-template-columns:repeat(3,minmax(0,1fr)); }
+  .adminShell .adminTabsCard { top:0; }
+  .adminShell .tabButton { font-size:12px; padding:11px 3px; }
+  .adminShell .studentFilterTabs button { flex: 1 1 auto; }
+}
