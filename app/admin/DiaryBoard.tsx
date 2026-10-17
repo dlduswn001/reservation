@@ -246,10 +246,10 @@ export default function DiaryBoard({
             <article key={item.id} style={{ borderTop: "1px solid #eeeeee", padding: "17px 0" }}>
               <strong>{item.title}</strong>
               <p style={{ ...muted, margin: "4px 0 10px" }}>{koreanDate(item.lesson_at)} · 관리자 기록</p>
-              {item.lesson_notes && <p style={{ fontSize: 14, whiteSpace: "pre-wrap" }}><b>수업 내용</b>\n{item.lesson_notes}</p>}
-              {item.feedback && <p style={{ fontSize: 14, whiteSpace: "pre-wrap" }}><b>내부 피드백</b>\n{item.feedback}</p>}
-              {item.homework && <p style={{ fontSize: 14, whiteSpace: "pre-wrap" }}><b>다음 과제</b>\n{item.homework}</p>}
-              {item.message_text && <p style={{ ...muted, whiteSpace: "pre-wrap" }}><b>전달용 문구</b>\n{item.message_text}</p>}
+              {item.lesson_notes && <p style={{ fontSize: 14, whiteSpace: "pre-wrap" }}><b>수업 내용</b>{"\n"}{item.lesson_notes}</p>}
+              {item.feedback && <p style={{ fontSize: 14, whiteSpace: "pre-wrap" }}><b>내부 피드백</b>{"\n"}{item.feedback}</p>}
+              {item.homework && <p style={{ fontSize: 14, whiteSpace: "pre-wrap" }}><b>다음 과제</b>{"\n"}{item.homework}</p>}
+              {item.message_text && <p style={{ ...muted, whiteSpace: "pre-wrap" }}><b>전달용 문구</b>{"\n"}{item.message_text}</p>}
               <div style={row}>
                 <button style={miniButton} type="button" className="secondary" onClick={() => beginEdit(item)}>수정</button>
                 {item.message_text && <button style={miniButton} type="button" className="secondary" onClick={() => copyText(item.message_text)}>문구 복사</button>}
