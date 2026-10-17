@@ -284,7 +284,7 @@ export async function GET(request: Request) {
         timeZone: "Asia/Seoul",
         weekday: "short",
       }).format(new Date(slot.start_at));
-      if (["Mon", "Tue"].includes(weekday) && slot.is_open === false) return false;
+      if (["Mon", "Tue"].includes(weekday) && slot.is_open !== true) return false;
 
       const slotLessonMinutes = getReservationLessonMinutes(slot.start_at, lessonMinutes);
 
