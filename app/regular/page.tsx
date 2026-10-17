@@ -285,7 +285,7 @@ export default function RegularPage() {
       .then(async (slotRes) => {
         const slotJson = await slotRes.json();
         if (!slotRes.ok) throw new Error(slotJson.message || "예약 가능한 시간을 불러오지 못했습니다.");
-        const nextSlots = [...(slotJson.slots || []), ...(slotJson.waitlist_slots || [])];
+        const nextSlots = [...(slotJson.slots || []), ...(slotJson.waitlist_slots || [])].sort((a, b) => new Date(a.start_at).getTime() - new Date(b.start_at).getTime());
         setSlots(nextSlots);
         setOpenMonth(slotJson.open_month || null);
         setAvailableMonths(Array.isArray(slotJson.available_months) ? slotJson.available_months : []);
