@@ -51,10 +51,16 @@ export async function GET() {
       counts.set(b.class_id, (counts.get(b.class_id) || 0) + (b.people_count || 1));
     }
 
+    const waitingCounts = new Map<string, number>();
+    const { data: waitingBookings, error: waitingError } = await supabase.from("oneday_bookings").select("class_id").eq("status", "대기");
+    if (waitingError) throw waitingError;
+    for (const booking of waitingBookings || []) waitingCounts.set(booking.class_id, (waitingCounts.get(booking.class_id) || 0) + 1);
+
     const withRemaining = (classes || []).map((c) => ({
       ...c,
       capacity: CAPACITY,
       booked_count: counts.get(c.id) || 0,
+      waiting_count: waitingCounts.get(c.id) || 0,
       remaining: CAPACITY - (counts.get(c.id) || 0),
     }));
 
