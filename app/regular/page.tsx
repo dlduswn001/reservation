@@ -699,43 +699,39 @@ export default function RegularPage() {
                   <h3 style={styles.selectedDateTitle}>{selectedDate ? formatDateLabel(selectedDate) : "예약 가능한 시간"}</h3>
                   {(student.lesson_credits ?? 0) <= 0 && <p className="error">잔여 수강권이 없어 예약할 수 없습니다. 관리자에게 문의해 주세요.</p>}
                   {selectedSlots.length === 0 && <p>선택한 날짜에는 예약 가능한 시간이 없습니다.</p>}
-                  <div className="timeGrid" style={styles.timeGridFix}>
-                    {selectedSlots.map((slot) => (
-                      slot.is_lifestyle ? (
-                        <div className="timeButton" key={slot.id} style={styles.lifestyleSlotCard}>
-                          <strong>{formatTime(slot.start_at)} - {formatTime(slot.end_at)}</strong>
-                          <span style={styles.slotSubText}>{slot.rule_label || `1:1 서평생활/필사생활 · ${lifestyleCreditText} 차감`}</span>
-                          <div style={styles.lifestyleButtonGrid}>
-                            <button
-                              type="button"
-                              onClick={() => book(slot, "1:1 서평생활")}
-                              disabled={(student.lesson_credits ?? 0) < Number(slot.credit_cost ?? 0.5)}
-                              style={styles.lifestyleButton}
-                            >
-                              1:1 서평생활
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => book(slot, "1:1 필사생활")}
-                              disabled={(student.lesson_credits ?? 0) < Number(slot.credit_cost ?? 0.5)}
-                              style={styles.lifestyleButton}
-                            >
-                              1:1 필사생활
-                            </button>
-                          </div>
+                  <div style={styles.timelineList} aria-label="선택 날짜 수업 시간표">
+                    {selectedSlots.map((slot, index) => (
+                      <div key={slot.id} style={styles.timelineRow}>
+                        <div style={styles.timelineRail} aria-hidden="true">
+                          <span style={styles.timelineDot} />
+                          {index < selectedSlots.length - 1 && <span style={styles.timelineLine} />}
                         </div>
-                      ) : (
-                        <button
-                          className="timeButton"
-                          key={slot.id}
-                          onClick={() => book(slot)}
-                          disabled={(student.lesson_credits ?? 0) < 1}
-                          style={styles.timeButtonFix}
-                        >
-                          <span>{formatTime(slot.start_at)} - {formatTime(slot.end_at)} 예약하기</span>
-                          <small style={styles.slotSubText}>{slot.rule_label || "정규수업 · 수강권 1회 차감"}</small>
-                        </button>
-                      )
+                        <div style={styles.timelineContent}>
+                          <div style={styles.timelineTopLine}>
+                            <strong style={styles.timelineTime}>{formatTime(slot.start_at)} – {formatTime(slot.end_at)}</strong>
+                            <span style={styles.timelineDuration}>{slot.is_lifestyle ? "45분" : `${slot.lesson_minutes || 90}분`}</span>
+                          </div>
+                          <p style={styles.timelineDescription}>
+                            {slot.rule_label || (slot.is_lifestyle
+                              ? `1:1 서평생활 / 필사생활 · ${lifestyleCreditText} 차감`
+                              : "1:1 정규수업 · 수강권 1회 차감")}
+                          </p>
+                          {slot.is_lifestyle ? (
+                            <div style={styles.timelineActions}>
+                              <button type="button" onClick={() => book(slot, "1:1 서평생활")}
+                                disabled={(student.lesson_credits ?? 0) < Number(slot.credit_cost ?? 0.5)}
+                                style={styles.timelineSecondaryButton}>서평생활 신청</button>
+                              <button type="button" onClick={() => book(slot, "1:1 필사생활")}
+                                disabled={(student.lesson_credits ?? 0) < Number(slot.credit_cost ?? 0.5)}
+                                style={styles.timelineSecondaryButton}>필사생활 신청</button>
+                            </div>
+                          ) : (
+                            <button type="button" onClick={() => book(slot)}
+                              disabled={(student.lesson_credits ?? 0) < 1}
+                              style={styles.timelinePrimaryButton}>예약하기 <span aria-hidden="true">→</span></button>
+                          )}
+                        </div>
+                      </div>
                     ))}
                   </div>
                 </div>
@@ -894,6 +890,19 @@ const styles: Record<string, CSSProperties> = {
   selectedDateTitle: {
     marginTop: 0,
   },
+  timelineList: { display: "flex", flexDirection: "column", gap: 0, width: "100%" },
+  timelineRow: { display: "grid", gridTemplateColumns: "22px minmax(0, 1fr)", gap: 12, width: "100%" },
+  timelineRail: { display: "flex", flexDirection: "column", alignItems: "center", paddingTop: 22 },
+  timelineDot: { width: 10, height: 10, borderRadius: "50%", flexShrink: 0, background: "#79283E", border: "2px solid #fff", boxShadow: "0 0 0 1px #c9a6ae" },
+  timelineLine: { width: 1, flex: 1, minHeight: 22, background: "#e8dfe1", marginTop: 7 },
+  timelineContent: { minWidth: 0, background: "#fff", border: "1px solid #e9e5e6", borderRadius: 14, padding: "16px 17px", marginBottom: 12 },
+  timelineTopLine: { display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, flexWrap: "wrap" },
+  timelineTime: { fontSize: 16, color: "#252326", letterSpacing: "-0.025em" },
+  timelineDuration: { fontSize: 12, color: "#777078" },
+  timelineDescription: { margin: "7px 0 13px", fontSize: 12, color: "#777078", lineHeight: 1.5 },
+  timelineActions: { display: "flex", flexWrap: "wrap", gap: 8 },
+  timelinePrimaryButton: { display: "inline-flex", alignItems: "center", justifyContent: "center", gap: 8, minWidth: 115, margin: 0, padding: "10px 16px", borderRadius: 9, fontSize: 13, fontWeight: 700, background: "#79283E", color: "#fff", border: "none", cursor: "pointer" },
+  timelineSecondaryButton: { minWidth: 110, margin: 0, padding: "10px 13px", borderRadius: 9, fontSize: 12, background: "#fff", color: "#79283E", border: "1px solid #d8c1c6", cursor: "pointer" },
   timeGridFix: {
     display: "grid",
     gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))",
