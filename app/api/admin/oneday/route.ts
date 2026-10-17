@@ -23,7 +23,7 @@ export async function POST(request: Request) {
     const endAtRaw = String(body.end_at || "").trim();
     const regularPrice = Number(body.regular_price || 0);
     const normalPrice = Number(body.normal_price || 0);
-    const capacity = Math.max(1, Math.floor(Number(body.capacity || 5)));
+    const capacity = Math.max(1, Math.floor(Number(body.capacity || 6)));
 
     if (!title || !startAtRaw || !endAtRaw) {
       return NextResponse.json({ message: "제목, 수업 시작 일정, 수업 종료 일정을 입력해 주세요." }, { status: 400 });
