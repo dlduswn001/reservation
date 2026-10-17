@@ -231,9 +231,10 @@ const ONEDAY_STATUS_LABELS: Record<string, string> = {
   "등록대기": "무료 등록 대기",
   "입금완료": "등록 완료",
   "등록완료": "등록 완료",
+  "대기": "대기 신청",
 };
 
-const ACTIVE_ONEDAY_STATUSES = new Set(["booked", "입금대기", "등록대기", "입금완료", "등록완료"]);
+const ACTIVE_ONEDAY_STATUSES = new Set(["booked", "입금대기", "등록대기", "입금완료", "등록완료", "대기"]);
 
 function isActiveOneDayBooking(status?: string) {
   return ACTIVE_ONEDAY_STATUSES.has(String(status || ""));
@@ -1077,7 +1078,7 @@ export default function AdminPage() {
         end_at: onedayEndAt,
         regular_price: Number(onedayRegularPrice || 0),
         normal_price: Number(onedayNormalPrice || 0),
-        capacity: Number(onedayCapacity || 5),
+        capacity: 6,
       }),
     });
     const json = await res.json();
@@ -1163,7 +1164,7 @@ export default function AdminPage() {
         curriculum: edit.curriculum,
         start_at: edit.start_at,
         end_at: edit.end_at,
-        capacity: Number(edit.capacity || 5),
+        capacity: 6,
         regular_price: Number(edit.regular_price || 0),
         normal_price: Number(edit.normal_price || 0),
         is_open: edit.is_open,
@@ -1484,8 +1485,7 @@ export default function AdminPage() {
             <input type="datetime-local" value={edit.start_at} onChange={(e) => updateOneDayClassEdit(c.id, "start_at", e.target.value)} />
             <label>수업 종료 일정</label>
             <input type="datetime-local" value={edit.end_at} onChange={(e) => updateOneDayClassEdit(c.id, "end_at", e.target.value)} />
-            <label>정원</label>
-            <input type="number" min="1" value={edit.capacity} onChange={(e) => updateOneDayClassEdit(c.id, "capacity", e.target.value)} />
+            <p className="small">정원 6명 고정 (동반자 포함)</p>
             <label>정규수강생 추가 참석 비용</label>
             <input type="number" min="0" value={edit.regular_price} onChange={(e) => updateOneDayClassEdit(c.id, "regular_price", e.target.value)} />
             <label>일반 수강 비용</label>
@@ -1511,10 +1511,10 @@ export default function AdminPage() {
                 <span>신청 {relatedBookings.length}명</span>
                 <span>대기 {waitingCount}명</span>
                 <span>확정 {confirmedCount}명</span>
-                <span>정원 {c.capacity || 5}명</span>
+                <span>정원 6명</span>
                 <span>{c.is_open ? "예약 화면 노출" : "예약 화면 숨김"}</span>
               </div>
-              <p className="small">비용: 월 1회 무료 / 정규 추가 {formatPrice(c.regular_price ?? 10000)} / 일반 {formatPrice(c.normal_price ?? 30000)}</p>
+              <p className="small">정규수강생 전용 · 신청 즉시 확정 · 정원 초과 시 대기</p>
               {c.description && <p className="onedayCurriculumPreview">커리큘럼: {c.description}</p>}
             </div>
             <div className="inlineActions oneDayClassActions">
@@ -2271,8 +2271,7 @@ export default function AdminPage() {
                 <input type="datetime-local" value={onedayStartAt} onChange={(e) => setOnedayStartAt(e.target.value)} />
                 <label>수업 종료 일정</label>
                 <input type="datetime-local" value={onedayEndAt} onChange={(e) => setOnedayEndAt(e.target.value)} />
-                <label>정원</label>
-                <input type="number" min="1" value={onedayCapacity} onChange={(e) => setOnedayCapacity(e.target.value)} placeholder="예: 5" />
+                <p className="small">정원은 동반자를 포함해 6명으로 고정됩니다.</p>
                 <label>정규수강생 추가 참석 비용</label>
                 <input type="number" min="0" value={onedayRegularPrice} onChange={(e) => setOnedayRegularPrice(e.target.value)} placeholder="예: 10000" />
                 <label>일반 수강 비용</label>
