@@ -1001,6 +1001,21 @@ export default function AdminPage() {
     }
   }
 
+  async function closeMondayTuesdaySlots() {
+    if (!openMondayTuesdayDate || ![1, 2].includes(new Date(openMondayTuesdayDate + "T12:00:00Z").getUTCDay())) {
+      setMessage("월요일 또는 화요일 날짜를 선택해 주세요.");
+      return;
+    }
+    if (!window.confirm(openMondayTuesdayDate + "의 신규 예약을 닫을까요? 기존 예약은 유지됩니다.")) return;
+    const res = await fetch("/api/admin/generate-slots", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ password, close_weekday_date: openMondayTuesdayDate }),
+    });
+    const json = await res.json();
+    setMessage(json.message || "처리 결과를 확인해 주세요.");
+    if (res.ok) await loadOverview();
+  }
+
   async function generateTimetable() {
     setMessage("");
     const res = await fetch("/api/admin/generate-slots", {
@@ -2019,11 +2034,12 @@ export default function AdminPage() {
               </section>
 
               <section className="card">
-                <h2>월·화요일 수업 열기</h2>
+                <h2>월·화요일 휴무 관리</h2>
                 <p className="small">월·화요일은 자동으로 열리지 않습니다. 수업할 날짜를 선택하면 수요일과 동일한 45분·90분 정규수업 및 15:40 생활수업 시간표가 등록됩니다. 기존 예약과 수강권은 변경되지 않습니다.</p>
                 <label>수업을 열 날짜 (월요일 또는 화요일)</label>
                 <input type="date" min="2026-10-01" value={openMondayTuesdayDate} onChange={(e) => setOpenMondayTuesdayDate(e.target.value)} />
                 <button onClick={openMondayTuesdaySlots}>선택한 월·화요일 수업 열기</button>
+                <button className="secondary" onClick={closeMondayTuesdaySlots}>선택한 월·화요일 수업 닫기</button>
               </section>
 
               <section className="card">
