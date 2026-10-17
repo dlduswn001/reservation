@@ -6,7 +6,7 @@ export const dynamic = "force-dynamic";
 
 function lessonDateIso(value: unknown) {
   const raw = String(value || "").trim();
-  if (!/^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}$/.test(raw)) return null;
+  if (!/^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}$/.test(raw)) return null;
   const date = new Date(raw + ":00+09:00");
   return Number.isNaN(date.getTime()) ? null : date.toISOString();
 }
