@@ -522,7 +522,7 @@ export default function AdminPage() {
   const [onedayEndAt, setOnedayEndAt] = useState("");
   const [onedayRegularPrice, setOnedayRegularPrice] = useState("10000");
   const [onedayNormalPrice, setOnedayNormalPrice] = useState("30000");
-  const [onedayCapacity, setOnedayCapacity] = useState("5");
+  const [onedayCapacity, setOnedayCapacity] = useState("6");
   const [editingOneDayClassId, setEditingOneDayClassId] = useState<string | null>(null);
   const [oneDayClassEdits, setOneDayClassEdits] = useState<Record<string, {
     title: string;

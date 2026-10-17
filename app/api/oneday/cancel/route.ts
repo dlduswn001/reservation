@@ -2,7 +2,10 @@ import { NextResponse } from "next/server";
 import { getSupabaseAdmin } from "../../../../lib/supabaseAdmin";
 
 const ACTIVE_STATUSES = new Set(["booked", "입금대기", "등록대기", "입금완료", "등록완료"]);
-const SIX_HOURS_MS = 6 * 60 * 60 * 1000;
+// 수업 당일에는 취소할 수 없습니다. 날짜 계산은 한국 시간을 기준으로 합니다.
+function seoulDateKey(value: Date) {
+  return new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Seoul", year: "numeric", month: "2-digit", day: "2-digit" }).format(value);
+}
 
 function getClassInfo(value: unknown): { start_at?: string; end_at?: string; title?: string } | null {
   if (Array.isArray(value)) {
@@ -87,8 +90,8 @@ export async function POST(request: Request) {
       return NextResponse.json({ message: "이미 시작했거나 종료된 원데이 클래스는 취소할 수 없습니다." }, { status: 400 });
     }
 
-    if (startTime - now < SIX_HOURS_MS) {
-      return NextResponse.json({ message: "원데이 클래스는 수업 시작 6시간 전까지만 취소할 수 있습니다." }, { status: 400 });
+    if (seoulDateKey(new Date(startTime)) === seoulDateKey(new Date(now))) {
+      return NextResponse.json({ message: "원데이 클래스는 수업 당일 취소할 수 없습니다." }, { status: 400 });
     }
 
     const { error: updateError } = await supabase

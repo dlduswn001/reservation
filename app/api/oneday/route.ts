@@ -2,7 +2,8 @@ import { NextResponse } from "next/server";
 import { getSupabaseAdmin } from "../../../lib/supabaseAdmin";
 
 const ACTIVE_STATUSES = ["booked", "입금대기", "등록대기", "입금완료", "등록완료"];
-const PAID_ONEDAY_AMOUNT = 10000;
+const CAPACITY = 6;
+const APPLY_CUTOFF_MS = 3 * 60 * 60 * 1000;
 
 function getSeoulMonthRangeUtc(value: string) {
   const formatted = new Intl.DateTimeFormat("en-CA", {
@@ -52,9 +53,9 @@ export async function GET() {
 
     const withRemaining = (classes || []).map((c) => ({
       ...c,
-      capacity: 5,
+      capacity: CAPACITY,
       booked_count: counts.get(c.id) || 0,
-      remaining: 5 - (counts.get(c.id) || 0),
+      remaining: CAPACITY - (counts.get(c.id) || 0),
     }));
 
     return NextResponse.json({ classes: withRemaining });
@@ -79,8 +80,8 @@ export async function POST(request: Request) {
     if (!classId || !studentName) {
       return NextResponse.json({ message: "신청할 클래스와 이름을 입력해 주세요." }, { status: 400 });
     }
-    if (!Number.isFinite(peopleCount) || peopleCount < 1 || peopleCount > 5) {
-      return NextResponse.json({ message: "참여 인원은 1명부터 5명까지 입력할 수 있습니다." }, { status: 400 });
+    if (!Number.isInteger(peopleCount) || ![1, 2].includes(peopleCount)) {
+      return NextResponse.json({ message: "본인만 또는 동반자 1명과 신청할 수 있습니다." }, { status: 400 });
     }
 
     const supabase = getSupabaseAdmin();
@@ -94,8 +95,8 @@ export async function POST(request: Request) {
     if (!oneClass) {
       return NextResponse.json({ message: "신청 가능한 클래스가 아닙니다." }, { status: 404 });
     }
-    if (new Date(oneClass.start_at).getTime() <= Date.now()) {
-      return NextResponse.json({ message: "이미 날짜가 지난 원데이 클래스는 신청할 수 없습니다." }, { status: 400 });
+    if (new Date(oneClass.start_at).getTime() - Date.now() < APPLY_CUTOFF_MS) {
+      return NextResponse.json({ message: "원데이 클래스 신청은 수업 시작 3시간 전까지 가능합니다." }, { status: 400 });
     }
 
     const { data: existingBookings, error: countError } = await supabase
@@ -106,7 +107,7 @@ export async function POST(request: Request) {
     if (countError) throw countError;
 
     const bookedCount = (existingBookings || []).reduce((sum, booking) => sum + Number(booking.people_count || 1), 0);
-    const capacity = 5;
+    const capacity = CAPACITY;
     const remaining = capacity - bookedCount;
     if (peopleCount > remaining) {
       return NextResponse.json({ message: `남은 자리가 ${remaining}명이라 신청할 수 없습니다.` }, { status: 400 });
@@ -143,16 +144,9 @@ export async function POST(request: Request) {
       return NextResponse.json({ message: "이미 신청한 원데이 클래스입니다. 신청 내역을 확인해 주세요." }, { status: 400 });
     }
 
-    const { start: monthStart, end: monthEnd } = getSeoulMonthRangeUtc(oneClass.start_at);
-    const activeThisMonth = (studentMonthBookings || []).filter((booking) => {
-      const nestedClass = getNestedClass(booking.oneday_classes);
-      if (!nestedClass?.start_at) return false;
-      const classTime = new Date(nestedClass.start_at).getTime();
-      return classTime >= monthStart.getTime() && classTime < monthEnd.getTime();
-    }).length;
-
-    const amountDue = activeThisMonth === 0 ? 0 : PAID_ONEDAY_AMOUNT;
-    const nextStatus = amountDue === 0 ? "등록대기" : "입금대기";
+    // 정규수강생은 신청 즉시 확정합니다. 유료 결제/승인 단계는 없습니다.
+    const amountDue = 0;
+    const nextStatus = "등록완료";
 
     const { error } = await supabase.from("oneday_bookings").insert({
       class_id: classId,
