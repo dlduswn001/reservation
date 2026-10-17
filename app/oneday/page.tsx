@@ -172,7 +172,15 @@ export default function OneDayPage() {
       )}
       <section style={simpleCard}>
         <h2 style={{ fontSize: 18, marginBottom: 12 }}>내 신청 내역</h2>
-        {(!name || !/^\d{4}$/.test(phone)) && <p style={secondary}>정규수강생 정보를 입력하면 신청 내역을 볼 수 있습니다.</p>}
+        {(!name || !/^\\d{4}$/.test(phone)) && (
+          <div style={{ marginBottom: 12 }}>
+            <p style={secondary}>정규수강생 정보를 입력하면 신청 내역을 확인할 수 있습니다.</p>
+            <label>이름</label>
+            <input value={name} onChange={(e) => setName(e.target.value)} placeholder="이름" />
+            <label>휴대전화 뒷자리 4자리</label>
+            <input value={phone} onChange={(e) => setPhone(e.target.value.replace(/\\D/g, "").slice(0, 4))} placeholder="0000" inputMode="numeric" maxLength={4} />
+          </div>
+        )}
         <div style={{ display: "flex", gap: 8, marginBottom: 10 }}>
           <button type="button" className="secondary compact" onClick={lookup}>내 신청 내역 새로고침</button>
         </div>
