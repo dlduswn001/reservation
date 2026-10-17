@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
+import DiaryBoard from "./DiaryBoard";
 import { getRegularPassPolicyStatus, PASS_POLICY_START_DATE_KEY, todayDateKeyInKst, calculatePassExpirationDateKey } from "../../lib/passPolicy";
 
 type Student = {
@@ -118,7 +119,7 @@ type DailyScheduleGroup = {
   items: TodayScheduleItem[];
 };
 
-type AdminTab = "dashboard" | "schedule" | "students" | "history" | "timetable" | "slots" | "blocks" | "bookings" | "oneday" | "settings";
+type AdminTab = "dashboard" | "schedule" | "students" | "diary" | "history" | "timetable" | "slots" | "blocks" | "bookings" | "oneday" | "settings";
 
 const STATUS_LABELS: Record<string, string> = {
   booked: "예약 완료",
@@ -131,8 +132,9 @@ const STATUS_LABELS: Record<string, string> = {
 
 const TAB_LABELS: Array<{ id: AdminTab; label: string }> = [
   { id: "dashboard", label: "홈" },
-  { id: "schedule", label: "스케줄" },
+  { id: "schedule", label: "수업 일정" },
   { id: "students", label: "수강생" },
+  { id: "diary", label: "수강일지" },
   { id: "oneday", label: "원데이" },
   { id: "settings", label: "설정" },
 ];
@@ -492,6 +494,9 @@ export default function AdminPage() {
   const [overview, setOverview] = useState<Overview | null>(null);
   const [message, setMessage] = useState("");
   const [activeTab, setActiveTab] = useState<AdminTab>("dashboard");
+  const [studentCategory, setStudentCategory] = useState<"active" | "inactive">("active");
+  const [studentSearch, setStudentSearch] = useState("");
+  const [diaryStudentId, setDiaryStudentId] = useState("");
   const [studentName, setStudentName] = useState("");
   const [phoneLast4, setPhoneLast4] = useState("");
   const [memo, setMemo] = useState("");
@@ -758,6 +763,34 @@ export default function AdminPage() {
     }
     setMessage("수강생을 삭제했습니다.");
     await loadOverview();
+    setActiveTab("students");
+  }
+
+  function openStudentDiary(studentId: string) {
+    setDiaryStudentId(studentId);
+    openTab("diary");
+  }
+
+  async function changeStudentEnrollment(student: Student) {
+    const nextActive = student.is_active === false;
+    const upcoming = (overview?.bookings || []).filter((booking) =>
+      booking.student_id === student.id &&
+      ["booked", "change_request", "cancel_request"].includes(booking.status) &&
+      new Date(booking.start_at).getTime() > Date.now()
+    ).length;
+    const message = nextActive
+      ? `${student.name}님을 재원생으로 전환할까요? 기존 수강권과 수업 기록은 유지됩니다.`
+      : `${student.name}님을 퇴원생으로 이동할까요? 기존 수강권과 수강일지 및 예약 기록은 그대로 유지됩니다.${upcoming ? ` (주의: 향후 확정 예약 ${upcoming}건은 별도로 확인해야 합니다.)` : ""}`;
+    if (!window.confirm(message)) return;
+    const res = await fetch("/api/admin/students/status", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ password, student_id: student.id, is_active: nextActive }),
+    });
+    const json = await res.json();
+    if (!res.ok) { setMessage(json.message || "수강 상태를 변경하지 못했습니다."); return; }
+    await loadOverview();
+    setStudentCategory(nextActive ? "active" : "inactive");
+    setMessage(nextActive ? "재원생으로 이동했습니다." : "퇴원생으로 이동했습니다. 기존 자료는 보존됩니다.");
     setActiveTab("students");
   }
 
@@ -1225,6 +1258,19 @@ export default function AdminPage() {
     [overview?.students, selectedHistoryStudentId]
   );
 
+  const activeStudentsCount = (overview?.students || []).filter((student) => student.is_active !== false).length;
+  const inactiveStudentsCount = (overview?.students || []).filter((student) => student.is_active === false).length;
+  const listedStudents = useMemo(() => {
+    const query = studentSearch.trim().toLocaleLowerCase("ko-KR");
+    return [...(overview?.students || [])]
+      .filter((student) => studentCategory === "active"
+        ? student.is_active !== false : student.is_active === false)
+      .filter((student) => !query ||
+        [student.name, student.phone_last4, student.memo || ""]
+          .some((value) => value.toLocaleLowerCase("ko-KR").includes(query)))
+      .sort((a, b) => a.name.localeCompare(b.name, "ko-KR"));
+  }, [overview?.students, studentCategory, studentSearch]);
+
   const selectedManualHistory = useMemo(() => {
     return [...(overview?.lessonHistory || [])]
       .filter((history) => history.student_id === selectedHistoryStudentId)
@@ -1528,19 +1574,35 @@ export default function AdminPage() {
   }
 
   return (
-    <main className="container">
+    <main className="container adminShell">
       <Link href="/" className="small">← 처음으로</Link>
-      <section className="card">
-        <h1>관리자 페이지</h1>
-        <p>관리자 비밀번호를 입력해 주세요.</p>
-        <label>관리자 비밀번호</label>
-        <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="관리자 비밀번호" />
-        <button onClick={loadOverview}>관리자 페이지 열기</button>
-        {message && <p className={message.includes("등록") || message.includes("변경") || message.includes("삭제") || message.includes("만들") ? "success" : "error"}>{message}</p>}
-      </section>
+      {!overview ? (
+        <section className="card">
+          <h1>문장학교 관리</h1>
+          <p>관리자 비밀번호를 입력해 주세요.</p>
+          <label>관리자 비밀번호</label>
+          <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="관리자 비밀번호" />
+          <button onClick={loadOverview}>관리자 페이지 열기</button>
+          {message && <p className="error">{message}</p>}
+        </section>
+      ) : (
+        <div className="adminHeaderStrip">
+          <div>
+            <h1>문장학교 관리</h1>
+            <p>수업과 수강생을 한 곳에서 관리합니다.</p>
+          </div>
+          <button type="button" className="secondary compact" onClick={() => {
+            setOverview(null);
+            setPassword("");
+            setActiveTab("dashboard");
+            setMessage("");
+          }}>로그아웃</button>
+        </div>
+      )}
 
       {overview && (
         <>
+          {message && <p className="adminStatusText" role="status">{message}</p>}
           <section className="card adminTabsCard">
             <div className="adminTabs">
               {TAB_LABELS.map((tab) => (
@@ -1778,15 +1840,15 @@ export default function AdminPage() {
           {activeTab === "students" && (
             <>
               <section className="card compactMenuCard">
-                <h2>수강생</h2>
-                <p className="small">수강생 등록, 계정 수정, 수강권 관리는 여기서 처리합니다. 지난 수업 기록은 아래 버튼으로 이동할 수 있습니다.</p>
+                <h2>수강생 관리</h2>
+                <p className="small">재원생과 퇴원생을 분리해 관리합니다. 등록 이력과 수강권 정보는 모두 보존됩니다.</p>
                 <div className="row">
                   <button className="secondary compact activeSoft">수강생 관리</button>
                   <button className="secondary compact" onClick={() => openTab("history")}>수강 기록</button>
                 </div>
               </section>
-              <section className="card">
-                <h2>정규 수강생 등록</h2>
+              <details className="card adminDetails">
+                <summary>＋ 신규 수강생 등록</summary>
                 <label>이름</label>
                 <input value={studentName} onChange={(e) => setStudentName(e.target.value)} placeholder="예: 김문장" />
                 <label>핸드폰번호 뒷자리 4자리</label>
@@ -1834,10 +1896,10 @@ export default function AdminPage() {
                 <label>메모</label>
                 <input value={memo} onChange={(e) => setMemo(e.target.value)} placeholder="예: 주 1회 정규수업" />
                 <button onClick={addStudent}>수강생 등록</button>
-              </section>
+              </details>
 
-              <section className="card zeroCreditCard">
-                <h2>수강권 0회 수강생</h2>
+              <details className="card adminDetails">
+                <summary>수강권 0회 수강생 · {zeroCreditStudents.length}명</summary>
                 <p className="small">추가 등록 안내가 필요한 수강생입니다. 수강권을 추가하면 이 목록에서 자동으로 사라집니다.</p>
                 {zeroCreditStudents.length === 0 ? (
                   <p>수강권 0회 수강생이 없습니다.</p>
@@ -1856,13 +1918,26 @@ export default function AdminPage() {
                     ))}
                   </div>
                 )}
-              </section>
+              </details>
 
               <section className="card">
                 <h2>수강생 목록</h2>
-                <p className="small">각 수강생의 ‘계정 수정’을 누르면 이름, 전화번호 뒷자리, 수강권, 메모, 이용 상태를 한 번에 수정할 수 있습니다.</p>
+                <div className="studentFilterTabs" role="group" aria-label="수강생 재원 상태">
+                  <button type="button" className={studentCategory === "active" ? "studentFilterActive" : "secondary"}
+                    onClick={() => { setStudentCategory("active"); setEditingStudentId(null); }}>
+                    재원생 <span>{activeStudentsCount}명</span>
+                  </button>
+                  <button type="button" className={studentCategory === "inactive" ? "studentFilterActive" : "secondary"}
+                    onClick={() => { setStudentCategory("inactive"); setEditingStudentId(null); }}>
+                    퇴원생 <span>{inactiveStudentsCount}명</span>
+                  </button>
+                </div>
+                <input aria-label="수강생 검색" value={studentSearch}
+                  onChange={(e) => setStudentSearch(e.target.value)}
+                  placeholder="이름·연락처 뒷자리 검색" className="studentSearchInput" />
+                {listedStudents.length === 0 && <p className="small">해당 조건의 수강생이 없습니다.</p>}
                 <div className="list">
-                  {overview.students.map((s) => {
+                  {listedStudents.map((s) => {
                     const edit = studentEdits[s.id] || { name: s.name, phone_last4: s.phone_last4, memo: s.memo || "", lesson_credits: String(s.lesson_credits ?? 0), lesson_duration_minutes: String(s.lesson_duration_minutes ?? 90), pass_registered_at: s.pass_registered_at || "", pass_first_lesson_at: s.pass_first_lesson_at || "", pass_extension_used: Boolean(s.pass_extension_used), pass_extension_until: s.pass_extension_until || "", pass_extension_reason: s.pass_extension_reason || "", is_active: s.is_active !== false };
                     const isEditing = editingStudentId === s.id;
                     return (
@@ -1879,9 +1954,11 @@ export default function AdminPage() {
                                 <p className="small">메모: {s.memo || "-"}</p>
                               </div>
                               <div className="row itemActions">
-                                <button className="secondary compact" onClick={() => setEditingStudentId(s.id)}>계정 수정</button>
-                                <button className="secondary compact" onClick={() => openStudentHistory(s.id)}>수강 기록</button>
-                                <button className="danger compact" onClick={() => deleteStudent(s.id, s.name)}>삭제</button>
+                                <button className="secondary compact" onClick={() => setEditingStudentId(s.id)}>정보 수정</button>
+                                <button className="secondary compact" onClick={() => openStudentDiary(s.id)}>수강일지</button>
+                                <button className="secondary compact" onClick={() => changeStudentEnrollment(s)}>
+                                  {s.is_active === false ? "재원 전환" : "퇴원 처리"}
+                                </button>
                               </div>
                             </div>
                           </>
@@ -1952,6 +2029,10 @@ export default function AdminPage() {
                 </div>
               </section>
             </>
+          )}
+
+          {activeTab === "diary" && (
+            <DiaryBoard students={overview.students} password={password} initialStudentId={diaryStudentId} />
           )}
 
           {activeTab === "history" && (
