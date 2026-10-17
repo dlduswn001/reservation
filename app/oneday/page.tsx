@@ -5,7 +5,7 @@ import BottomNav from "../components/BottomNav";
 
 type Lesson = {
   id: string; title: string; start_at: string; end_at: string;
-  description?: string | null; remaining: number;
+  description?: string | null; remaining: number; waiting_count?: number;
 };
 type Booking = {
   id: string; people_count?: number; status?: string; waitlist_position?: number | null;
@@ -138,10 +138,10 @@ export default function OneDayPage() {
             <strong style={{ display: "block", fontSize: 16 }}>{lesson.title}</strong>
             <p style={{ ...secondary, marginTop: 5 }}>{formatDate(lesson.start_at)}</p>
             {lesson.description && <p style={{ fontSize: 14, whiteSpace: "pre-wrap", lineHeight: 1.7 }}>{lesson.description.replace(/(?:원데이 클래스 신청 후|입금 안내)[\s\S]*$/,"").trim()}</p>}
-            <p style={secondary}>{lesson.remaining > 0 ? `남은 자리 ${lesson.remaining} / 6` : "정원 마감 · 대기 접수 가능"}</p>
+            <p style={secondary}>{lesson.waiting_count ? `대기 ${lesson.waiting_count}명 · 대기 접수 가능` : lesson.remaining > 0 ? `남은 자리 ${lesson.remaining} / 6` : "정원 마감 · 대기 접수 가능"}</p>
             <button type="button" className="secondary" disabled={false}
               onClick={() => { setSelectedId(lesson.id); setWithGuest(false); }}>
-              {selectedId === lesson.id ? "선택됨" : lesson.remaining < 1 ? "대기 신청하기" : "신청하기"}
+              {selectedId === lesson.id ? "선택됨" : lesson.remaining < 1 || (lesson.waiting_count || 0) > 0 ? "대기 신청하기" : "신청하기"}
             </button>
           </article>
         ))}
@@ -166,7 +166,7 @@ export default function OneDayPage() {
             <input value={phone} onChange={(e) => setPhone(e.target.value.replace(/\D/g, "").slice(0,4))} inputMode="numeric" maxLength={4} placeholder="0000" />
           </div>}
           <button style={primaryButton} disabled={loading} onClick={reserve}>
-            {loading ? "처리 중..." : selected.remaining < people ? "대기 신청하기" : "신청 확정하기"}
+            {loading ? "처리 중..." : selected.remaining < people || (selected.waiting_count || 0) > 0 ? "대기 신청하기" : "신청 확정하기"}
           </button>
         </section>
       )}
