@@ -969,7 +969,15 @@ export default function AdminPage() {
     setActiveTab("blocks");
   }
 
+  function isProtectedOctoberDate(dateKey: string) {
+    return ["2026-10-19", "2026-10-20", "2026-10-26", "2026-10-27"].includes(dateKey);
+  }
+
   async function openMondayTuesdaySlots() {
+    if (isProtectedOctoberDate(openMondayTuesdayDate)) {
+      setMessage("10월 19·20·26·27일은 보호 일정입니다. 기존 개방 상태와 예약을 유지합니다.");
+      return;
+    }
     if (!openMondayTuesdayDate) {
       setMessage("수업을 열 월요일 또는 화요일 날짜를 선택해 주세요.");
       return;
@@ -1002,6 +1010,10 @@ export default function AdminPage() {
   }
 
   async function closeMondayTuesdaySlots() {
+    if (isProtectedOctoberDate(openMondayTuesdayDate)) {
+      setMessage("10월 19·20·26·27일은 보호 일정입니다. 기존 개방 상태와 예약을 유지합니다.");
+      return;
+    }
     if (!openMondayTuesdayDate || ![1, 2].includes(new Date(openMondayTuesdayDate + "T12:00:00Z").getUTCDay())) {
       setMessage("월요일 또는 화요일 날짜를 선택해 주세요.");
       return;
@@ -2038,8 +2050,9 @@ export default function AdminPage() {
                 <p className="small">월·화요일은 자동으로 열리지 않습니다. 수업할 날짜를 선택하면 수요일과 동일한 45분·90분 정규수업 및 15:40 생활수업 시간표가 등록됩니다. 기존 예약과 수강권은 변경되지 않습니다.</p>
                 <label>수업을 열 날짜 (월요일 또는 화요일)</label>
                 <input type="date" min="2026-10-01" value={openMondayTuesdayDate} onChange={(e) => setOpenMondayTuesdayDate(e.target.value)} />
-                <button onClick={openMondayTuesdaySlots}>선택한 월·화요일 수업 열기</button>
-                <button className="secondary" onClick={closeMondayTuesdaySlots}>선택한 월·화요일 수업 닫기</button>
+                <p className="small">10월 19·20·26·27일은 이미 직접 개방한 보호 일정으로, 열기/닫기 작업에서 제외됩니다.</p>
+                <button disabled={isProtectedOctoberDate(openMondayTuesdayDate)} onClick={openMondayTuesdaySlots}>선택한 월·화요일 수업 열기</button>
+                <button className="secondary" disabled={isProtectedOctoberDate(openMondayTuesdayDate)} onClick={closeMondayTuesdaySlots}>선택한 월·화요일 수업 닫기</button>
               </section>
 
               <section className="card">
