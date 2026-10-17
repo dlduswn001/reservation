@@ -27,6 +27,14 @@ type Slot = {
   rule_label?: string;
   credit_cost?: number;
   is_lifestyle?: boolean;
+  is_waitlist?: boolean;
+};
+
+type WaitEntry = {
+  id: string;
+  slot_id: string;
+  position: number;
+  available_slots?: { start_at: string; end_at: string } | null;
 };
 
 type Booking = {
@@ -212,6 +220,7 @@ export default function RegularPage() {
   const [rememberLogin, setRememberLogin] = useState(true);
   const [student, setStudent] = useState<Student | null>(null);
   const [slots, setSlots] = useState<Slot[]>([]);
+  const [waitlist, setWaitlist] = useState<WaitEntry[]>([]);
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [message, setMessage] = useState("");
   const [loading, setLoading] = useState(false);
@@ -276,7 +285,7 @@ export default function RegularPage() {
       .then(async (slotRes) => {
         const slotJson = await slotRes.json();
         if (!slotRes.ok) throw new Error(slotJson.message || "예약 가능한 시간을 불러오지 못했습니다.");
-        const nextSlots = slotJson.slots || [];
+        const nextSlots = [...(slotJson.slots || []), ...(slotJson.waitlist_slots || [])].sort((a, b) => new Date(a.start_at).getTime() - new Date(b.start_at).getTime());
         setSlots(nextSlots);
         setOpenMonth(slotJson.open_month || null);
         setAvailableMonths(Array.isArray(slotJson.available_months) ? slotJson.available_months : []);
@@ -300,7 +309,38 @@ export default function RegularPage() {
         setMessage(error instanceof Error ? error.message : "예약 내역을 불러오지 못했습니다.");
       });
 
-    await Promise.allSettled([slotRequest, bookingRequest]);
+    const waitlistRequest = loadWaitlist(studentId);
+    await Promise.allSettled([slotRequest, bookingRequest, waitlistRequest]);
+  }
+
+  async function loadWaitlist(studentId: string) {
+    const res = await fetch(`/api/regular-waitlist?studentId=${encodeURIComponent(studentId)}`, {cache:"no-store"});
+    const json = await res.json();
+    if (!res.ok) throw new Error(json.message || "대기 내역을 불러오지 못했습니다.");
+    setWaitlist(json.waitlist || []);
+  }
+
+  async function applyWaitlist(slotId: string) {
+    if (!student) return;
+    setMessage("");
+    const res = await fetch("/api/regular-waitlist", {
+      method:"POST", headers:{"Content-Type":"application/json"},
+      body:JSON.stringify({studentId:student.id,slotId}),
+    });
+    const json = await res.json();
+    setMessage(res.ok ? `대기 ${json.position}번으로 접수되었습니다. 수강권은 아직 차감되지 않습니다.` : json.message || "대기 신청에 실패했습니다.");
+    if(res.ok) await loadWaitlist(student.id);
+  }
+
+  async function cancelWaitlist(waitId: string) {
+    if (!student || !window.confirm("대기 신청을 취소할까요?")) return;
+    const res = await fetch("/api/regular-waitlist", {
+      method:"POST", headers:{"Content-Type":"application/json"},
+      body:JSON.stringify({action:"cancel",studentId:student.id,waitId}),
+    });
+    const json = await res.json();
+    setMessage(res.ok ? "대기 신청이 취소되었습니다." : json.message || "대기 취소에 실패했습니다.");
+    if(res.ok) await loadWaitlist(student.id);
   }
 
   async function changeOpenMonth(monthKey: string) {
@@ -466,6 +506,7 @@ export default function RegularPage() {
     setPhoneLast4("");
     setSlots([]);
     setBookings([]);
+    setWaitlist([]);
     setSelectedDate(null);
     setMessage("자동 로그인 정보를 지웠습니다. 다시 로그인해 주세요.");
   }
@@ -550,6 +591,18 @@ export default function RegularPage() {
 
       {student && (
         <>
+          {waitlist.length > 0 && (
+            <section className="card" style={styles.cardFix}>
+              <h2>내 대기 신청</h2>
+              {waitlist.map(item => (
+                <div key={item.id} className="item" style={{display:"flex",justifyContent:"space-between",gap:10,alignItems:"center",flexWrap:"wrap"}}>
+                  <span><strong>{item.available_slots?.start_at ? formatDateTime(item.available_slots.start_at) : "수업 시간"}</strong> · 대기 {item.position}번</span>
+                  <button className="secondary compact" onClick={()=>cancelWaitlist(item.id)}>대기 취소</button>
+                </div>
+              ))}
+              <p className="small">대기는 예약 확정이 아닙니다. 대기 신청 시 수강권은 차감되지 않습니다.</p>
+            </section>
+          )}
           <section className="card" style={styles.cardFix}>
             <h2>내 수업 일정</h2>
             <div className="bookingSectionTabs" role="tablist" aria-label="수업 일정 구분" style={styles.bookingSectionTabs}>
@@ -699,43 +752,52 @@ export default function RegularPage() {
                   <h3 style={styles.selectedDateTitle}>{selectedDate ? formatDateLabel(selectedDate) : "예약 가능한 시간"}</h3>
                   {(student.lesson_credits ?? 0) <= 0 && <p className="error">잔여 수강권이 없어 예약할 수 없습니다. 관리자에게 문의해 주세요.</p>}
                   {selectedSlots.length === 0 && <p>선택한 날짜에는 예약 가능한 시간이 없습니다.</p>}
-                  <div className="timeGrid" style={styles.timeGridFix}>
-                    {selectedSlots.map((slot) => (
-                      slot.is_lifestyle ? (
-                        <div className="timeButton" key={slot.id} style={styles.lifestyleSlotCard}>
-                          <strong>{formatTime(slot.start_at)} - {formatTime(slot.end_at)}</strong>
-                          <span style={styles.slotSubText}>{slot.rule_label || `1:1 서평생활/필사생활 · ${lifestyleCreditText} 차감`}</span>
-                          <div style={styles.lifestyleButtonGrid}>
-                            <button
-                              type="button"
-                              onClick={() => book(slot, "1:1 서평생활")}
-                              disabled={(student.lesson_credits ?? 0) < Number(slot.credit_cost ?? 0.5)}
-                              style={styles.lifestyleButton}
-                            >
-                              1:1 서평생활
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => book(slot, "1:1 필사생활")}
-                              disabled={(student.lesson_credits ?? 0) < Number(slot.credit_cost ?? 0.5)}
-                              style={styles.lifestyleButton}
-                            >
-                              1:1 필사생활
-                            </button>
-                          </div>
+                  <div style={styles.timelineList} aria-label="선택 날짜 수업 시간표">
+                    {selectedSlots.map((slot, index) => (
+                      <div key={slot.id} style={styles.timelineRow}>
+                        <div style={styles.timelineRail} aria-hidden="true">
+                          <span style={styles.timelineDot} />
+                          {index < selectedSlots.length - 1 && <span style={styles.timelineLine} />}
                         </div>
-                      ) : (
-                        <button
-                          className="timeButton"
-                          key={slot.id}
-                          onClick={() => book(slot)}
-                          disabled={(student.lesson_credits ?? 0) < 1}
-                          style={styles.timeButtonFix}
-                        >
-                          <span>{formatTime(slot.start_at)} - {formatTime(slot.end_at)} 예약하기</span>
-                          <small style={styles.slotSubText}>{slot.rule_label || "정규수업 · 수강권 1회 차감"}</small>
-                        </button>
-                      )
+                        <div style={styles.timelineContent}>
+                          <div style={styles.timelineTopLine}>
+                            <strong style={styles.timelineTime}>{formatTime(slot.start_at)} – {formatTime(slot.end_at)}</strong>
+                            <span style={styles.timelineDuration}>{slot.is_waitlist ? "예약 마감 · 대기 가능" : slot.is_lifestyle ? "45분" : `${slot.lesson_minutes || 90}분`}</span>
+                          </div>
+                          <p style={styles.timelineDescription}>
+                            {slot.rule_label || (slot.is_lifestyle
+                              ? `1:1 서평생활 / 필사생활 · ${lifestyleCreditText} 차감`
+                              : "1:1 정규수업 · 수강권 1회 차감")}
+                          </p>
+                          {slot.is_waitlist ? (
+                            <div style={styles.timelineActions}>
+                              {waitlist.find((item) => item.slot_id === slot.id) ? (
+                                <>
+                                  <strong style={{fontSize:13,color:"#79283E"}}>대기 {waitlist.find((item)=>item.slot_id===slot.id)?.position}번</strong>
+                                  <button type="button" className="secondary compact"
+                                    onClick={() => cancelWaitlist(waitlist.find((item)=>item.slot_id===slot.id)!.id)}>대기 취소</button>
+                                </>
+                              ) : (
+                                <button type="button" style={styles.timelineSecondaryButton}
+                                  onClick={() => applyWaitlist(slot.id)}>대기 신청하기</button>
+                              )}
+                            </div>
+                          ) : slot.is_lifestyle ? (
+                            <div style={styles.timelineActions}>
+                              <button type="button" onClick={() => book(slot, "1:1 서평생활")}
+                                disabled={(student.lesson_credits ?? 0) < Number(slot.credit_cost ?? 0.5)}
+                                style={styles.timelineSecondaryButton}>서평생활 신청</button>
+                              <button type="button" onClick={() => book(slot, "1:1 필사생활")}
+                                disabled={(student.lesson_credits ?? 0) < Number(slot.credit_cost ?? 0.5)}
+                                style={styles.timelineSecondaryButton}>필사생활 신청</button>
+                            </div>
+                          ) : (
+                            <button type="button" onClick={() => book(slot)}
+                              disabled={(student.lesson_credits ?? 0) < 1}
+                              style={styles.timelinePrimaryButton}>예약하기 <span aria-hidden="true">→</span></button>
+                          )}
+                        </div>
+                      </div>
                     ))}
                   </div>
                 </div>
@@ -894,6 +956,19 @@ const styles: Record<string, CSSProperties> = {
   selectedDateTitle: {
     marginTop: 0,
   },
+  timelineList: { display: "flex", flexDirection: "column", gap: 0, width: "100%" },
+  timelineRow: { display: "grid", gridTemplateColumns: "22px minmax(0, 1fr)", gap: 12, width: "100%" },
+  timelineRail: { display: "flex", flexDirection: "column", alignItems: "center", paddingTop: 22 },
+  timelineDot: { width: 10, height: 10, borderRadius: "50%", flexShrink: 0, background: "#79283E", border: "2px solid #fff", boxShadow: "0 0 0 1px #c9a6ae" },
+  timelineLine: { width: 1, flex: 1, minHeight: 22, background: "#e8dfe1", marginTop: 7 },
+  timelineContent: { minWidth: 0, background: "#fff", border: "1px solid #e9e5e6", borderRadius: 14, padding: "16px 17px", marginBottom: 12 },
+  timelineTopLine: { display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, flexWrap: "wrap" },
+  timelineTime: { fontSize: 16, color: "#252326", letterSpacing: "-0.025em" },
+  timelineDuration: { fontSize: 12, color: "#777078" },
+  timelineDescription: { margin: "7px 0 13px", fontSize: 12, color: "#777078", lineHeight: 1.5 },
+  timelineActions: { display: "flex", flexWrap: "wrap", gap: 8 },
+  timelinePrimaryButton: { display: "inline-flex", alignItems: "center", justifyContent: "center", gap: 8, minWidth: 115, margin: 0, padding: "10px 16px", borderRadius: 9, fontSize: 13, fontWeight: 700, background: "#79283E", color: "#fff", border: "none", cursor: "pointer" },
+  timelineSecondaryButton: { minWidth: 110, margin: 0, padding: "10px 13px", borderRadius: 9, fontSize: 12, background: "#fff", color: "#79283E", border: "1px solid #d8c1c6", cursor: "pointer" },
   timeGridFix: {
     display: "grid",
     gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))",

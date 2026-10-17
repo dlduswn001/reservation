@@ -310,14 +310,19 @@ export async function GET(request: Request) {
       if (conflictsWithOneDayBlocks(slot.start_at, candidateEndAt, activeOnedayBlocks)) return false;
       if (overlapsAnyTimeBlock(slot.start_at, candidateEndAt, activeBlockedTimes)) return false;
 
-      return !activeBookings.some((booking) => (
+      return true;
+    };
+    const isRegularOccupied = (slot: SlotRow) => {
+      const duration = getReservationLessonMinutes(slot.start_at, lessonMinutes);
+      const end = lessonEndIso(slot.start_at, duration);
+      return activeBookings.some((booking) => (
         (slot.id && booking.slot_id === slot.id)
-        || conflictsWithRegularBookings(slot.start_at, candidateEndAt, [{ start_at: booking.start_at, end_at: booking.end_at }])
+        || conflictsWithRegularBookings(slot.start_at, end, [{ start_at: booking.start_at, end_at: booking.end_at }])
       ));
     };
 
     const available = slots
-      .filter((slot) => isSlotAvailable(slot))
+      .filter((slot) => isSlotAvailable(slot) && !isRegularOccupied(slot))
       .map((slot) => {
         const slotLessonMinutes = getReservationLessonMinutes(slot.start_at, lessonMinutes);
         const isLifestyle = isLifestyleLessonSlot(slot.start_at);
@@ -335,6 +340,27 @@ export async function GET(request: Request) {
         };
       })
       .sort((a, b) => new Date(a.start_at).getTime() - new Date(b.start_at).getTime());
+
+    // 예약이 찬 정규수업 시간은 신청 대신 대기 버튼을 표시합니다.
+    // 운영 시간·월화 개방·수강권 이용기간·원데이/외부 일정 조건은 기존 예약과 동일하게 적용합니다.
+    const waitingSlots = slots
+      .filter((slot) => isSlotAvailable(slot) && isRegularOccupied(slot))
+      .map((slot) => {
+        const duration = getReservationLessonMinutes(slot.start_at, lessonMinutes);
+        const lifestyle = isLifestyleLessonSlot(slot.start_at);
+        return {
+          id: slot.id,
+          start_at: slot.start_at,
+          end_at: lessonEndIso(slot.start_at, duration),
+          lesson_minutes: duration,
+          credit_cost: getReservationCreditCost(slot.start_at, lessonMinutes),
+          is_lifestyle: lifestyle,
+          rule_label: lifestyle
+            ? `${duration}분 1:1 서평생활/필사생활 · 대기 신청`
+            : `${duration}분 정규수업 · 대기 신청`,
+          is_waitlist: true,
+        };
+      });
 
     const availableMonthCountMap = countByMonth(available);
     const availableMonths: AvailableMonth[] = monthListFromCountMap(availableMonthCountMap);
@@ -376,6 +402,7 @@ export async function GET(request: Request) {
     return NextResponse.json(
       {
         slots: visibleAvailable,
+        waitlist_slots: waitingSlots.filter((slot) => visibleMonthKeys.includes(kstMonthKeyFromIso(slot.start_at))),
         lesson_minutes: lessonMinutes,
         open_month: {
           ...visibleMonth,
