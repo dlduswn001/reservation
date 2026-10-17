@@ -64,10 +64,10 @@ begin
   if not found then raise exception '신청 내역을 찾을 수 없습니다.'; end if;
   select * into v_class from public.oneday_classes where id=v_booking.class_id for update;
   select * into v_booking from public.oneday_bookings where id::text=p_booking_id for update;
-  if v_booking.student_name <> trim(p_student_name) or v_booking.phone_last4 <> p_phone_last4 then
+  if v_booking.student_name is distinct from trim(p_student_name) or v_booking.phone_last4 is distinct from p_phone_last4 then
     raise exception '신청자 정보가 일치하지 않습니다.';
   end if;
-  if v_booking.status not in ('booked','입금대기','등록대기','입금완료','등록완료','대기') then
+  if v_booking.status is null or v_booking.status not in ('booked','입금대기','등록대기','입금완료','등록완료','대기') then
     raise exception '이미 취소된 신청입니다.';
   end if;
   if (v_class.start_at at time zone 'Asia/Seoul')::date <= (now() at time zone 'Asia/Seoul')::date then
