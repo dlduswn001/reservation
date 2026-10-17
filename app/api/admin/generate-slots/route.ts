@@ -18,6 +18,14 @@ export async function POST(request: Request) {
       return NextResponse.json({ message: getAdminPasswordErrorMessage() }, { status: 401 });
     }
 
+    // 대표님이 수동 개방한 4개 날짜는 어떤 월·화 개방/마감 작업에서도 변경하지 않습니다.
+    const protectedOctoberDates = new Set(["2026-10-19", "2026-10-20", "2026-10-26", "2026-10-27"]);
+    for (const field of ["open_weekday_date", "close_weekday_date"] as const) {
+      if (body[field] !== undefined && protectedOctoberDates.has(String(body[field]))) {
+        return NextResponse.json({ message: "이 날짜는 기존에 직접 열어둔 보호 일정입니다. 수업 시간과 예약을 변경하지 않습니다." }, { status: 409 });
+      }
+    }
+
     // 월·화요일은 자동 생성에서 제외하고 관리자가 지정한 날짜에만 개방합니다.
     if (body.open_weekday_date !== undefined) {
       const dateKey = String(body.open_weekday_date || "");
@@ -51,6 +59,20 @@ export async function POST(request: Request) {
         attempted: rows.length,
         message: `${dateKey} 수업 시간을 수요일과 동일하게 열었습니다.`,
       });
+    }
+
+    if (body.close_weekday_date !== undefined) {
+      const dateKey = String(body.close_weekday_date || "");
+      const date = new Date(dateKey + "T12:00:00Z");
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(dateKey) || Number.isNaN(date.getTime()) || date.toISOString().slice(0, 10) !== dateKey || ![1,2].includes(date.getUTCDay())) {
+        return NextResponse.json({ message: "월요일 또는 화요일 날짜를 선택해 주세요." }, { status: 400 });
+      }
+      const supabase = getSupabaseAdmin();
+      const start = kstDateTimeToUtcIso(dateKey, "00:00");
+      const end = kstDateTimeToUtcIso(dateKey, "23:59");
+      const { error } = await supabase.from("available_slots").update({ is_open: false }).gte("start_at", start).lte("start_at", end);
+      if (error) throw error;
+      return NextResponse.json({ ok: true, message: dateKey + " 수업을 닫았습니다. 기존 확정 예약은 유지됩니다." });
     }
 
     const startDate = String(body.start_date || "");
