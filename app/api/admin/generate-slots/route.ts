@@ -53,6 +53,20 @@ export async function POST(request: Request) {
       });
     }
 
+    if (body.close_weekday_date !== undefined) {
+      const dateKey = String(body.close_weekday_date || "");
+      const date = new Date(dateKey + "T12:00:00Z");
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(dateKey) || Number.isNaN(date.getTime()) || date.toISOString().slice(0, 10) !== dateKey || ![1,2].includes(date.getUTCDay())) {
+        return NextResponse.json({ message: "월요일 또는 화요일 날짜를 선택해 주세요." }, { status: 400 });
+      }
+      const supabase = getSupabaseAdmin();
+      const start = kstDateTimeToUtcIso(dateKey, "00:00");
+      const end = kstDateTimeToUtcIso(dateKey, "23:59");
+      const { error } = await supabase.from("available_slots").update({ is_open: false }).gte("start_at", start).lte("start_at", end);
+      if (error) throw error;
+      return NextResponse.json({ ok: true, message: dateKey + " 수업을 닫았습니다. 기존 확정 예약은 유지됩니다." });
+    }
+
     const startDate = String(body.start_date || "");
     const weeks = Number(body.weeks || 8);
     if (!/^\d{4}-\d{2}-\d{2}$/.test(startDate)) {
