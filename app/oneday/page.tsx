@@ -8,7 +8,7 @@ type Lesson = {
   description?: string | null; remaining: number;
 };
 type Booking = {
-  id: string; people_count?: number; status?: string;
+  id: string; people_count?: number; status?: string; waitlist_position?: number | null;
   oneday_classes?: { title: string; start_at: string; end_at: string } | null;
 };
 const ACTIVE = new Set(["booked", "입금대기", "등록대기", "입금완료", "등록완료"]);
@@ -96,7 +96,7 @@ export default function OneDayPage() {
       const json = await res.json();
       if (!res.ok) throw new Error(json.message || "신청할 수 없습니다.");
       localStorage.setItem(STUDENT_KEY, JSON.stringify({ name: name.trim(), phone_last4: phone.trim() }));
-      setMessage("신청이 확정되었습니다. 수업 당일에는 취소할 수 없습니다.");
+      setMessage(json.status === "대기" ? `대기 ${json.waitlist_position}번으로 접수되었습니다. 빈자리가 나면 순서대로 자동 확정됩니다.` : "신청이 확정되었습니다. 수업 당일에는 취소할 수 없습니다.");
       setSelectedId(""); setWithGuest(false);
       await Promise.all([refreshClasses(), refreshBookings(name.trim(), phone.trim())]);
     } catch (error) { setMessage(error instanceof Error ? error.message : "신청에 실패했습니다."); }
@@ -130,7 +130,7 @@ export default function OneDayPage() {
       {message && <div role="status" style={{ ...simpleCard, background: "#fafafa", fontSize: 14 }}>{message}</div>}
       <section style={simpleCard}>
         <h2 style={{ fontSize: 18, marginBottom: 12 }}>원데이 클래스 소개 및 신청</h2>
-        <p style={secondary}>정규수강생 전용 · 정원 6명(동반자 포함) · 수업 시작 3시간 전까지 신청 가능</p>
+        <p style={secondary}>정규수강생 전용 · 정원 6명(동반자 포함) · 수업 시작 3시간 전까지 신청 가능 · 마감 시 대기 접수</p>
         <p style={secondary}>가족 또는 친구를 1명 동반할 수 있습니다. 수업 당일에는 취소할 수 없습니다.</p>
         {available.length === 0 && <p style={secondary}>현재 신청 가능한 클래스가 없습니다.</p>}
         {available.map((lesson) => (
@@ -138,10 +138,10 @@ export default function OneDayPage() {
             <strong style={{ display: "block", fontSize: 16 }}>{lesson.title}</strong>
             <p style={{ ...secondary, marginTop: 5 }}>{formatDate(lesson.start_at)}</p>
             {lesson.description && <p style={{ fontSize: 14, whiteSpace: "pre-wrap", lineHeight: 1.7 }}>{lesson.description.replace(/(?:원데이 클래스 신청 후|입금 안내)[\s\S]*$/,"").trim()}</p>}
-            <p style={secondary}>남은 자리 {Math.max(0, lesson.remaining)} / 6</p>
-            <button type="button" className="secondary" disabled={lesson.remaining < 1}
+            <p style={secondary}>{lesson.remaining > 0 ? `남은 자리 ${lesson.remaining} / 6` : "정원 마감 · 대기 접수 가능"}</p>
+            <button type="button" className="secondary" disabled={false}
               onClick={() => { setSelectedId(lesson.id); setWithGuest(false); }}>
-              {lesson.remaining < 1 ? "신청 마감" : selectedId === lesson.id ? "선택됨" : "신청하기"}
+              {selectedId === lesson.id ? "선택됨" : lesson.remaining < 1 ? "대기 신청하기" : "신청하기"}
             </button>
           </article>
         ))}
@@ -165,8 +165,8 @@ export default function OneDayPage() {
             <label>휴대전화 번호 뒷자리 4자리</label>
             <input value={phone} onChange={(e) => setPhone(e.target.value.replace(/\D/g, "").slice(0,4))} inputMode="numeric" maxLength={4} placeholder="0000" />
           </div>}
-          <button style={primaryButton} disabled={loading || selected.remaining < people} onClick={reserve}>
-            {loading ? "처리 중..." : selected.remaining < people ? "잔여 자리 부족" : "신청 확정하기"}
+          <button style={primaryButton} disabled={loading} onClick={reserve}>
+            {loading ? "처리 중..." : selected.remaining < people ? "대기 신청하기" : "신청 확정하기"}
           </button>
         </section>
       )}
@@ -187,7 +187,8 @@ export default function OneDayPage() {
         {bookings.length === 0 && <p style={secondary}>확인된 신청 내역이 없습니다.</p>}
         {bookings.map((booking) => {
           const lesson = booking.oneday_classes;
-          const active = ACTIVE.has(String(booking.status || ""));
+          const waiting = booking.status === "대기";
+          const active = ACTIVE.has(String(booking.status || "")) || waiting;
           const completed = lesson && new Date(lesson.end_at).getTime() <= now;
           const cancellable = active && lesson && dayKey(lesson.start_at) > dayKey(now);
           return (
@@ -196,7 +197,7 @@ export default function OneDayPage() {
               {lesson && <p style={secondary}>{formatDate(lesson.start_at)}</p>}
               <p style={secondary}>
                 {booking.people_count === 2 ? "동반자 있음 · 총 2명" : "동반자 없음 · 총 1명"}
-                {" · "}{!active ? "취소 완료" : completed ? "수강 완료" : "신청 확정"}
+                {" · "}{!active ? "취소 완료" : waiting ? `대기 ${booking.waitlist_position || "-"}번` : completed ? "수강 완료" : "신청 확정"}
               </p>
               {cancellable && <button type="button" className="secondary compact" disabled={loading} onClick={() => cancelBooking(booking)}>신청 취소</button>}
             </div>
