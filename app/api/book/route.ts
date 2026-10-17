@@ -15,6 +15,7 @@ import {
   conflictsWithRegularBookings,
   regularLessonRule,
   overlapsAnyTimeBlock,
+  WEEKDAY_VISIBLE_TIMETABLE_START_TIMES,
   parseAutoAdjustmentSlotId,
   isAutoAdjustmentCandidate,
 } from "../../../lib/businessRules";
@@ -106,6 +107,35 @@ export async function POST(request: Request) {
         .single();
       if (slotError) throw slotError;
       slot = normalSlot;
+    }
+
+    // 월·화요일에는 관리자가 해당 날짜를 명시적으로 개방한 5개 시간만 실제 예약할 수 있습니다.
+    // 10월 19/20/26/27일은 이전에 수동 개방한 보호 일정이므로 기존 예약 로직 유지.
+    const weekdayKst = new Intl.DateTimeFormat("en-US", {
+      timeZone: "Asia/Seoul", weekday: "short",
+    }).format(new Date(slot.start_at));
+    if (["Mon", "Tue"].includes(weekdayKst)) {
+      const dateKey = new Intl.DateTimeFormat("en-CA", {
+        timeZone: "Asia/Seoul", year: "numeric", month: "2-digit", day: "2-digit",
+      }).format(new Date(slot.start_at));
+      const protectedDates = new Set(["2026-10-19", "2026-10-20", "2026-10-26", "2026-10-27"]);
+      if (!protectedDates.has(dateKey)) {
+        const timeKey = new Intl.DateTimeFormat("en-GB", {
+          timeZone: "Asia/Seoul", hour: "2-digit", minute: "2-digit", hourCycle: "h23",
+        }).format(new Date(slot.start_at));
+        if (!WEEKDAY_VISIBLE_TIMETABLE_START_TIMES.includes(timeKey)) {
+          return NextResponse.json({ message: "월·화요일은 관리자 지정 시간만 예약할 수 있습니다." }, { status: 400 });
+        }
+        const { data: manualOpening, error: manualError } = await supabase
+          .from("regular_weekday_open_dates")
+          .select("date_key")
+          .eq("date_key", dateKey)
+          .maybeSingle();
+        if (manualError) throw manualError;
+        if (!manualOpening) {
+          return NextResponse.json({ message: "월·화요일은 정규 휴무일입니다. 관리자가 연 날짜에만 예약할 수 있습니다." }, { status: 400 });
+        }
+      }
     }
 
     if (!isAtLeastThreeHoursBefore(slot.start_at)) {

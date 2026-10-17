@@ -12,6 +12,7 @@ import {
   conflictsWithRegularBookings,
   reservationCutoffDate,
   overlapsAnyTimeBlock,
+  WEEKDAY_VISIBLE_TIMETABLE_START_TIMES,
 } from "../../../lib/businessRules";
 import { canBookWithRegularPassPolicy, getRegularPassPolicyStatus, type RegularPassPolicyStudent } from "../../../lib/passPolicy";
 import { getErrorMessage, isMissingPassColumnError } from "../../../lib/supabaseCompat";
@@ -273,6 +274,14 @@ export async function GET(request: Request) {
       .lte("start_at", searchRange.rangeEndIso);
     if (blockedError) throw blockedError;
 
+    // 월·화요일은 날짜별 관리자 수동 개방 기록이 있어야만 표시합니다.
+    // 오래전에 자동 생성된 is_open=true 행만으로는 휴무일이 열리지 않습니다.
+    const { data: openedDates, error: openedDatesError } = await supabase
+      .from("regular_weekday_open_dates")
+      .select("date_key");
+    if (openedDatesError) throw openedDatesError;
+    const explicitlyOpened = new Set((openedDates || []).map((date) => String(date.date_key)));
+
     const activeBookings = bookings || [];
     const activeOnedayBlocks = (onedayClasses || []).filter((klass: any) => klass.is_open !== false);
     const activeBlockedTimes = blockedTimes || [];
@@ -292,8 +301,12 @@ export async function GET(request: Request) {
         const protectedDates = ["2026-10-19", "2026-10-20", "2026-10-26", "2026-10-27"];
         if (protectedDates.includes(dateKey)) {
           if (slot.is_open === false) return false;
-        } else if (slot.is_open !== true) {
-          return false;
+        } else {
+          const timeKey = new Intl.DateTimeFormat("en-GB", {
+            timeZone: "Asia/Seoul", hour: "2-digit", minute: "2-digit", hourCycle: "h23",
+          }).format(new Date(slot.start_at));
+          if (slot.is_open !== true || !explicitlyOpened.has(dateKey)
+            || !WEEKDAY_VISIBLE_TIMETABLE_START_TIMES.includes(timeKey)) return false;
         }
       }
 
