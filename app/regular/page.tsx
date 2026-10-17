@@ -219,6 +219,7 @@ export default function RegularPage() {
   const [openMonth, setOpenMonth] = useState<OpenMonth | null>(null);
   const [availableMonths, setAvailableMonths] = useState<AvailableMonth[]>([]);
   const [selectedMonthKey, setSelectedMonthKey] = useState("");
+  const [visibleCalendarMonth, setVisibleCalendarMonth] = useState("");
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
   const [currentTime, setCurrentTime] = useState(() => Date.now());
   const [bookingSection, setBookingSection] = useState<"upcoming" | "completed">("upcoming");
@@ -403,16 +404,34 @@ export default function RegularPage() {
     return grouped;
   }, [availableDateKeys]);
 
+  const calendarMonthKeys = useMemo(() => Object.keys(dateKeysByMonth).sort(), [dateKeysByMonth]);
+  const currentSeoulMonth = new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Asia/Seoul", year: "numeric", month: "2-digit",
+  }).format(new Date(currentTime));
+  const activeCalendarMonth = calendarMonthKeys.includes(visibleCalendarMonth)
+    ? visibleCalendarMonth
+    : calendarMonthKeys.includes(currentSeoulMonth)
+      ? currentSeoulMonth
+      : calendarMonthKeys[0] || "";
+  const activeMonthIndex = calendarMonthKeys.indexOf(activeCalendarMonth);
+
+  function navigateCalendar(direction: -1 | 1) {
+    const nextMonth = calendarMonthKeys[activeMonthIndex + direction];
+    if (!nextMonth) return;
+    setVisibleCalendarMonth(nextMonth);
+    setSelectedDate(dateKeysByMonth[nextMonth]?.[0] || null);
+  }
+
   useEffect(() => {
     if (availableDateKeys.length === 0) {
       setSelectedDate(null);
       return;
     }
     setSelectedDate((current) => {
-      if (current && availableDateKeys.includes(current)) return current;
-      return availableDateKeys[0];
+      if (current && availableDateKeys.includes(current) && current.startsWith(activeCalendarMonth)) return current;
+      return dateKeysByMonth[activeCalendarMonth]?.[0] || null;
     });
-  }, [availableDateKeys]);
+  }, [availableDateKeys, activeCalendarMonth, dateKeysByMonth]);
 
   const selectedSlots = selectedDate ? slotsByDate[selectedDate] || [] : [];
 
@@ -625,8 +644,21 @@ export default function RegularPage() {
 
             {!isLoadingData && availableDateKeys.length > 0 && (
               <>
+                <nav aria-label="예약 달력 월 이동" style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, marginBottom: 16 }}>
+                  <button className="secondary compact" type="button"
+                    aria-label="이전 달 일정"
+                    disabled={activeMonthIndex <= 0}
+                    onClick={() => navigateCalendar(-1)}
+                    style={{ minWidth: 42, fontSize: 20, padding: "6px 10px" }}>‹</button>
+                  <strong style={{ fontSize: 17 }}>{activeCalendarMonth && formatMonthTitle(`${activeCalendarMonth}-01`)}</strong>
+                  <button className="secondary compact" type="button"
+                    aria-label="다음 달 일정"
+                    disabled={activeMonthIndex < 0 || activeMonthIndex >= calendarMonthKeys.length - 1}
+                    onClick={() => navigateCalendar(1)}
+                    style={{ minWidth: 42, fontSize: 20, padding: "6px 10px" }}>›</button>
+                </nav>
                 <div style={styles.monthList}>
-                  {Object.entries(dateKeysByMonth).map(([monthKey, dateKeys]) => {
+                  {Object.entries(dateKeysByMonth).filter(([monthKey]) => monthKey === activeCalendarMonth).map(([monthKey, dateKeys]) => {
                     const [year, month] = monthKey.split("-").map(Number);
                     const firstWeekday = new Date(Date.UTC(year, month - 1, 1)).getUTCDay();
                     const daysInMonth = new Date(Date.UTC(year, month, 0)).getUTCDate();
