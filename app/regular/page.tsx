@@ -782,7 +782,7 @@ export default function RegularPage() {
                                   onClick={() => applyWaitlist(slot.id)}>대기 신청하기</button>
                               )}
                             </div>
-                          ) :                           {slot.is_lifestyle ? (
+                          ) : slot.is_lifestyle ? (
                             <div style={styles.timelineActions}>
                               <button type="button" onClick={() => book(slot, "1:1 서평생활")}
                                 disabled={(student.lesson_credits ?? 0) < Number(slot.credit_cost ?? 0.5)}
