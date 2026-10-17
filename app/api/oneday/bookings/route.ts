@@ -86,7 +86,34 @@ export async function GET(request: Request) {
       return bTime - aTime;
     });
 
-    return NextResponse.json({ bookings });
+    // 대기 순번은 해당 수업 대기 신청 전체의 접수 순서로 계산합니다.
+    const waitingClassIds = Array.from(new Set(
+      bookings.filter((item) => (item as { status?: string }).status === "대기")
+        .map((item) => String((item as { class_id?: string }).class_id || "")).filter(Boolean),
+    ));
+    const queuePositions = new Map<string, number>();
+    if (waitingClassIds.length > 0) {
+      const { data: queues, error: queueError } = await supabase
+        .from("oneday_bookings")
+        .select("id, class_id, created_at")
+        .in("class_id", waitingClassIds)
+        .eq("status", "대기")
+        .order("created_at", { ascending: true })
+        .order("id", { ascending: true });
+      if (queueError) throw queueError;
+      const countByClass = new Map<string, number>();
+      for (const item of queues || []) {
+        const key = String(item.class_id);
+        const position = (countByClass.get(key) || 0) + 1;
+        countByClass.set(key, position);
+        queuePositions.set(String(item.id), position);
+      }
+    }
+    const items = bookings.map((item) => ({
+      ...item,
+      waitlist_position: queuePositions.get(String((item as { id: string }).id)) || null,
+    }));
+    return NextResponse.json({ bookings: items });
   } catch (error) {
     const message = typeof error === "object" && error && "message" in error
       ? String((error as { message?: unknown }).message)
