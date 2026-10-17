@@ -1848,3 +1848,17 @@ body { color: var(--text); }
   .adminShell .tabButton { font-size:12px; padding:11px 3px; }
   .adminShell .studentFilterTabs button { flex: 1 1 auto; }
 }
+
+
+.adminShell .adminHeaderStrip {
+  display:flex; gap:14px; justify-content:space-between; align-items:center;
+  margin: 5px 0 16px;
+}
+.adminShell .adminHeaderStrip h1 {font-size: 23px; margin:0 0 3px;}
+.adminShell .adminHeaderStrip p {font-size: 12px; color:#777; margin:0; line-height:1.45;}
+.adminShell .adminHeaderStrip button {margin:0; white-space:nowrap; font-size:12px; border-radius:9px;}
+.adminShell .adminStatusText {background:#fafafa; border:1px solid #e5e5e5;
+  color:#353535; border-radius:12px; padding:12px 14px; font-size:13px;}
+@media(max-width:580px) {
+ .adminShell .adminHeaderStrip h1 {font-size: 20px;}
+}
