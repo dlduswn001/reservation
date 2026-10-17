@@ -284,7 +284,18 @@ export async function GET(request: Request) {
         timeZone: "Asia/Seoul",
         weekday: "short",
       }).format(new Date(slot.start_at));
-      if (["Mon", "Tue"].includes(weekday) && slot.is_open !== true) return false;
+      if (["Mon", "Tue"].includes(weekday)) {
+        // 10월에 관리자가 직접 개방한 네 날짜의 기존 표시 동작은 바꾸지 않습니다.
+        const dateKey = new Intl.DateTimeFormat("en-CA", {
+          timeZone: "Asia/Seoul", year: "numeric", month: "2-digit", day: "2-digit",
+        }).format(new Date(slot.start_at));
+        const protectedDates = ["2026-10-19", "2026-10-20", "2026-10-26", "2026-10-27"];
+        if (protectedDates.includes(dateKey)) {
+          if (slot.is_open === false) return false;
+        } else if (slot.is_open !== true) {
+          return false;
+        }
+      }
 
       const slotLessonMinutes = getReservationLessonMinutes(slot.start_at, lessonMinutes);
 
