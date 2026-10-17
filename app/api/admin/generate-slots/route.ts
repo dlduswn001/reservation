@@ -1,15 +1,7 @@
 import { NextResponse } from "next/server";
 import { checkAdminPassword, getAdminPasswordErrorMessage } from "../../../../lib/admin";
 import { getSupabaseAdmin } from "../../../../lib/supabaseAdmin";
-import {
-  buildTimetableSlots,
-  WEEKDAY_VISIBLE_TIMETABLE_START_TIMES,
-  WEEKDAY_REGULAR_START_TIMES,
-  DEFAULT_LESSON_MINUTES,
-  SHORT_LESSON_MINUTES,
-  kstDateTimeToUtcIso,
-  addMinutesToIso,
-} from "../../../../lib/businessRules";
+import { buildTimetableSlots } from "../../../../lib/businessRules";
 
 export async function POST(request: Request) {
   try {
@@ -26,53 +18,25 @@ export async function POST(request: Request) {
       }
     }
 
-    // 월·화요일은 자동 생성에서 제외하고 관리자가 지정한 날짜에만 개방합니다.
-    if (body.open_weekday_date !== undefined) {
-      const dateKey = String(body.open_weekday_date || "");
-      const match = /^([0-9]{4})-([0-9]{2})-([0-9]{2})$/.exec(dateKey);
-      if (!match) {
-        return NextResponse.json({ message: "월·화요일 수업 날짜를 선택해 주세요." }, { status: 400 });
-      }
-      const year = Number(match[1]);
-      const month = Number(match[2]);
-      const day = Number(match[3]);
-      const date = new Date(Date.UTC(year, month - 1, day));
-      if (date.toISOString().slice(0, 10) !== dateKey || ![1, 2].includes(date.getUTCDay()) || dateKey < "2026-10-01") {
-        return NextResponse.json({ message: "2026년 10월 이후의 월요일 또는 화요일만 선택할 수 있습니다." }, { status: 400 });
-      }
-
-      const rows = WEEKDAY_VISIBLE_TIMETABLE_START_TIMES.map((time) => {
-        const startAt = kstDateTimeToUtcIso(dateKey, time);
-        const minutes = WEEKDAY_REGULAR_START_TIMES.includes(time) ? DEFAULT_LESSON_MINUTES : SHORT_LESSON_MINUTES;
-        return { start_at: startAt, end_at: addMinutesToIso(startAt, minutes), is_open: true };
+    // 월·화요일은 명시적으로 연 날짜만 개방하며, 기존 30분 간격의 오래된 슬롯은 일괄 닫습니다.
+    // Supabase RPC가 개방 날짜 등록과 5개 정규 시간표 설정을 한 트랜잭션으로 처리합니다.
+    if (body.open_weekday_date !== undefined || body.close_weekday_date !== undefined) {
+      const opening = body.open_weekday_date !== undefined;
+      const dateKey = String(opening ? body.open_weekday_date : body.close_weekday_date);
+      const { data, error } = await getSupabaseAdmin().rpc("munjang_set_monday_tuesday_open", {
+        p_date_key: dateKey,
+        p_is_open: opening,
       });
-      const supabase = getSupabaseAdmin();
-      // 슬롯은 재사용하고 기존 regular_bookings 및 students 레코드는 수정하지 않습니다.
-      const { data, error } = await supabase
-        .from("available_slots")
-        .upsert(rows, { onConflict: "start_at", ignoreDuplicates: false })
-        .select("id");
-      if (error) throw error;
+      if (error) {
+        return NextResponse.json({ message: error.message }, { status: 400 });
+      }
       return NextResponse.json({
-        ok: true,
-        count: data?.length || 0,
-        attempted: rows.length,
-        message: `${dateKey} 수업 시간을 수요일과 동일하게 열었습니다.`,
+        ...data,
+        attempted: opening ? 5 : 0,
+        message: opening
+          ? dateKey + " 수업을 수요일과 같은 5개 시간(14:00·15:40·17:00·19:00·20:40)으로 열었습니다."
+          : dateKey + " 수업을 닫았습니다. 기존 확정 예약은 유지됩니다.",
       });
-    }
-
-    if (body.close_weekday_date !== undefined) {
-      const dateKey = String(body.close_weekday_date || "");
-      const date = new Date(dateKey + "T12:00:00Z");
-      if (!/^\d{4}-\d{2}-\d{2}$/.test(dateKey) || Number.isNaN(date.getTime()) || date.toISOString().slice(0, 10) !== dateKey || ![1,2].includes(date.getUTCDay())) {
-        return NextResponse.json({ message: "월요일 또는 화요일 날짜를 선택해 주세요." }, { status: 400 });
-      }
-      const supabase = getSupabaseAdmin();
-      const start = kstDateTimeToUtcIso(dateKey, "00:00");
-      const end = kstDateTimeToUtcIso(dateKey, "23:59");
-      const { error } = await supabase.from("available_slots").update({ is_open: false }).gte("start_at", start).lte("start_at", end);
-      if (error) throw error;
-      return NextResponse.json({ ok: true, message: dateKey + " 수업을 닫았습니다. 기존 확정 예약은 유지됩니다." });
     }
 
     const startDate = String(body.start_date || "");
