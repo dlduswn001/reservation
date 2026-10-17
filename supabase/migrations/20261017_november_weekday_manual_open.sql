@@ -24,7 +24,7 @@ DECLARE
   v_slot_end timestamptz;
   v_count int := 0;
 BEGIN
-  IF p_date_key IS NULL OR p_date_key !~ '^\\d{4}-\\d{2}-\\d{2}$' THEN
+  IF p_date_key IS NULL OR p_date_key !~ '^[0-9]{4}-[0-9]{2}-[0-9]{2}$' THEN
     RAISE EXCEPTION '올바른 날짜를 선택해 주세요.';
   END IF;
   v_date := p_date_key::date;
