@@ -41,7 +41,7 @@ export async function PATCH(request: Request, context: { params: Promise<{ class
     const curriculum = String(body.curriculum || body.description || "").trim();
     const startAtRaw = String(body.start_at || "").trim();
     const endAtRaw = String(body.end_at || "").trim();
-    const capacity = Math.max(1, Math.floor(parseNonNegativeNumber(body.capacity, 5)));
+    const capacity = 6;
     const regularPrice = parseNonNegativeNumber(body.regular_price, 0);
     const normalPrice = parseNonNegativeNumber(body.normal_price, 0);
     const isOpen = typeof body.is_open === "boolean" ? body.is_open : true;
