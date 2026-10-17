@@ -27,6 +27,14 @@ type Slot = {
   rule_label?: string;
   credit_cost?: number;
   is_lifestyle?: boolean;
+  is_waitlist?: boolean;
+};
+
+type WaitEntry = {
+  id: string;
+  slot_id: string;
+  position: number;
+  available_slots?: { start_at: string; end_at: string } | null;
 };
 
 type Booking = {
@@ -212,6 +220,7 @@ export default function RegularPage() {
   const [rememberLogin, setRememberLogin] = useState(true);
   const [student, setStudent] = useState<Student | null>(null);
   const [slots, setSlots] = useState<Slot[]>([]);
+  const [waitlist, setWaitlist] = useState<WaitEntry[]>([]);
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [message, setMessage] = useState("");
   const [loading, setLoading] = useState(false);
@@ -276,7 +285,7 @@ export default function RegularPage() {
       .then(async (slotRes) => {
         const slotJson = await slotRes.json();
         if (!slotRes.ok) throw new Error(slotJson.message || "예약 가능한 시간을 불러오지 못했습니다.");
-        const nextSlots = slotJson.slots || [];
+        const nextSlots = [...(slotJson.slots || []), ...(slotJson.waitlist_slots || [])];
         setSlots(nextSlots);
         setOpenMonth(slotJson.open_month || null);
         setAvailableMonths(Array.isArray(slotJson.available_months) ? slotJson.available_months : []);
@@ -300,7 +309,38 @@ export default function RegularPage() {
         setMessage(error instanceof Error ? error.message : "예약 내역을 불러오지 못했습니다.");
       });
 
-    await Promise.allSettled([slotRequest, bookingRequest]);
+    const waitlistRequest = loadWaitlist(studentId);
+    await Promise.allSettled([slotRequest, bookingRequest, waitlistRequest]);
+  }
+
+  async function loadWaitlist(studentId: string) {
+    const res = await fetch(`/api/regular-waitlist?studentId=${encodeURIComponent(studentId)}`, {cache:"no-store"});
+    const json = await res.json();
+    if (!res.ok) throw new Error(json.message || "대기 내역을 불러오지 못했습니다.");
+    setWaitlist(json.waitlist || []);
+  }
+
+  async function applyWaitlist(slotId: string) {
+    if (!student) return;
+    setMessage("");
+    const res = await fetch("/api/regular-waitlist", {
+      method:"POST", headers:{"Content-Type":"application/json"},
+      body:JSON.stringify({studentId:student.id,slotId}),
+    });
+    const json = await res.json();
+    setMessage(res.ok ? `대기 ${json.position}번으로 접수되었습니다. 수강권은 아직 차감되지 않습니다.` : json.message || "대기 신청에 실패했습니다.");
+    if(res.ok) await loadWaitlist(student.id);
+  }
+
+  async function cancelWaitlist(waitId: string) {
+    if (!student || !window.confirm("대기 신청을 취소할까요?")) return;
+    const res = await fetch("/api/regular-waitlist", {
+      method:"POST", headers:{"Content-Type":"application/json"},
+      body:JSON.stringify({action:"cancel",studentId:student.id,waitId}),
+    });
+    const json = await res.json();
+    setMessage(res.ok ? "대기 신청이 취소되었습니다." : json.message || "대기 취소에 실패했습니다.");
+    if(res.ok) await loadWaitlist(student.id);
   }
 
   async function changeOpenMonth(monthKey: string) {
@@ -466,6 +506,7 @@ export default function RegularPage() {
     setPhoneLast4("");
     setSlots([]);
     setBookings([]);
+    setWaitlist([]);
     setSelectedDate(null);
     setMessage("자동 로그인 정보를 지웠습니다. 다시 로그인해 주세요.");
   }
@@ -550,6 +591,18 @@ export default function RegularPage() {
 
       {student && (
         <>
+          {waitlist.length > 0 && (
+            <section className="card" style={styles.cardFix}>
+              <h2>내 대기 신청</h2>
+              {waitlist.map(item => (
+                <div key={item.id} className="item" style={{display:"flex",justifyContent:"space-between",gap:10,alignItems:"center",flexWrap:"wrap"}}>
+                  <span><strong>{item.available_slots?.start_at ? formatDateTime(item.available_slots.start_at) : "수업 시간"}</strong> · 대기 {item.position}번</span>
+                  <button className="secondary compact" onClick={()=>cancelWaitlist(item.id)}>대기 취소</button>
+                </div>
+              ))}
+              <p className="small">대기는 예약 확정이 아닙니다. 대기 신청 시 수강권은 차감되지 않습니다.</p>
+            </section>
+          )}
           <section className="card" style={styles.cardFix}>
             <h2>내 수업 일정</h2>
             <div className="bookingSectionTabs" role="tablist" aria-label="수업 일정 구분" style={styles.bookingSectionTabs}>
@@ -709,14 +762,27 @@ export default function RegularPage() {
                         <div style={styles.timelineContent}>
                           <div style={styles.timelineTopLine}>
                             <strong style={styles.timelineTime}>{formatTime(slot.start_at)} – {formatTime(slot.end_at)}</strong>
-                            <span style={styles.timelineDuration}>{slot.is_lifestyle ? "45분" : `${slot.lesson_minutes || 90}분`}</span>
+                            <span style={styles.timelineDuration}>{slot.is_waitlist ? "예약 마감 · 대기 가능" : slot.is_lifestyle ? "45분" : `${slot.lesson_minutes || 90}분`}</span>
                           </div>
                           <p style={styles.timelineDescription}>
                             {slot.rule_label || (slot.is_lifestyle
                               ? `1:1 서평생활 / 필사생활 · ${lifestyleCreditText} 차감`
                               : "1:1 정규수업 · 수강권 1회 차감")}
                           </p>
-                          {slot.is_lifestyle ? (
+                          {slot.is_waitlist ? (
+                            <div style={styles.timelineActions}>
+                              {waitlist.find((item) => item.slot_id === slot.id) ? (
+                                <>
+                                  <strong style={{fontSize:13,color:"#79283E"}}>대기 {waitlist.find((item)=>item.slot_id===slot.id)?.position}번</strong>
+                                  <button type="button" className="secondary compact"
+                                    onClick={() => cancelWaitlist(waitlist.find((item)=>item.slot_id===slot.id)!.id)}>대기 취소</button>
+                                </>
+                              ) : (
+                                <button type="button" style={styles.timelineSecondaryButton}
+                                  onClick={() => applyWaitlist(slot.id)}>대기 신청하기</button>
+                              )}
+                            </div>
+                          ) :                           {slot.is_lifestyle ? (
                             <div style={styles.timelineActions}>
                               <button type="button" onClick={() => book(slot, "1:1 서평생활")}
                                 disabled={(student.lesson_credits ?? 0) < Number(slot.credit_cost ?? 0.5)}
