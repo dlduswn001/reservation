@@ -23,3 +23,4 @@ create unique index if not exists student_lesson_journals_booking_id_key
 -- administrator API (Supabase service role) may read and write journals.
 alter table public.student_lesson_journals enable row level security;
 revoke all on table public.student_lesson_journals from anon, authenticated;
+grant select, insert, update, delete on table public.student_lesson_journals to service_role;
