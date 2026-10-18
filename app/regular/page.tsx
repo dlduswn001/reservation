@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import type { CSSProperties } from "react";
 import BottomNav from "../components/BottomNav";
 import { disconnectPushOnLogout } from "../../lib/pushClient";
+import { isOfficialClassStartTime } from "../../lib/businessRules";
 
 type Student = {
   id: string;
@@ -64,7 +65,7 @@ type OpenMonth = {
 };
 
 const STUDENT_LOGIN_STORAGE_KEY = "munjangStudentLogin";
-const SLOT_CACHE_STORAGE_KEY = "munjangRegularSlotCacheV37";
+const SLOT_CACHE_STORAGE_KEY = "munjangRegularSlotCacheV39";
 
 const STATUS_LABELS: Record<string, string> = {
   booked: "예약 완료",
@@ -280,7 +281,7 @@ export default function RegularPage() {
     const slotParams = new URLSearchParams({
       studentId,
       lessonMinutes: String(lessonMinutes),
-      v: "36",
+      v: "39",
       _: String(Date.now()),
     });
     const slotRequest = fetch(`/api/slots?${slotParams.toString()}`, { cache: "no-store" })
@@ -296,6 +297,9 @@ export default function RegularPage() {
           ...(slotJson.waitlist_slots || []),
           ...(slotJson.closed_slots || []),
         ] as Slot[]) {
+          // Explicit schedule validation at the UI boundary also protects a
+          // cached/stale API response from showing old weekend 12/14/16 slots.
+          if (!isOfficialClassStartTime(slot.start_at)) continue;
           const start = new Date(slot.start_at).getTime();
           if (!Number.isFinite(start)) continue;
           const previous = byStart.get(start);
@@ -401,6 +405,25 @@ export default function RegularPage() {
   useEffect(() => {
     if (student) loadData(student.id);
   }, [student]);
+
+  // Returning to an already-open PWA should refresh its slot list, without
+  // asking a student to sign out or clear their phone's browser storage.
+  useEffect(() => {
+    const studentId = student?.id;
+    if (!studentId) return;
+    let lastRefresh = Date.now();
+    const refreshWhenVisible = () => {
+      if (document.visibilityState !== "visible" || Date.now() - lastRefresh < 60_000) return;
+      lastRefresh = Date.now();
+      void loadData(studentId, {useCache:false});
+    };
+    window.addEventListener("focus", refreshWhenVisible);
+    document.addEventListener("visibilitychange", refreshWhenVisible);
+    return () => {
+      window.removeEventListener("focus", refreshWhenVisible);
+      document.removeEventListener("visibilitychange", refreshWhenVisible);
+    };
+  }, [student?.id]);
 
   useEffect(() => {
     const timer = window.setInterval(() => setCurrentTime(Date.now()), 30_000);

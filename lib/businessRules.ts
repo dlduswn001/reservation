@@ -98,6 +98,26 @@ export const WEEKEND_ALL_TIMETABLE_START_TIMES = Array.from(new Set([
   ...WEEKEND_LIFESTYLE_START_TIMES,
 ]));
 
+/**
+ * Strict official start-time whitelist for all public regular-class availability.
+ * Weekend: regular 10:00 / 13:00 / 14:40; lifestyle 12:00 / 16:30.
+ * Mon/Tue opening permissions are checked separately by the reservation APIs.
+ */
+export function isOfficialClassStartTime(startAt: string) {
+  const parts = new Intl.DateTimeFormat("en-US", {
+    timeZone: "Asia/Seoul",
+    weekday: "short", hour: "2-digit", minute: "2-digit", hourCycle: "h23",
+  }).formatToParts(new Date(startAt));
+  const part = (type: string) => parts.find((item) => item.type === type)?.value || "";
+  const hhmm = `${part("hour")}:${part("minute")}`;
+  const day = part("weekday");
+  if (day === "Sat" || day === "Sun") return WEEKEND_ALL_TIMETABLE_START_TIMES.includes(hhmm);
+  if (["Mon", "Tue", "Wed", "Thu", "Fri"].includes(day)) {
+    return WEEKDAY_VISIBLE_TIMETABLE_START_TIMES.includes(hhmm);
+  }
+  return false;
+}
+
 // 예전 이름을 쓰는 코드와의 호환을 위해 남겨둡니다.
 export const SATURDAY_START_TIME = WEEKEND_START_TIME;
 export const SATURDAY_LAST_START_TIME = WEEKEND_LAST_START_TIME;
@@ -496,12 +516,16 @@ export function isSaturdayDateKey(dateKey: string) {
 }
 
 export function dateKeyInKst(date: Date) {
-  return new Intl.DateTimeFormat("en-CA", {
+  // format() may be locale-dependent (for example MM/DD/YYYY on some servers).
+  // A stable ISO-style date is required for enforcing the post-October timetable.
+  const parts = new Intl.DateTimeFormat("en-US", {
     timeZone: "Asia/Seoul",
     year: "numeric",
     month: "2-digit",
     day: "2-digit",
-  }).format(date);
+  }).formatToParts(date);
+  const get = (type: string) => parts.find((part) => part.type === type)?.value || "";
+  return `${get("year")}-${get("month")}-${get("day")}`;
 }
 
 export function buildTimetableSlots(startDateKey: string, weeks: number) {

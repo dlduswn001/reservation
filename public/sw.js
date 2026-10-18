@@ -1,4 +1,4 @@
-const CACHE_VERSION = "munjang-pwa-v42-push-notifications-20261018";
+const CACHE_VERSION = "munjang-pwa-v43-fixed-weekend-20261018";
 const STATIC_CACHE = `${CACHE_VERSION}-static`;
 const RUNTIME_CACHE = `${CACHE_VERSION}-runtime`;
 

@@ -9,6 +9,7 @@ import {
   getReservationLessonMinutes,
   getReservationCreditCost,
   isLifestyleLessonSlot,
+  isOfficialClassStartTime,
   reservationKindLabel,
   normalizeLifestyleClassName,
   conflictsWithOneDayBlocks,
@@ -147,6 +148,14 @@ export async function POST(request: Request) {
       return NextResponse.json({
         message: `수강권 사용기한이 만료되어 예약할 수 없습니다. 사용기한: ${passPolicyCheck.status.expiresAt || "-"}. 문장학교로 문의해 주세요.`,
       }, { status: 400 });
+    }
+
+    // A stale app or hand-crafted API request must never book old 30-minute
+    // weekend times even if a legacy database slot happens to be open.
+    if (["Sat", "Sun"].includes(weekdayKst) && !isOfficialClassStartTime(slot.start_at)) {
+      return NextResponse.json({
+        message:"주말에는 정규 10:00·13:00·14:40, 생활 12:00·16:30에만 예약할 수 있습니다.",
+      }, {status:400});
     }
 
     // There are no shared regular/lifestyle class start times.
