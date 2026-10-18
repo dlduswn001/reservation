@@ -2,11 +2,15 @@
 
 import { useEffect, useState } from "react";
 import BottomNav from "../components/BottomNav";
-import { ArrowRight, BookOpenText, CalendarDays, CheckCircle2, Clock3, ClipboardList, Info, UsersRound } from "lucide-react";
+import { ArrowRight, BookOpenText, CalendarDays, CheckCircle2, ChevronLeft, ChevronRight, Clock3, ClipboardList, Image as ImageIcon, Info, UsersRound, X } from "lucide-react";
 
+type OneDayPhoto = {
+  id: string; public_url: string; caption: string; is_cover: boolean;
+};
 type Lesson = {
   id: string; title: string; start_at: string; end_at: string;
   description?: string | null; remaining: number; waiting_count?: number;
+  images?: OneDayPhoto[];
 };
 type Booking = {
   id: string; people_count?: number; status?: string; waitlist_position?: number | null;
@@ -90,6 +94,8 @@ export default function OneDayPage() {
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
   const [selectedId, setSelectedId] = useState("");
+  const [photoIndexByClass, setPhotoIndexByClass] = useState<Record<string,number>>({});
+  const [previewPhoto, setPreviewPhoto] = useState<{classId:string;index:number}|null>(null);
   const [withGuest, setWithGuest] = useState(false);
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState("");
@@ -170,6 +176,10 @@ export default function OneDayPage() {
   }
   const available = classes.filter((c) => new Date(c.start_at).getTime() - now >= CUTOFF_MS);
   const selected = classes.find((c) => c.id === selectedId);
+  const previewLesson = previewPhoto && classes.find((klass) => klass.id === previewPhoto.classId);
+  const previewImages = previewLesson?.images || [];
+  const previewIndex = previewPhoto && previewImages.length
+    ? ((previewPhoto.index % previewImages.length) + previewImages.length) % previewImages.length : 0;
   const people = withGuest ? 2 : 1;
   return (
     <main className="container studioApp" style={{ maxWidth: 760, paddingBottom: 90 }}>
@@ -197,6 +207,10 @@ export default function OneDayPage() {
             const heading = getClassHeading(lesson.title);
             const waiting = (lesson.waiting_count || 0) > 0 || lesson.remaining <= 0;
             const actionTitle = waiting ? "대기 신청하기" : "신청하기";
+            const photos = lesson.images || [];
+            const currentIndex = photos.length
+              ? Math.min(Math.max(0,photoIndexByClass[lesson.id] || 0),photos.length-1) : 0;
+            const currentPhoto = photos[currentIndex];
             return (
               <article className="oneDayEventCard" key={lesson.id}>
                 <div className="oneDayEventTop">
@@ -207,6 +221,52 @@ export default function OneDayPage() {
                     <div><Clock3 size={16} aria-hidden="true"/><strong>{formatClassTimeRange(lesson.start_at, lesson.end_at)}</strong></div>
                   </div>
                 </div>
+
+                {currentPhoto && (
+                  <section className="oneDayReferenceGallery" aria-label="클래스 참고 사진">
+                    <div className="oneDayReferenceHeading">
+                      <span><ImageIcon size={16} aria-hidden="true"/> 사진으로 미리보기</span>
+                      <small>{currentIndex + 1} / {photos.length}</small>
+                    </div>
+                    <div className="oneDayGalleryFrame">
+                      <button type="button" className="oneDayPhotoOpen" 
+                        onClick={() => setPreviewPhoto({classId:lesson.id,index:currentIndex})}
+                        aria-label={`${heading.heading} 참고 사진 ${currentIndex+1}번 크게 보기`}>
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img src={currentPhoto.public_url}
+                          alt={currentPhoto.caption || `${heading.heading} 참고 이미지 ${currentIndex+1}`}
+                          loading="lazy" decoding="async" />
+                        <span className="oneDayPhotoZoomHint">사진 크게 보기</span>
+                      </button>
+                      {photos.length > 1 && (
+                        <>
+                          <button type="button" className="oneDayPhotoArrow left"
+                            aria-label="이전 참고 사진"
+                            onClick={() => setPhotoIndexByClass((cur) => ({
+                              ...cur,[lesson.id]:(currentIndex - 1 + photos.length)%photos.length,
+                            }))}><ChevronLeft size={22}/></button>
+                          <button type="button" className="oneDayPhotoArrow right"
+                            aria-label="다음 참고 사진"
+                            onClick={() => setPhotoIndexByClass((cur) => ({
+                              ...cur,[lesson.id]:(currentIndex + 1)%photos.length,
+                            }))}><ChevronRight size={22}/></button>
+                        </>
+                      )}
+                    </div>
+                    {currentPhoto.caption && <p className="oneDayPhotoCaption">{currentPhoto.caption}</p>}
+                    {photos.length > 1 && (
+                      <div className="oneDayPhotoDots" role="group" aria-label="사진 선택">
+                        {photos.map((photo,index) => (
+                          <button type="button" key={photo.id}
+                            aria-label={`${index+1}번 참고 사진`}
+                            aria-current={currentIndex === index ? "true" : undefined}
+                            className={currentIndex === index ? "active" : ""}
+                            onClick={() => setPhotoIndexByClass(cur=>({...cur,[lesson.id]:index}))}/>
+                        ))}
+                      </div>
+                    )}
+                  </section>
+                )}
 
                 <div className="oneDayEventDetails">
                   {sections.introduction.length > 0 && (
@@ -324,6 +384,37 @@ export default function OneDayPage() {
           );
         })}
       </section>
+      {previewPhoto && previewImages.length > 0 && (
+        <div className="oneDayPhotoLightbox" role="dialog" aria-modal="true"
+          aria-label="원데이 클래스 참고 이미지 크게 보기">
+          <div className="oneDayLightboxToolbar">
+            <span>{previewIndex+1} / {previewImages.length}</span>
+            <button type="button" onClick={()=>setPreviewPhoto(null)} aria-label="사진 닫기">
+              <X size={24}/>
+            </button>
+          </div>
+          <div className="oneDayLightboxPicture">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src={previewImages[previewIndex].public_url}
+              alt={previewImages[previewIndex].caption || "원데이 클래스 참고 이미지"}/>
+          </div>
+          {previewImages[previewIndex].caption && (
+            <p className="oneDayLightboxCaption">{previewImages[previewIndex].caption}</p>
+          )}
+          {previewImages.length > 1 && (
+            <div className="oneDayLightboxControls">
+              <button type="button" onClick={()=>setPreviewPhoto(cur => cur
+                ? {...cur,index:(previewIndex - 1 + previewImages.length)%previewImages.length} : null)}>
+                <ChevronLeft size={22}/> 이전 사진
+              </button>
+              <button type="button" onClick={()=>setPreviewPhoto(cur => cur
+                ? {...cur,index:(previewIndex + 1)%previewImages.length} : null)}>
+                다음 사진 <ChevronRight size={22}/>
+              </button>
+            </div>
+          )}
+        </div>
+      )}
       <BottomNav />
     </main>
   );
