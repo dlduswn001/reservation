@@ -56,12 +56,50 @@ export async function GET() {
     if (waitingError) throw waitingError;
     for (const booking of waitingBookings || []) waitingCounts.set(booking.class_id, (waitingCounts.get(booking.class_id) || 0) + 1);
 
+    const classIds = (classes || []).map((klass) => klass.id);
+    type PublicPhoto = {
+      id: string;
+      class_id: string;
+      storage_path: string;
+      caption: string;
+      sort_order: number;
+      is_cover: boolean;
+    };
+    const classImages = new Map<string, Array<{
+      id: string;
+      public_url: string;
+      caption: string;
+      is_cover: boolean;
+    }>>();
+
+    if (classIds.length > 0) {
+      const { data: rawImages, error: imageError } = await supabase
+        .from("oneday_class_images")
+        .select("id,class_id,storage_path,caption,sort_order,is_cover")
+        .in("class_id", classIds)
+        .order("sort_order", { ascending: true });
+      if (imageError) throw imageError;
+      const photos = (rawImages || []) as PublicPhoto[];
+      photos.sort((a,b) =>
+        (a.class_id.localeCompare(b.class_id))
+        || (Number(b.is_cover) - Number(a.is_cover))
+        || a.sort_order-b.sort_order);
+      for (const photo of photos) {
+        const publicUrl = supabase.storage.from("munjang-oneday-gallery")
+          .getPublicUrl(photo.storage_path).data.publicUrl;
+        const list = classImages.get(photo.class_id) || [];
+        list.push({ id: photo.id, public_url: publicUrl, caption: photo.caption || "", is_cover: photo.is_cover });
+        classImages.set(photo.class_id,list);
+      }
+    }
+
     const withRemaining = (classes || []).map((c) => ({
       ...c,
       capacity: CAPACITY,
       booked_count: counts.get(c.id) || 0,
       waiting_count: waitingCounts.get(c.id) || 0,
       remaining: CAPACITY - (counts.get(c.id) || 0),
+      images: classImages.get(c.id) || [],
     }));
 
     return NextResponse.json({ classes: withRemaining });
