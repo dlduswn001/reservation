@@ -1850,6 +1850,7 @@ export default function AdminPage() {
       });
     }
     for (const klass of overview.classes || []) {
+      if (klass.is_deleted === true) continue;
       const applications = (overview.onedayBookings || []).filter(
         (booking) => (booking.class_id || booking.oneday_classes?.id) === klass.id
           && isActiveOneDayBooking(booking.status),
@@ -1964,7 +1965,7 @@ export default function AdminPage() {
           <div className="oneDayClassRow">
             <div className="oneDayClassMain">
               <div className="oneDayClassTopline">
-                <span className={`todayBadge ${classIsPast ? "block" : "oneday"}`}>{classIsPast ? "지난 수업" : "진행 예정"}</span>
+                <span className={`todayBadge ${classIsPast || c.is_deleted ? "block" : "oneday"}`}>{c.is_deleted ? "삭제된 수업 기록" : classIsPast ? "지난 수업" : "진행 예정"}</span>
                 <strong>{c.title}</strong>
               </div>
               <p className="small">{formatDateOnly(c.start_at)} {formatTime(c.start_at)} - {formatTime(c.end_at)}</p>
@@ -1978,14 +1979,14 @@ export default function AdminPage() {
               <p className="small">정규수강생 전용 · 정원 6명 · 마감 시 대기 신청</p>
               {c.description && <p className="onedayCurriculumPreview" style={{whiteSpace:"pre-line"}}>{c.description}</p>}
             </div>
-            <div className="inlineActions oneDayClassActions">
+            {!c.is_deleted && <div className="inlineActions oneDayClassActions">
               <button type="button" className="secondary compact" onClick={() => startEditOneDayClass(c)}>수정</button>
               <button type="button" className="secondary compact" onClick={() =>
                 setImageManagerClassId(id=>id===c.id?"":c.id)}>
                 {imageManagerClassId===c.id?"사진 관리 닫기":"사진 관리"}
               </button>
               <button type="button" className="danger compact" onClick={() => deleteOnedayClass(c.id, c.title)}>삭제</button>
-            </div>
+            </div>}
           </div>
         )}
         {(isEditing || imageManagerClassId===c.id) && (
