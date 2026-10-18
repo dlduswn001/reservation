@@ -29,6 +29,7 @@ type Slot = {
   credit_cost?: number;
   is_lifestyle?: boolean;
   is_waitlist?: boolean;
+  is_closed?: boolean;
 };
 
 type WaitEntry = {
@@ -286,7 +287,8 @@ export default function RegularPage() {
       .then(async (slotRes) => {
         const slotJson = await slotRes.json();
         if (!slotRes.ok) throw new Error(slotJson.message || "예약 가능한 시간을 불러오지 못했습니다.");
-        const nextSlots = [...(slotJson.slots || []), ...(slotJson.waitlist_slots || [])].sort((a, b) => new Date(a.start_at).getTime() - new Date(b.start_at).getTime());
+        const nextSlots: Slot[] = [...(slotJson.slots || []), ...(slotJson.waitlist_slots || []), ...(slotJson.closed_slots || [])]
+          .sort((a, b) => new Date(a.start_at).getTime() - new Date(b.start_at).getTime());
         setSlots(nextSlots);
         setOpenMonth(slotJson.open_month || null);
         setAvailableMonths(Array.isArray(slotJson.available_months) ? slotJson.available_months : []);
@@ -585,6 +587,10 @@ export default function RegularPage() {
                   <p><strong>1:1 서평생활</strong>과 <strong>1:1 필사생활</strong>은 45분 수업입니다. 45분 수강권은 <strong>1회</strong>, 90분 수강권은 <strong>0.5회</strong>가 차감됩니다.</p>
                 </div>
               </div>
+              <p className="small" style={{marginTop: 12, marginBottom: 0}}>
+                예약 가능한 수업은 <strong>예약하기</strong>, 이미 예약된 수업은 <strong>대기 신청</strong>,
+                예약과 대기 신청이 모두 불가능한 시간은 <strong>마감</strong>으로 표시됩니다.
+              </p>
             </div>
           </div>
         )}
@@ -753,7 +759,7 @@ export default function RegularPage() {
                 <div className="selectedSlots" style={styles.selectedSlots}>
                   <h3 style={styles.selectedDateTitle}>{selectedDate ? formatDateLabel(selectedDate) : "예약 가능한 시간"}</h3>
                   {(student.lesson_credits ?? 0) <= 0 && <p className="error">잔여 수강권이 없어 예약할 수 없습니다. 관리자에게 문의해 주세요.</p>}
-                  {selectedSlots.length === 0 && <p>선택한 날짜에는 예약 가능한 시간이 없습니다.</p>}
+                  {selectedSlots.length === 0 && <p>선택한 날짜에는 예약하거나 대기할 수 있는 수업이 없습니다.</p>}
                   <div style={styles.timelineList} aria-label="선택 날짜 수업 시간표">
                     {selectedSlots.map((slot, index) => (
                       <div key={slot.id} style={styles.timelineRow}>
@@ -764,14 +770,20 @@ export default function RegularPage() {
                         <div style={styles.timelineContent}>
                           <div style={styles.timelineTopLine}>
                             <strong style={styles.timelineTime}>{formatTime(slot.start_at)} – {formatTime(slot.end_at)}</strong>
-                            <span style={styles.timelineDuration}>{slot.is_waitlist ? "예약 마감 · 대기 가능" : slot.is_lifestyle ? "45분" : `${slot.lesson_minutes || 90}분`}</span>
+                            <span style={slot.is_closed ? styles.timelineClosedLabel : styles.timelineDuration}>
+                              {slot.is_closed ? "마감" : slot.is_waitlist ? "예약 마감 · 대기 가능" : slot.is_lifestyle ? "45분" : `${slot.lesson_minutes || 90}분`}
+                            </span>
                           </div>
                           <p style={styles.timelineDescription}>
                             {slot.rule_label || (slot.is_lifestyle
                               ? `1:1 서평생활 / 필사생활 · ${lifestyleCreditText} 차감`
                               : "1:1 정규수업 · 수강권 1회 차감")}
                           </p>
-                          {slot.is_waitlist ? (
+                          {slot.is_closed ? (
+                            <div style={styles.timelineActions}>
+                              <span style={styles.timelineClosedButton} aria-label="예약 및 대기 신청 마감">마감</span>
+                            </div>
+                          ) : slot.is_waitlist ? (
                             <div style={styles.timelineActions}>
                               {waitlist.find((item) => item.slot_id === slot.id) ? (
                                 <>
@@ -978,6 +990,8 @@ const styles: Record<string, CSSProperties> = {
   timelineDuration: { fontSize: 12, color: "#777078" },
   timelineDescription: { margin: "7px 0 13px", fontSize: 12, color: "#777078", lineHeight: 1.5 },
   timelineActions: { display: "flex", flexWrap: "wrap", gap: 8 },
+  timelineClosedLabel: { fontSize: 12, color: "#7c7779", fontWeight: 700 },
+  timelineClosedButton: { display: "inline-flex", alignItems: "center", justifyContent: "center", minWidth: 115, padding: "10px 16px", borderRadius: 9, fontSize: 13, fontWeight: 700, background: "#f2f1f2", color: "#777276", border: "1px solid #e5e2e4" },
   timelinePrimaryButton: { display: "inline-flex", alignItems: "center", justifyContent: "center", gap: 8, minWidth: 115, margin: 0, padding: "10px 16px", borderRadius: 9, fontSize: 13, fontWeight: 700, background: "#79283E", color: "#fff", border: "none", cursor: "pointer" },
   timelineSecondaryButton: { minWidth: 110, margin: 0, padding: "10px 13px", borderRadius: 9, fontSize: 12, background: "#fff", color: "#79283E", border: "1px solid #d8c1c6", cursor: "pointer" },
   timeGridFix: {
