@@ -808,6 +808,12 @@ export default function AdminPage() {
   }
 
   function selectJournalBooking(bookingId: string) {
+    const existing = bookingId ? journals.find((journal) => journal.booking_id === bookingId) : null;
+    if (existing) {
+      editJournal(existing);
+      setJournalFeedback("이 수업의 일지를 불러왔습니다. 내용을 수정해 주세요.");
+      return;
+    }
     const booking = selectedStudentBookings.find((row) => row.id === bookingId);
     setJournalDraft((current) => ({
       ...current,
