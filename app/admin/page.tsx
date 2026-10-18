@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { House, CalendarDays, UsersRound, Settings2, ChevronLeft, ChevronRight } from "lucide-react";
 import Link from "next/link";
 import { getRegularPassPolicyStatus, PASS_POLICY_START_DATE_KEY, todayDateKeyInKst, calculatePassExpirationDateKey } from "../../lib/passPolicy";
 
@@ -129,15 +130,13 @@ const STATUS_LABELS: Record<string, string> = {
   cancel_request: "취소 요청",
 };
 
-const TAB_LABELS: Array<{ id: AdminTab; label: string }> = [
-  { id: "dashboard", label: "홈" },
-  { id: "schedule", label: "스케줄" },
-  { id: "students", label: "수강생" },
-  { id: "oneday", label: "원데이" },
-  { id: "settings", label: "설정" },
+const TAB_LABELS: Array<{ id: AdminTab; label: string; Icon: typeof House }> = [
+  { id: "dashboard", label: "홈", Icon: House },
+  { id: "schedule", label: "일정관리", Icon: CalendarDays },
+  { id: "students", label: "수강생관리", Icon: UsersRound },
 ];
 
-const SCHEDULE_TABS: AdminTab[] = ["schedule", "timetable", "slots", "blocks", "bookings"];
+const SCHEDULE_TABS: AdminTab[] = ["schedule", "timetable", "slots", "blocks", "bookings", "oneday"];
 const STUDENT_TABS: AdminTab[] = ["students", "history"];
 
 function formatDateTime(value: string) {
@@ -399,21 +398,19 @@ function toSeoulDateTimeInput(value: string) {
 }
 
 function seoulDateKey(value: string) {
-  return new Intl.DateTimeFormat("en-CA", {
+  // DateTimeFormat.format() can vary by runtime locale. Build stable YYYY-MM-DD.
+  const parts = new Intl.DateTimeFormat("en-US", {
     timeZone: "Asia/Seoul",
     year: "numeric",
     month: "2-digit",
     day: "2-digit",
-  }).format(new Date(value));
+  }).formatToParts(new Date(value));
+  const get = (type: string) => parts.find((part) => part.type === type)?.value || "";
+  return `${get("year")}-${get("month")}-${get("day")}`;
 }
 
 function todaySeoulDateKey() {
-  return new Intl.DateTimeFormat("en-CA", {
-    timeZone: "Asia/Seoul",
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-  }).format(new Date());
+  return seoulDateKey(new Date().toISOString());
 }
 
 function todaySeoulLabel() {
@@ -492,6 +489,11 @@ export default function AdminPage() {
   const [overview, setOverview] = useState<Overview | null>(null);
   const [message, setMessage] = useState("");
   const [activeTab, setActiveTab] = useState<AdminTab>("dashboard");
+  const [homeSelectedDate, setHomeSelectedDate] = useState(todaySeoulDateKey);
+  const [homeCalendarMonth, setHomeCalendarMonth] = useState(() => {
+    const [year,month] = todaySeoulDateKey().split("-").map(Number);
+    return { year, month };
+  });
   const [studentName, setStudentName] = useState("");
   const [phoneLast4, setPhoneLast4] = useState("");
   const [memo, setMemo] = useState("");
@@ -624,6 +626,16 @@ export default function AdminPage() {
       return;
     }
     setOverview(json);
+    // Reuse admin credentials only in this browser tab, never in a URL.
+    try { window.sessionStorage.setItem("munjang_admin_session_password", password); } catch {}
+    // Opening the admin page starts with this month's calendar and today's date.
+    // On subsequent refreshes, keep the administrator's currently selected day.
+    if (!overview) {
+      const key = todaySeoulDateKey();
+      const [year,month] = key.split("-").map(Number);
+      setHomeCalendarMonth({year,month});
+      setHomeSelectedDate(key);
+    }
     setActiveTab("dashboard");
     const nextEdits: Record<string, string> = {};
     const nextStudentEdits: Record<string, StudentEdit> = {};
@@ -649,13 +661,13 @@ export default function AdminPage() {
       setSelectedHistoryStudentId(json.students[0].id);
     }
 
-    const bookings = (json.bookings || []) as Booking[];
-    if (bookings.length > 0) {
-      const first = [...bookings].sort((a, b) => new Date(a.start_at).getTime() - new Date(b.start_at).getTime())[0];
-      const key = seoulDateKey(first.start_at);
-      const parts = seoulParts(first.start_at);
-      setSelectedBookingDate((current) => current || key);
-      setBookingCalendarMonth({ year: parts.year, month: parts.month });
+    // The management calendar must not jump to the earliest booking from a
+    // previous month when the administrator logs in.
+    if (!overview) {
+      const today = todaySeoulDateKey();
+      const [year, month] = today.split("-").map(Number);
+      setSelectedBookingDate(today);
+      setBookingCalendarMonth({ year, month });
     }
   }
 
