@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { House, CalendarDays, UsersRound, Settings2, ChevronLeft, ChevronRight } from "lucide-react";
 import Link from "next/link";
 import { getRegularPassPolicyStatus, PASS_POLICY_START_DATE_KEY, todayDateKeyInKst, calculatePassExpirationDateKey } from "../../lib/passPolicy";
@@ -486,6 +486,7 @@ function buildCalendarDays(year: number, month: number) {
 
 export default function AdminPage() {
   const [password, setPassword] = useState("");
+  const [restoringAdmin, setRestoringAdmin] = useState(true);
   const [overview, setOverview] = useState<Overview | null>(null);
   const [message, setMessage] = useState("");
   const [activeTab, setActiveTab] = useState<AdminTab>("dashboard");
@@ -574,6 +575,19 @@ export default function AdminPage() {
     [filteredOneDayBookings],
   );
 
+  // Remain signed in while navigating between administrator sections in
+  // the current browser tab, without storing credentials permanently.
+  useEffect(() => {
+    let remembered = "";
+    try { remembered = window.sessionStorage.getItem("munjang_admin_session_password") || ""; } catch {}
+    if (remembered) {
+      setPassword(remembered);
+      void loadOverview(remembered).finally(() => setRestoringAdmin(false));
+    } else {
+      setRestoringAdmin(false);
+    }
+  }, []);
+
   const oneDayClassScheduleGroups = useMemo(() => {
     const todayKeyForClass = todaySeoulDateKey();
     const { endKey: thisWeekEndKey } = thisWeekSeoulRangeKeys();
@@ -613,21 +627,23 @@ export default function AdminPage() {
     ];
   }, [overview?.classes]);
 
-  async function loadOverview() {
+  async function loadOverview(credential = password) {
     setMessage("");
     const res = await fetch("/api/admin/overview", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ password }),
+      body: JSON.stringify({ password: credential }),
     });
     const json = await res.json();
     if (!res.ok) {
+      try { window.sessionStorage.removeItem("munjang_admin_session_password"); } catch {}
       setMessage(json.message || "관리자 페이지에 들어갈 수 없습니다.");
       return;
     }
+    setPassword(credential);
     setOverview(json);
     // Reuse admin credentials only in this browser tab, never in a URL.
-    try { window.sessionStorage.setItem("munjang_admin_session_password", password); } catch {}
+    try { window.sessionStorage.setItem("munjang_admin_session_password", credential); } catch {}
     // Opening the admin page starts with this month's calendar and today's date.
     // On subsequent refreshes, keep the administrator's currently selected day.
     if (!overview) {
@@ -636,7 +652,8 @@ export default function AdminPage() {
       setHomeCalendarMonth({year,month});
       setHomeSelectedDate(key);
     }
-    setActiveTab("dashboard");
+    const routeTab = new URLSearchParams(window.location.search).get("tab");
+    setActiveTab((!overview && routeTab === "students") ? "students" : "dashboard");
     const nextEdits: Record<string, string> = {};
     const nextStudentEdits: Record<string, StudentEdit> = {};
     for (const student of json.students || []) {
@@ -1651,7 +1668,10 @@ export default function AdminPage() {
         </div>
       </header>
 
-      {!overview && (
+      {!overview && restoringAdmin && (
+        <section className="card adminLoginCard"><p className="small">관리자 화면을 불러오는 중입니다...</p></section>
+      )}
+      {!overview && !restoringAdmin && (
         <section className="card adminLoginCard">
           <p className="adminEyebrow">문장학교 관리자 전용</p>
           <h1>관리자 로그인</h1>
@@ -1661,7 +1681,7 @@ export default function AdminPage() {
             value={password} onChange={(e) => setPassword(e.target.value)}
             onKeyDown={(e) => { if (e.key === "Enter") void loadOverview(); }}
             placeholder="비밀번호" />
-          <button className="adminLoginButton" onClick={loadOverview}>로그인</button>
+          <button className="adminLoginButton" onClick={() => void loadOverview()}>로그인</button>
           {message && <p role="alert" className="error">{message}</p>}
         </section>
       )}
