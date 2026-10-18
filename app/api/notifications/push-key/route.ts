@@ -1,9 +1,11 @@
 import { NextResponse } from "next/server";
 import { getSupabaseAdmin } from "../../../../lib/supabaseAdmin";
+import { ECDH } from "node:crypto";
 
 // This endpoint reads a VAPID key from Supabase Vault.
 // Never prerender or CDN-cache it: keys may be corrected/rotated independently
 // of a Vercel deployment.
+export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
 export const fetchCache = "force-no-store";
@@ -29,6 +31,13 @@ export async function GET() {
     const raw = Buffer.from(publicKey.replace(/-/g,"+").replace(/_/g,"/"),"base64");
     if (raw.length!==65 || raw[0]!==4) {
       return NextResponse.json({message:"알림 공개키 설정을 확인하고 있습니다."},{status:503,headers:noCacheHeaders});
+    }
+    try {
+      // OpenSSL validates that the point really lies on the P-256 curve.
+      // A random 65-byte value can pass length checks but fails on iOS.
+      ECDH.convertKey(raw, "prime256v1");
+    } catch {
+      return NextResponse.json({message:"알림 공개키가 올바르지 않습니다. 관리자에게 문의해 주세요."},{status:503,headers:noCacheHeaders});
     }
     return NextResponse.json({publicKey},{headers:noCacheHeaders});
   } catch {
