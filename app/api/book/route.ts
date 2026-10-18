@@ -149,23 +149,18 @@ export async function POST(request: Request) {
       }, { status: 400 });
     }
 
-    // Weekend noon is shared: regular (45/90 min) OR lifestyle (45 min), never both.
-    const startTimeKst = new Intl.DateTimeFormat("en-GB", {
-      timeZone:"Asia/Seoul",hour:"2-digit",minute:"2-digit",hourCycle:"h23",
-    }).format(new Date(slot.start_at));
-    const isWeekendNoon = ["Sat","Sun"].includes(weekdayKst) && startTimeKst === "12:00";
-    const requestedClassChoice = String(body.lifestyleClassName || "");
-    if (isWeekendNoon && !["정규수업", "1:1 서평생활", "1:1 필사생활"].includes(requestedClassChoice)) {
-      return NextResponse.json({message:"정규수업 또는 서평생활·필사생활 중 선택해 주세요."},{status:400});
+    // There are no shared regular/lifestyle class start times.
+    // Reject stale clients attempting a regular class at the lifestyle-only weekend noon.
+    const requestedClassChoice = String(body.lifestyleClassName || body.lessonType || "");
+    const isLifestyle = isLifestyleLessonSlot(slot.start_at);
+    if (isLifestyle && !["1:1 서평생활", "1:1 필사생활"].includes(requestedClassChoice)) {
+      return NextResponse.json({message:"이 시간은 서평생활·필사생활 전용입니다. 수업 종류를 선택해 주세요."},{status:400});
     }
-    const selectedRegular = isWeekendNoon && requestedClassChoice === "정규수업";
-    const isLifestyle = isLifestyleLessonSlot(slot.start_at) && !selectedRegular;
-    const slotLessonMinutes = isLifestyle
-      ? getReservationLessonMinutes(slot.start_at, requestedLessonMinutes)
-      : requestedLessonMinutes;
-    const creditCost = isLifestyle
-      ? getReservationCreditCost(slot.start_at, requestedLessonMinutes)
-      : 1;
+    if (!isLifestyle && requestedClassChoice && requestedClassChoice !== "정규수업") {
+      return NextResponse.json({message:"이 시간은 정규수업 전용입니다. 다른 시간을 선택해 주세요."},{status:400});
+    }
+    const slotLessonMinutes = getReservationLessonMinutes(slot.start_at, requestedLessonMinutes);
+    const creditCost = getReservationCreditCost(slot.start_at, requestedLessonMinutes);
     const rule = regularLessonRule(slot.start_at, slotLessonMinutes);
     const candidateEndAt = lessonEndIso(slot.start_at, slotLessonMinutes);
 
