@@ -748,6 +748,192 @@ export default function AdminPage() {
     }
   }
 
+  const alphabeticalStudents = useMemo(
+    () => [...(overview?.students || [])].sort((a,b) =>
+      a.name.localeCompare(b.name,"ko") || a.phone_last4.localeCompare(b.phone_last4)),
+    [overview?.students],
+  );
+
+  const visibleStudents = useMemo(() => {
+    const keyword = studentSearch.trim().toLocaleLowerCase("ko");
+    if (!keyword) return alphabeticalStudents;
+    return alphabeticalStudents.filter((student) =>
+      student.name.toLocaleLowerCase("ko").includes(keyword) || student.phone_last4.includes(keyword));
+  }, [alphabeticalStudents,studentSearch]);
+
+  const selectedStudent = alphabeticalStudents.find((student) => student.id === selectedStudentId) || null;
+  const selectedStudentBookings = (overview?.bookings || [])
+    .filter((booking) => booking.student_id === selectedStudentId &&
+      !["cancelled","late_cancelled"].includes(booking.status) &&
+      new Date(booking.end_at).getTime() <= Date.now())
+    .sort((a,b) => new Date(b.start_at).getTime() - new Date(a.start_at).getTime());
+
+  function selectStudent(studentId: string) {
+    setSelectedStudentId(studentId);
+    setEditingStudentId(null);
+    setJournalDraft({ ...EMPTY_JOURNAL, lesson_date: todaySeoulDateKey() });
+    setJournalPreviewId("");
+    setJournalFeedback("");
+    setActiveTab("students");
+  }
+
+  useEffect(() => {
+    if (!overview || !selectedStudentId) {
+      setJournals([]);
+      setJournalsLoading(false);
+      return;
+    }
+    let cancelled = false;
+    setJournalsLoading(true);
+    setJournalFeedback("");
+    void (async () => {
+      try {
+        const res = await fetch("/api/admin/journals", {
+          method: "POST", headers: {"Content-Type":"application/json"},
+          body: JSON.stringify({password,action:"list",student_id:selectedStudentId}),
+          cache: "no-store",
+        });
+        const json = await res.json();
+        if (!res.ok) throw new Error(json.message || "수업일지를 불러오지 못했습니다.");
+        if (!cancelled) setJournals(json.journals || []);
+      } catch (error) {
+        if (!cancelled) setJournalFeedback(error instanceof Error ? error.message : "수업일지를 불러오지 못했습니다.");
+      } finally {
+        if (!cancelled) setJournalsLoading(false);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [overview, selectedStudentId, password]);
+
+  async function refreshStudentJournals(studentId: string) {
+    const res = await fetch("/api/admin/journals", {
+      method: "POST",headers:{"Content-Type":"application/json"},
+      body:JSON.stringify({password,action:"list",student_id:studentId}),cache:"no-store",
+    });
+    const json = await res.json();
+    if(!res.ok) throw new Error(json.message || "수업일지를 다시 불러오지 못했습니다.");
+    setJournals(json.journals || []);
+  }
+
+  function selectJournalBooking(bookingId: string) {
+    const booking = selectedStudentBookings.find((row) => row.id === bookingId);
+    setJournalDraft((current) => ({
+      ...current,
+      booking_id:bookingId,
+      ...(booking ? {
+        lesson_date:seoulDateKey(booking.start_at),
+        title:booking.memo?.includes("필사생활") ? "1:1 필사생활"
+          :booking.memo?.includes("서평생활") ? "1:1 서평생활" : "1:1 정규수업",
+      } : {}),
+    }));
+  }
+
+  async function saveJournal() {
+    if (!selectedStudent) return;
+    setJournalSaving(true);
+    setJournalFeedback("");
+    try {
+      const res = await fetch("/api/admin/journals", {
+        method:"POST", headers:{"Content-Type":"application/json"},
+        body:JSON.stringify({
+          password,action:"save",student_id:selectedStudent.id,...journalDraft,
+        }),
+      });
+      const json = await res.json();
+      if(!res.ok) throw new Error(json.message || "수업일지를 저장하지 못했습니다.");
+      setJournalPreviewId(json.journal?.id || "");
+      setJournalDraft({...EMPTY_JOURNAL, lesson_date:todaySeoulDateKey()});
+      await refreshStudentJournals(selectedStudent.id);
+      setJournalFeedback("수업일지를 저장했습니다. 아래에서 내용을 확인하고 카카오톡으로 공유해 주세요.");
+    } catch(error) {
+      setJournalFeedback(error instanceof Error ? error.message : "수업일지를 저장하지 못했습니다.");
+    } finally {
+      setJournalSaving(false);
+    }
+  }
+
+  function editJournal(journal: LessonJournal) {
+    setJournalDraft({
+      id: journal.id,
+      booking_id:journal.booking_id || "",
+      lesson_date:journal.lesson_date,
+      title:journal.title,
+      lesson_summary:journal.lesson_summary,
+      feedback:journal.feedback,
+      homework:journal.homework,
+      private_note:journal.private_note,
+    });
+    setJournalFeedback("");
+    document.getElementById("journal-editor")?.scrollIntoView({behavior:"smooth",block:"start"});
+  }
+
+  async function deleteJournal(journal: LessonJournal) {
+    if(!selectedStudent || !window.confirm(`${journal.lesson_date} 수업일지를 삭제할까요?`))return;
+    try{
+      const res=await fetch("/api/admin/journals",{
+        method:"POST",headers:{"Content-Type":"application/json"},
+        body:JSON.stringify({password,action:"delete",id:journal.id,student_id:selectedStudent.id}),
+      });
+      const json=await res.json();
+      if(!res.ok)throw new Error(json.message||"수업일지를 삭제하지 못했습니다.");
+      if(journalDraft.id===journal.id)setJournalDraft({...EMPTY_JOURNAL,lesson_date:todaySeoulDateKey()});
+      setJournalFeedback("수업일지를 삭제했습니다.");
+      await refreshStudentJournals(selectedStudent.id);
+    }catch(error){
+      setJournalFeedback(error instanceof Error ? error.message : "수업일지를 삭제하지 못했습니다.");
+    }
+  }
+
+  async function copyJournalMessage(journal: LessonJournal) {
+    if(!selectedStudent)return;
+    try {
+      await navigator.clipboard.writeText(journalKakaoMessage(selectedStudent.name,journal));
+      setJournalFeedback("카카오톡 안내문을 복사했습니다. 수강생 대화방에 붙여넣어 주세요.");
+    } catch {
+      setJournalFeedback("복사 기능을 사용할 수 없습니다. 아래 미리보기에서 메시지를 직접 선택해 복사해 주세요.");
+    }
+    setJournalPreviewId(journal.id);
+  }
+
+  async function shareJournalMessage(journal: LessonJournal) {
+    if(!selectedStudent)return;
+    setJournalPreviewId(journal.id);
+    const content=journalKakaoMessage(selectedStudent.name,journal);
+    if(typeof navigator.share === "function"){
+      try {
+        await navigator.share({title:`문장학교 ${selectedStudent.name} 수업일지`,text:content});
+        // The OS share sheet does not tell us which recipient or app received it.
+        setJournalFeedback("휴대폰 공유 화면을 열었습니다. 카카오톡에서 수강생과 발송 여부를 직접 확인해 주세요.");
+      } catch(error){
+        if(error instanceof Error && error.name==="AbortError")return;
+        setJournalFeedback("공유에 실패했습니다. 복사 버튼으로 내용을 복사해 카카오톡에 붙여넣어 주세요.");
+      }
+    } else {
+      await copyJournalMessage(journal);
+    }
+  }
+
+  async function openMonthlySchedule() {
+    if(!/^\d{4}-(0[1-9]|1[0-2])$/.test(monthToOpen)){
+      setMessage("열려는 월을 선택해 주세요.");return;
+    }
+    if(!window.confirm(`${monthToOpen} 월간 수업 시간을 열까요? 기존 예약과 닫힌 시간, 월·화 휴무는 변경하지 않습니다.`))return;
+    setMonthlyOpening(true);setMessage("");
+    try{
+      const res=await fetch("/api/admin/generate-slots",{
+        method:"POST",headers:{"Content-Type":"application/json"},
+        body:JSON.stringify({password,open_month:monthToOpen}),
+      });
+      const json=await res.json();
+      if(!res.ok)throw new Error(json.message||"월간 수업 시간을 열지 못했습니다.");
+      await loadOverview();
+      setActiveTab("timetable");
+      setMessage(json.message||"월간 수업을 열었습니다.");
+    }catch(error){
+      setMessage(error instanceof Error ? error.message : "월간 수업을 열지 못했습니다.");
+    }finally{setMonthlyOpening(false);}
+  }
+
   async function addStudent() {
     setMessage("");
     const res = await fetch("/api/admin/students", {
