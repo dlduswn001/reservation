@@ -629,14 +629,14 @@ export default function AdminPage() {
   const [adminBookingLessonMinutes, setAdminBookingLessonMinutes] = useState("120");
   const [adminBookingMemo, setAdminBookingMemo] = useState("");
   const [adminBookingDeductCredit, setAdminBookingDeductCredit] = useState(true);
-  const [selectedOneDayClassId, setSelectedOneDayClassId] = useState("all");
+  const [selectedOneDayClassId, setSelectedOneDayClassId] = useState("");
   const oneDayClassOptions = useMemo(
     () => buildOneDayClassOptions(overview?.classes || [], overview?.onedayBookings || []),
     [overview?.classes, overview?.onedayBookings],
   );
   const filteredOneDayBookings = useMemo(() => {
     const bookings = overview?.onedayBookings || [];
-    if (selectedOneDayClassId === "all") return bookings;
+    if (!selectedOneDayClassId) return [];
     return bookings.filter((booking) => (booking.class_id || booking.oneday_classes?.id) === selectedOneDayClassId);
   }, [overview?.onedayBookings, selectedOneDayClassId]);
   const selectedOneDayClassOption = useMemo(
@@ -2885,64 +2885,52 @@ export default function AdminPage() {
 
           {activeTab === "oneday" && (
             <>
-              <section className="card">
-                <h2>원데이 클래스 추가</h2>
-                <p className="small">원데이 클래스 생성 후에도 아래 목록에서 제목, 커리큘럼, 일정, 비용, 정원, 노출 여부를 수정하거나 클래스를 삭제할 수 있습니다.</p>
-                <label>제목</label>
-                <input value={onedayTitle} onChange={(e) => setOnedayTitle(e.target.value)} placeholder="예: 자서전쓰기 원데이 클래스" />
-                <label>수업 소개 · 준비물 · 유의사항</label>
-                <p className="small">각 제목을 한 줄씩 적으면 예약 앱에서 자동으로 구분해 표시됩니다. 항목별 내용은 한 줄에 하나씩 입력해 주세요.</p>
-                <textarea value={onedayCurriculum} onChange={(e) => setOnedayCurriculum(e.target.value)} placeholder={"수업 소개\n책에 대해 이야기 나누기\n함께 작품 완성하기\n\n준비물\n책 1권\n\n유의사항\n표지 재질을 확인해 주세요."} rows={8} />
-                <label>수업 시작 일정</label>
-                <input type="datetime-local" value={onedayStartAt} onChange={(e) => setOnedayStartAt(e.target.value)} />
-                <label>수업 종료 일정</label>
-                <input type="datetime-local" value={onedayEndAt} onChange={(e) => setOnedayEndAt(e.target.value)} />
-                <p className="small">정원은 동반자를 포함해 6명으로 고정됩니다.</p>
-                <label>정규수강생 추가 참석 비용</label>
-                <input type="number" min="0" value={onedayRegularPrice} onChange={(e) => setOnedayRegularPrice(e.target.value)} placeholder="예: 10000" />
-                <label>일반 수강 비용</label>
-                <input type="number" min="0" value={onedayNormalPrice} onChange={(e) => setOnedayNormalPrice(e.target.value)} placeholder="예: 30000" />
-                <p className="small">정규수강생은 매월 원데이 1회 무료, 같은 달 2회차부터 정규수강생 추가 참석 비용이 적용됩니다.</p>
-                <button onClick={addOnedayClass}>원데이 클래스 추가</button>
+              <section className="card adminOneDayCreator">
+                <div className="adminOneDayCreatorHeading">
+                  <div><p className="adminEyebrow">정규수강생 전용</p><h2>원데이 클래스 관리</h2></div>
+                  <button type="button" onClick={()=>setShowOneDayCreator(v=>!v)}>
+                    {showOneDayCreator?"접기":"새 클래스 만들기"}
+                  </button>
+                </div>
+                <p className="small">신규 클래스는 필요한 때만 열고, 과거 수업과 신청자 명단은 아래 달력에서 찾아보세요.</p>
+                {showOneDayCreator && (
+                  <div className="adminOneDayCreatorForm">
+                    <label>클래스명</label>
+                    <input value={onedayTitle} onChange={e=>setOnedayTitle(e.target.value)}
+                      placeholder="예: 문장학교 월간 클래스 | 한 권을 수놓는 밤"/>
+                    <div className="adminStudentFormPair">
+                      <div><label>수업 시작</label>
+                        <input type="datetime-local" value={onedayStartAt} onChange={e=>setOnedayStartAt(e.target.value)}/></div>
+                      <div><label>수업 종료</label>
+                        <input type="datetime-local" value={onedayEndAt} onChange={e=>setOnedayEndAt(e.target.value)}/></div>
+                    </div>
+                    <label>수업 소개 · 준비물 · 유의사항</label>
+                    <p className="small">각 제목을 한 줄씩 구분해 적으면 수강생 화면에서 읽기 좋은 카드로 나뉩니다.</p>
+                    <textarea rows={9} value={onedayCurriculum}
+                      onChange={e=>setOnedayCurriculum(e.target.value)}
+                      placeholder={"수업 소개\\n책에 대해 이야기 나누기\\n책 표지 꾸미기\\n\\n준비물\\n좋아하는 책 1권\\n\\n유의사항\\n종이 표지가 있는 책을 준비해 주세요."}/>
+                    <p className="adminValidityHint">정규수강생 전용 · 동반자 포함 정원 6명 · 사진은 클래스를 만든 뒤 첨부할 수 있습니다.</p>
+                    <button type="button" className="adminFormSubmit" onClick={addOnedayClass}>클래스 등록하기</button>
+                  </div>
+                )}
               </section>
 
-              <section className="card onedayGroupedCard">
-                <div className="sectionHeaderRow">
-                  <div>
-                    <p className="eyebrow">원데이 관리</p>
-                    <h2>원데이 클래스 일정</h2>
-                    <p className="small">이번 주 진행 예정, 다가오는 수업, 지난 수업을 나누어 보여줍니다. 필요한 수업만 펼쳐 보듯 확인하면 됩니다.</p>
+              <OneDayClassCalendar classes={overview.classes}
+                renderClass={(c)=>(
+                  <div className="adminOneDayCalendarItemControls">
+                    <button type="button" onClick={()=>setSelectedOneDayClassId(c.id)}>
+                      {selectedOneDayClassId===c.id?"신청자 선택됨":"신청자 확인"}
+                    </button>
+                    {renderOneDayClassCard(c)}
                   </div>
-                </div>
-                {overview.classes.length === 0 && <p>등록된 원데이 클래스가 없습니다.</p>}
-                <div className="onedayGroupList">
-                  {oneDayClassScheduleGroups.map((group) => (
-                    <section className="onedayScheduleGroup" key={group.id}>
-                      <div className="onedayGroupHeader">
-                        <div>
-                          <h3>{group.title}</h3>
-                          <p className="small">{group.description}</p>
-                        </div>
-                        <span>{group.classes.length}개</span>
-                      </div>
-                      <div className="list compactList">
-                        {group.classes.length === 0 ? (
-                          <p className="emptyGroupText">{group.emptyText}</p>
-                        ) : (
-                          group.classes.map((c) => renderOneDayClassCard(c))
-                        )}
-                      </div>
-                    </section>
-                  ))}
-                </div>
-              </section>
+                )}/>
 
               <section className="card">
                 <h2>원데이 신청자 확인</h2>
-                <p className="small">전체 신청 내역을 한 번에 보거나, 수업을 선택해서 해당 클래스 신청자만 확인할 수 있습니다.</p>
+                <p className="small">달력에서 수업 날짜를 누르고 ‘신청자 확인’을 선택하면 해당 클래스의 신청 내역만 표시됩니다.</p>
                 <label>수업별 신청자 보기</label>
                 <select value={selectedOneDayClassId} onChange={(e) => setSelectedOneDayClassId(e.target.value)}>
-                  <option value="all">전체 원데이 신청 내역</option>
+                  <option value="">달력에서 클래스 선택</option>
                   {oneDayClassOptions.map((option) => (
                     <option value={option.id} key={option.id}>{oneDayClassLabel(option)}</option>
                   ))}
