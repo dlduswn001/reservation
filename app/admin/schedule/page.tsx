@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
+import { House, CalendarDays, UsersRound } from "lucide-react";
 
 type ScheduleType = "regular" | "oneday" | "block" | "available";
 
@@ -219,8 +220,16 @@ export default function AdminUnifiedSchedulePage() {
   const [moveConflicts, setMoveConflicts] = useState<string[]>([]);
 
   useEffect(() => {
-    const savedPassword = window.localStorage.getItem("munjang_admin_password") || "";
-    setPassword(savedPassword);
+    let saved = "";
+    try {
+      saved = window.sessionStorage.getItem("munjang_admin_session_password")
+        || window.localStorage.getItem("munjang_admin_password") || "";
+    } catch {}
+    if (saved) {
+      setPassword(saved);
+      // Returning from the admin home should load the schedule without another login.
+      void loadSchedule(defaultRange.start, defaultRange.end, saved);
+    }
   }, []);
 
   useEffect(() => {
@@ -239,18 +248,22 @@ export default function AdminUnifiedSchedulePage() {
     }
   }, [moveStartAt, moveTarget]);
 
-  async function loadSchedule(nextStartDate = startDate, nextEndDate = endDate) {
+  async function loadSchedule(nextStartDate = startDate, nextEndDate = endDate, credential = password) {
     setLoading(true);
     setMessage("");
     try {
       const response = await fetch("/api/admin/schedule", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ password, start_date: nextStartDate, end_date: nextEndDate }),
+        body: JSON.stringify({ password: credential, start_date: nextStartDate, end_date: nextEndDate }),
       });
       const json = await response.json();
       if (!response.ok) throw new Error(json.message || "통합 스케줄을 불러오지 못했습니다.");
-      window.localStorage.setItem("munjang_admin_password", password);
+      // No password is persisted beyond this browser tab.
+      try {
+        window.sessionStorage.setItem("munjang_admin_session_password", credential);
+        window.localStorage.removeItem("munjang_admin_password");
+      } catch {}
       setData(json);
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "오류가 발생했습니다.");
@@ -429,7 +442,7 @@ export default function AdminUnifiedSchedulePage() {
   }, [filteredItems]);
 
   return (
-    <main className="container schedulePage">
+    <main className="container schedulePage adminUnifiedPage">
       <div className="topLinks">
         <Link href="/admin" className="small">← 관리자 페이지로</Link>
         <Link href="/" className="small">처음으로</Link>
@@ -445,13 +458,17 @@ export default function AdminUnifiedSchedulePage() {
 
       <section className="card controlsCard">
         <h2>조회 기간</h2>
-        <label>관리자 비밀번호</label>
-        <input
-          type="password"
-          value={password}
-          onChange={(event) => setPassword(event.target.value)}
-          placeholder="관리자 비밀번호"
-        />
+        {!data && (
+          <>
+            <label>관리자 비밀번호</label>
+            <input
+              type="password"
+              value={password}
+              onChange={(event) => setPassword(event.target.value)}
+              placeholder="관리자 비밀번호"
+            />
+          </>
+        )}
 
         <div className="quickButtons">
           <button className="secondary" onClick={() => applyRange({ start: todayKstString(), end: todayKstString() })}>오늘</button>
@@ -876,6 +893,15 @@ export default function AdminUnifiedSchedulePage() {
           }
         }
       `}</style>
+      {data && (
+        <nav className="adminUnifiedBottomNav" aria-label="문장학교 관리자 메뉴">
+          <Link href="/admin"><House size={22}/><span>홈</span></Link>
+          <Link href="/admin/schedule" className="active" aria-current="page">
+            <CalendarDays size={22}/><span>일정관리</span>
+          </Link>
+          <Link href="/admin?tab=students"><UsersRound size={22}/><span>수강생관리</span></Link>
+        </nav>
+      )}
     </main>
   );
 }
