@@ -2377,22 +2377,41 @@ export default function AdminPage() {
 
           {activeTab === "timetable" && (
             <>
-              <section className="card compactMenuCard">
-                <h2>스케줄 &gt; 시간표 만들기</h2>
-                <button className="secondary compact" onClick={() => openTab("schedule")}>← 스케줄 메뉴로</button>
-              </section>
-              <section className="card">
-                <h2>기본 타임테이블 자동 생성</h2>
-                <p className="small">10월부터는 45분/90분 수강권 중심으로 예약 가능 시간을 엽니다. 수·목·금은 90분 정규수업 14:00, 17:00, 19:00, 20:40과 45분 정규수업 분할 시간, 1:1 생활수업 15:40을 엽니다. 토·일은 90분 정규수업 10:00, 13:00, 14:40과 45분 정규수업 분할 시간, 1:1 생활수업 12:00, 16:30을 엽니다. 120분 수강생은 자동예약 대신 관리자 직접 예약으로 운영합니다.</p>
-                <label>시작 날짜</label>
-                <input type="date" value={generateStartDate} onChange={(e) => setGenerateStartDate(e.target.value)} />
-                <label>몇 주치 만들까요?</label>
-                <input type="number" min="1" max="26" value={generateWeeks} onChange={(e) => setGenerateWeeks(e.target.value)} />
-                <button onClick={generateTimetable}>기본 시간표 만들기</button>
-                <button className="secondary" onClick={reassignOctoberBookings}>10월 기존 예약 정규시간대로 정리</button>
-                <p className="small">10월에 미리 예약된 정규수업이 있으면, 같은 날 또는 가까운 날짜의 가장 가까운 정규수업 시간으로 옮깁니다. 생활수업 시간으로는 옮기지 않습니다.</p>
+              <section className="card adminMonthOpenCard">
+                <button className="adminBackButton" type="button" onClick={()=>openTab("schedule")}>
+                  <ChevronLeft size={18}/> 일정관리
+                </button>
+                <p className="adminEyebrow">정규 수업 일정</p>
+                <h1>월별 수업 열기</h1>
+                <p className="small">원하는 월을 선택하면 수·목·금, 토·일 공식 수업 시간 중 빠진 시간을 추가합니다.</p>
+                <label>열어둘 수업 월</label>
+                <input type="month" min="2026-10" value={monthToOpen}
+                  onChange={e=>setMonthToOpen(e.target.value)}/>
+                <button type="button" className="adminFormSubmit"
+                  disabled={monthlyOpening} onClick={openMonthlySchedule}>
+                  {monthlyOpening ? "시간표를 준비하는 중..." : `${monthToOpen.replace("-","년 ")}월 수업 열기`}
+                </button>
+                <p className="adminValidityHint">기존 예약과 닫아둔 시간은 유지됩니다. 월·화요일은 자동으로 열리지 않습니다.</p>
               </section>
 
+              <section className="card adminAdvancedToolsToggle">
+                <button type="button" className="adminAdvancedButton"
+                  onClick={()=>setShowScheduleAdvanced(value=>!value)}>
+                  {showScheduleAdvanced ? "추가 관리 기능 닫기" : "추가 관리 기능 열기"}
+                  <ChevronRight size={18}/>
+                </button>
+                <p className="small">특정 월·화요일 수업 열기, 시간 직접 등록, 정규 예약 확인이 필요할 때 이용하세요.</p>
+              </section>
+              {showScheduleAdvanced && (
+                <>
+                  <section className="card">
+                    <h2>정규 예약·시간 확인</h2>
+                    <div className="adminScheduleAdvancedLinks">
+                      <button type="button" onClick={()=>openTab("bookings")}>정규 예약 달력·직접 예약</button>
+                      <button type="button" onClick={()=>openTab("slots")}>등록된 예약 가능 시간</button>
+                      <Link href="/admin/schedule">통합 스케줄 확인</Link>
+                    </div>
+                  </section>
               <section className="card">
                 <h2>월·화요일 휴무 관리</h2>
                 <p className="small">월·화요일은 자동으로 열리지 않습니다. 수업할 날짜를 선택하면 수요일과 동일한 45분·90분 정규수업 및 15:40 생활수업 시간표가 등록됩니다. 기존 예약과 수강권은 변경되지 않습니다.</p>
@@ -2429,6 +2448,9 @@ export default function AdminPage() {
                 )}
                 <button onClick={addAdjustedSlot}>조율 슬롯 등록</button>
               </section>
+
+                </>
+              )}
             </>
           )}
 
@@ -2436,7 +2458,7 @@ export default function AdminPage() {
             <section className="card">
               <div className="row between">
                 <h2>예약 가능 시간 목록</h2>
-                <button className="secondary compact" onClick={() => openTab("schedule")}>← 스케줄 메뉴로</button>
+                <button className="secondary compact" onClick={() => openTab("schedule")}>← 일정관리로</button>
               </div>
               <p className="small">수강생 화면에 열릴 수 있는 시간 목록입니다. 이미 예약과 겹치거나 수업 3시간 이내인 시간은 수강생 화면에서 자동으로 제외됩니다. 예약이 연결되지 않은 시간은 삭제할 수 있습니다.</p>
               <div className="list">
@@ -2469,8 +2491,8 @@ export default function AdminPage() {
           {activeTab === "blocks" && (
             <>
               <section className="card compactMenuCard">
-                <h2>스케줄 &gt; 외부 차단</h2>
-                <button className="secondary compact" onClick={() => openTab("schedule")}>← 스케줄 메뉴로</button>
+                <h2>일정관리 › 외부 차단</h2>
+                <button className="secondary compact" onClick={() => openTab("schedule")}>← 일정관리로</button>
               </section>
               <section className="card">
                 <h2>외부 예약 시간 차단</h2>
@@ -2512,7 +2534,7 @@ export default function AdminPage() {
             <section className="card">
               <div className="row between">
                 <h2>정규수업 예약 달력</h2>
-                <button className="secondary compact" onClick={() => openTab("schedule")}>← 스케줄 메뉴로</button>
+                <button className="secondary compact" onClick={() => openTab("schedule")}>← 일정관리로</button>
               </div>
               <p className="small">예약된 정규수업을 날짜별로 확인할 수 있습니다. 정상 취소된 예약은 숨기고, 수강권이 차감된 취소건만 표시합니다.</p>
               <div className="policyBox">
