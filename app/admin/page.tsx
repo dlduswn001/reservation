@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { House, CalendarDays, UsersRound, Settings2, ChevronLeft, ChevronRight, NotebookPen, Send, Copy, Search, UserRoundPlus } from "lucide-react";
 import Link from "next/link";
-import { getRegularPassPolicyStatus, PASS_POLICY_START_DATE_KEY, todayDateKeyInKst, calculatePassExpirationDateKey } from "../../lib/passPolicy";
+import { getRegularPassPolicyStatus, PASS_POLICY_START_DATE_KEY, todayDateKeyInKst } from "../../lib/passPolicy";
 
 type Student = {
   id: string;
@@ -230,12 +230,6 @@ function passPolicySummary(student: Student) {
     ? status.daysLeft < 0 ? `${Math.abs(status.daysLeft)}일 지남` : `${status.daysLeft}일 남음`
     : "";
   return `${status.label} · ${status.expiresAt || "-"}${leftText ? ` · ${leftText}` : ""}`;
-}
-
-function nextOneWeekExtensionDate(currentExtensionUntil?: string | null, firstLessonAt?: string | null, savedExpiresAt?: string | null) {
-  const baseDate = currentExtensionUntil || savedExpiresAt || (firstLessonAt ? calculatePassExpirationDateKey(firstLessonAt) : "");
-  if (!baseDate) return "";
-  return addDaysToDateKey(baseDate, 7);
 }
 
 function addMinutesToLocalDateTime(value: string, minutes: number) {
@@ -544,14 +538,9 @@ export default function AdminPage() {
   });
   const [studentName, setStudentName] = useState("");
   const [phoneLast4, setPhoneLast4] = useState("");
-  const [memo, setMemo] = useState("");
   const [lessonCredits, setLessonCredits] = useState("4");
   const [lessonDurationMinutes, setLessonDurationMinutes] = useState("90");
   const [passRegisteredAt, setPassRegisteredAt] = useState(defaultPassRegisteredAtForNewStudent);
-  const [passFirstLessonAt, setPassFirstLessonAt] = useState("");
-  const [passExtensionUsed, setPassExtensionUsed] = useState(false);
-  const [passExtensionUntil, setPassExtensionUntil] = useState("");
-  const [passExtensionReason, setPassExtensionReason] = useState("");
   const [startAt, setStartAt] = useState("");
   const [endAt, setEndAt] = useState("");
   const [adjustedStartAt, setAdjustedStartAt] = useState("");
@@ -938,64 +927,46 @@ export default function AdminPage() {
   async function addStudent() {
     setMessage("");
     const res = await fetch("/api/admin/students", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        password,
-        name: studentName,
-        phone_last4: phoneLast4,
-        memo,
-        lesson_credits: Number(lessonCredits || 0),
-        lesson_duration_minutes: Number(lessonDurationMinutes || 90),
-        pass_registered_at: passRegisteredAt,
-        pass_first_lesson_at: passFirstLessonAt,
-        pass_extension_used: passExtensionUsed,
-        pass_extension_until: passExtensionUntil,
-        pass_extension_reason: passExtensionReason,
+      method:"POST",headers:{"Content-Type":"application/json"},
+      body:JSON.stringify({
+        password,name:studentName,phone_last4:phoneLast4,
+        lesson_credits:Number(lessonCredits||0),
+        lesson_duration_minutes:Number(lessonDurationMinutes||90),
+        pass_registered_at:passRegisteredAt,
       }),
     });
-    const json = await res.json();
-    if (!res.ok) {
-      setMessage(json.message || "수강생을 등록할 수 없습니다.");
-      return;
-    }
-    setStudentName(""); setPhoneLast4(""); setMemo(""); setLessonCredits("4"); setLessonDurationMinutes("90"); setPassRegisteredAt(defaultPassRegisteredAtForNewStudent()); setPassFirstLessonAt(""); setPassExtensionUsed(false); setPassExtensionUntil(""); setPassExtensionReason("");
-    setMessage("수강생을 등록했습니다.");
+    const json=await res.json();
+    if(!res.ok){setMessage(json.message||"수강생을 등록하지 못했습니다.");return;}
+    setStudentName("");setPhoneLast4("");setLessonCredits("4");
+    setLessonDurationMinutes("90");setPassRegisteredAt(defaultPassRegisteredAtForNewStudent());
+    setShowNewStudentForm(false);
     await loadOverview();
     setActiveTab("students");
+    setMessage("수강생을 등록했습니다. 이름을 선택해 정보를 확인해 주세요.");
   }
 
   async function updateStudent(studentId: string) {
-    const edit = studentEdits[studentId];
-    if (!edit) return;
+    const edit=studentEdits[studentId];if(!edit)return;
     setMessage("");
-    const res = await fetch(`/api/admin/students/${studentId}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        password,
-        name: edit.name,
-        phone_last4: edit.phone_last4,
-        memo: edit.memo,
-        lesson_credits: Number(edit.lesson_credits || 0),
-        lesson_duration_minutes: Number(edit.lesson_duration_minutes || 90),
-        pass_registered_at: edit.pass_registered_at,
-        pass_first_lesson_at: edit.pass_first_lesson_at,
-        pass_extension_used: edit.pass_extension_used,
-        pass_extension_until: edit.pass_extension_until,
-        pass_extension_reason: edit.pass_extension_reason,
-        is_active: edit.is_active,
+    const res=await fetch(`/api/admin/students/${studentId}`,{
+      method:"PATCH",headers:{"Content-Type":"application/json"},
+      // First-lesson, existing extensions and private memo are intentionally
+      // omitted: the backend preserves them. The first booked lesson sets
+      // validity automatically, not the administrator's edit form.
+      body:JSON.stringify({
+        password,name:edit.name,phone_last4:edit.phone_last4,
+        lesson_credits:Number(edit.lesson_credits||0),
+        lesson_duration_minutes:Number(edit.lesson_duration_minutes||90),
+        pass_registered_at:edit.pass_registered_at,
+        is_active:edit.is_active,
       }),
     });
-    const json = await res.json();
-    if (!res.ok) {
-      setMessage(json.message || "수강생 정보를 수정할 수 없습니다.");
-      return;
-    }
+    const json=await res.json();
+    if(!res.ok){setMessage(json.message||"수강생 정보를 수정하지 못했습니다.");return;}
     setEditingStudentId(null);
-    setMessage("수강생 계정을 수정했습니다.");
     await loadOverview();
     setActiveTab("students");
+    setMessage("수강생 정보를 수정했습니다.");
   }
 
   function cancelStudentEdit(student: Student) {
