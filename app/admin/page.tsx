@@ -2749,7 +2749,7 @@ export default function AdminPage() {
                 <input value={onedayTitle} onChange={(e) => setOnedayTitle(e.target.value)} placeholder="예: 자서전쓰기 원데이 클래스" />
                 <label>수업 소개 · 준비물 · 유의사항</label>
                 <p className="small">각 제목을 한 줄씩 적으면 예약 앱에서 자동으로 구분해 표시됩니다. 항목별 내용은 한 줄에 하나씩 입력해 주세요.</p>
-                <textarea value={onedayCurriculum} onChange={(e) => setOnedayCurriculum(e.target.value)} placeholder={"수업 소개\\n책에 대해 이야기 나누기\\n함께 작품 완성하기\\n\\n준비물\\n책 1권\\n\\n유의사항\\n표지 재질을 확인해 주세요."} rows={8} />
+                <textarea value={onedayCurriculum} onChange={(e) => setOnedayCurriculum(e.target.value)} placeholder={"수업 소개\n책에 대해 이야기 나누기\n함께 작품 완성하기\n\n준비물\n책 1권\n\n유의사항\n표지 재질을 확인해 주세요."} rows={8} />
                 <label>수업 시작 일정</label>
                 <input type="datetime-local" value={onedayStartAt} onChange={(e) => setOnedayStartAt(e.target.value)} />
                 <label>수업 종료 일정</label>
