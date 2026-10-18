@@ -2060,3 +2060,199 @@ body { color: var(--text); }
   .adminUnifiedPage { padding-left:10px;padding-right:10px; }
   .adminUnifiedPage .card { padding:14px; }
 }
+
+/* simplifiedAdminJournal20261018 */
+/* Mobile-first administrator: compact alerts, 3 action choices, one student at a time. */
+.adminMobilePage .adminCompactAlertCard {padding:15px 17px; }
+.adminCompactAlertHeader {
+  display:flex; align-items:center; justify-content:space-between; gap:9px;
+}
+.adminCompactAlertHeader h2 {
+  font-size:15px; line-height:1.45; margin:0; font-weight:800;
+}
+.adminCompactAlertHeader h2 span {
+  font-size:12px; color:#7a2638; margin-left:4px;
+}
+.adminMobilePage .adminTextLink {
+  border:0; margin:0;padding:5px 2px;background:transparent;
+  color:#7a2638;font-size:12px;white-space:nowrap;
+  text-decoration:underline;text-underline-offset:3px;
+}
+.adminAlertNames {display:flex;flex-wrap:wrap;gap:7px;margin-top:12px;}
+.adminMobilePage .adminAlertName {
+  padding:8px 10px;min-height:32px; margin:0; border:1px solid #eee8eb;
+  border-radius:9px;background:#faf7f8;color:#51484c;font-size:12px;
+  font-weight:750;gap:4px;
+}
+.adminAlertName small {font-size:10px;color:#8d6471;font-weight:800;}
+.adminAlertEmpty {font-size:12px!important;color:#999198!important;margin:10px 0 0!important;}
+.adminMobilePage .adminScheduleLanding h1 {font-size:24px;margin:2px 0 6px;}
+.adminSimpleMenu {display:flex;flex-direction:column;gap:10px;margin-top:21px;}
+.adminMobilePage .adminSimpleMenuItem {
+  width:100%;min-height:83px;display:flex;align-items:center;gap:13px;
+  background:#fff;border:1px solid #ebebed;border-radius:15px;
+  padding:13px;text-align:left;color:#423a3f;
+}
+.adminSimpleMenuItem>svg {color:#b8b3b6;flex-shrink:0;}
+.adminSimpleMenuIcon {
+  width:43px;height:43px;flex:0 0 43px;border-radius:12px;
+  display:flex;align-items:center;justify-content:center;
+  background:#fbf1f3;color:#7a2638;
+}
+.adminSimpleMenuLabel {display:flex;flex-direction:column;gap:5px;flex:1;min-width:0;}
+.adminSimpleMenuLabel strong {font-size:15px;}
+.adminSimpleMenuLabel small {font-size:11px;color:#928b8f;line-height:1.35;}
+.adminMobilePage .adminMonthOpenCard h1 {font-size:24px;}
+.adminMobilePage .adminBackButton {
+  display:inline-flex;align-items:center;gap:2px;margin:0 0 17px;
+  background:transparent;color:#786f75;padding:4px 0;
+  font-size:12px;font-weight:700;
+}
+.adminMobilePage .adminFormSubmit {
+  width:100%;display:flex;align-items:center;justify-content:center;
+  margin-top:16px;padding:13px;background:#7a2638;color:#fff;border-radius:12px;
+  font-size:14px;font-weight:850;
+}
+.adminMobilePage .adminFormSubmit:disabled {opacity:.6;cursor:not-allowed;}
+.adminValidityHint {
+  background:#faf7f8;color:#8d6672!important;
+  padding:12px 13px;margin:12px 0!important;
+  border-radius:10px;font-size:12px!important;line-height:1.5!important;
+}
+.adminMobilePage .adminAdvancedButton {
+  width:100%;margin:0;padding:4px 0;
+  display:flex;align-items:center;justify-content:space-between;
+  background:transparent;color:#555055;font-weight:800;
+  font-size:14px;
+}
+.adminMobilePage .adminAdvancedToolsToggle p.small {margin:8px 0 0;}
+.adminScheduleAdvancedLinks {display:grid;gap:9px;}
+.adminMobilePage .adminScheduleAdvancedLinks button,
+.adminScheduleAdvancedLinks a {
+  display:block;width:100%;border:1px solid #e5e0e3;
+  padding:12px;border-radius:11px;text-align:center;
+  background:#fbf9fa;color:#583848;font-size:13px;font-weight:800;
+}
+.adminMobilePage .adminStudentHub {padding:18px 16px;}
+.adminStudentHeading,.adminSelectedStudentHeading,.adminJournalHeading {
+  display:flex;align-items:flex-start;justify-content:space-between;gap:12px;
+}
+.adminStudentHeading h1 {font-size:24px;margin:0;}
+.adminMobilePage .adminSmallAction {
+  display:inline-flex;align-items:center;justify-content:center;gap:5px;
+  flex:0 0 auto;margin:2px 0;padding:9px 10px;
+  border:1px solid #f0e4e7;border-radius:10px;
+  background:#faf3f5;color:#7a2638;
+  font-weight:800;font-size:12px;
+}
+.adminStudentNewForm {
+  margin-top:18px;background:#fcfafb;border:1px solid #ede7ea;
+  border-radius:14px;padding:15px;
+}
+.adminStudentNewForm h2 {font-size:17px!important;margin:0 0 9px;}
+.adminStudentFormPair {display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;}
+.adminRosterSearchLabel {
+  font-size:13px;margin-top:19px;font-weight:800;color:#484148;
+}
+.adminRosterSearch {
+  display:flex;align-items:center;gap:9px;
+  border:1px solid #e7e4e6;background:#fff;border-radius:11px;padding:0 11px;
+}
+.adminRosterSearch svg {color:#a7a0a5;flex-shrink:0;}
+.adminMobilePage .adminRosterSearch input {
+  width:100%;min-width:0;background:transparent;border:0;box-shadow:none;
+  outline:none;padding:11px 0;font-size:13px;
+}
+.adminRosterCount {font-size:11px;color:#a29a9f;margin:10px 2px;}
+.adminRosterNames {
+  display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;
+  max-height:285px;overflow:auto;padding:1px;
+}
+.adminMobilePage .adminRosterName {
+  display:flex;align-items:center;justify-content:space-between;gap:5px;
+  min-width:0;margin:0;min-height:49px;padding:12px 9px;
+  background:#fff;border:1px solid #eae7ea;border-radius:10px;
+  color:#4a454a;
+}
+.adminMobilePage .adminRosterName.selected {background:#7a2638;border-color:#7a2638;color:#fff;}
+.adminRosterName strong {font-size:13px;white-space:nowrap;text-overflow:ellipsis;overflow:hidden;}
+.adminRosterName span {font-size:11px;color:#89858b;flex:0 0 auto;}
+.adminMobilePage .adminRosterName.selected span {color:rgba(255,255,255,.8);}
+.adminSelectStudentEmpty {display:flex;align-items:center;flex-direction:column;gap:6px;padding:27px!important;}
+.adminSelectStudentEmpty svg {color:#c1b3b8;}
+.adminSelectStudentEmpty p {font-size:12px!important;text-align:center;margin:0;}
+.adminSelectedStudentHeading h2 {font-size:21px;margin:0 0 3px;}
+.adminSelectedStudentHeading span {font-size:12px;color:#938c91;}
+.adminStudentInfoGrid {
+  display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:9px;
+  margin-top:15px;
+}
+.adminStudentInfoGrid div {display:flex;flex-direction:column;gap:7px;padding:13px;background:#faf9fa;border-radius:11px;}
+.adminStudentInfoGrid div.wide {grid-column:span 2;}
+.adminStudentInfoGrid span {font-size:11px;color:#918991;}
+.adminStudentInfoGrid strong {font-size:14px;color:#352f34;word-break:keep-all;}
+.adminMobilePage .adminRecordLink {
+  margin:14px 0 0;width:100%;padding:11px 0 0;display:flex;
+  align-items:center;justify-content:space-between;
+  border-top:1px solid #f0edef;background:transparent;
+  font-size:12px;color:#7a2638;font-weight:750;
+}
+.adminStudentEditForm {border-top:1px solid #efedef;padding-top:15px;margin-top:13px;}
+.adminStudentFormActions {display:flex;gap:8px;flex-wrap:wrap;margin-top:15px;}
+.adminStudentFormActions button {flex:1;min-width:0;padding:12px 9px;font-size:12px;}
+.adminStudentDelete {
+  display:block;background:transparent!important;color:#a85f69!important;
+  font-size:12px!important;text-decoration:underline;margin:10px 0 0 auto!important;
+  padding:6px 0!important;
+}
+.adminJournalHeading h2 {font-size:19px;margin:0;}
+.adminJournalHeading svg {color:#7a2638;}
+.adminJournalEditor {
+  border:1px solid #eee9ed;background:#fdfbfc;padding:15px;
+  border-radius:14px;margin-top:19px;scroll-margin-top:20px;
+}
+.adminJournalEditor h3 {font-size:16px;margin:0 0 10px;}
+.adminJournalEditor label {font-size:13px;}
+.adminJournalEditor .small {font-weight:450;}
+.adminJournalEditor textarea {font-size:13px;line-height:1.65;}
+.adminJournalFeedback {
+  font-size:12px!important;font-weight:700;color:#7a2638!important;
+  margin:12px 0!important;background:#faf3f5;padding:11px;border-radius:10px;
+}
+.adminJournalHistory {padding-top:17px;}
+.adminJournalHistory>h3 {font-size:16px;margin:2px 0 13px;}
+.adminJournalHistory>h3 small {font-size:11px;color:#9a8992;}
+.adminJournalItem {padding:14px 0;border-top:1px solid #eee9eb;}
+.adminJournalItemHeading {display:flex;align-items:flex-start;justify-content:space-between;gap:10px;}
+.adminJournalItemHeading>div {display:flex;flex-direction:column;gap:5px;}
+.adminJournalItemHeading small {font-size:11px;color:#8c8288;}
+.adminJournalItemHeading strong {font-size:14px;}
+.adminJournalItem>p {font-size:12px;white-space:pre-wrap;line-height:1.6;margin:10px 0!important;}
+.adminJournalDetail b {font-weight:800;color:#51424b;}
+.adminJournalActions {display:flex;flex-wrap:wrap;gap:7px;margin-top:13px;}
+.adminMobilePage .adminJournalActions button {
+  margin:0;padding:10px 11px;min-height:34px;font-size:11px;
+  font-weight:800;border-radius:9px;display:flex;align-items:center;gap:5px;
+}
+.adminMobilePage .adminJournalActions .adminJournalDelete {
+  color:#ab6b75;background:transparent;border:1px solid #ead5da;
+}
+.adminJournalPreview {padding:12px;background:#faf6f8;border-radius:12px;margin-top:12px;}
+.adminJournalPreview strong {font-size:12px;}
+.adminJournalPreview textarea {font-size:12px;line-height:1.65;white-space:pre-wrap;margin-top:8px;}
+.adminJournalPreview p {font-size:11px!important;margin:7px 0 0!important;}
+@media (max-width:390px) {
+  .adminMobilePage .adminRosterName {padding:10px 6px;}
+  .adminRosterName strong {font-size:12px;}
+  .adminRosterName span {font-size:10px;}
+  .adminMobilePage .adminStudentHub {padding:15px 11px;}
+  .adminStudentFormPair {gap:7px;}
+  .adminStudentFormActions button {flex:1 1 44%;}
+}
+
+.adminMobilePage .adminInlineJournalButton {
+  display:inline-flex;align-items:center;justify-content:center;gap:5px;
+  width:fit-content;min-height:28px;margin:6px 0 0;padding:7px 9px;
+  border:1px solid #efdfe5;background:#faf2f5;color:#7a2638;
+  border-radius:8px;font-size:11px;font-weight:800;
+}
