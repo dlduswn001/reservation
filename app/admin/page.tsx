@@ -1,6 +1,7 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { House, CalendarDays, UsersRound, Settings2, ChevronLeft, ChevronRight } from "lucide-react";
 import Link from "next/link";
 import { getRegularPassPolicyStatus, PASS_POLICY_START_DATE_KEY, todayDateKeyInKst, calculatePassExpirationDateKey } from "../../lib/passPolicy";
 
@@ -129,15 +130,13 @@ const STATUS_LABELS: Record<string, string> = {
   cancel_request: "취소 요청",
 };
 
-const TAB_LABELS: Array<{ id: AdminTab; label: string }> = [
-  { id: "dashboard", label: "홈" },
-  { id: "schedule", label: "스케줄" },
-  { id: "students", label: "수강생" },
-  { id: "oneday", label: "원데이" },
-  { id: "settings", label: "설정" },
+const TAB_LABELS: Array<{ id: AdminTab; label: string; Icon: typeof House }> = [
+  { id: "dashboard", label: "홈", Icon: House },
+  { id: "schedule", label: "일정관리", Icon: CalendarDays },
+  { id: "students", label: "수강생관리", Icon: UsersRound },
 ];
 
-const SCHEDULE_TABS: AdminTab[] = ["schedule", "timetable", "slots", "blocks", "bookings"];
+const SCHEDULE_TABS: AdminTab[] = ["schedule", "timetable", "slots", "blocks", "bookings", "oneday"];
 const STUDENT_TABS: AdminTab[] = ["students", "history"];
 
 function formatDateTime(value: string) {
@@ -399,21 +398,19 @@ function toSeoulDateTimeInput(value: string) {
 }
 
 function seoulDateKey(value: string) {
-  return new Intl.DateTimeFormat("en-CA", {
+  // DateTimeFormat.format() can vary by runtime locale. Build stable YYYY-MM-DD.
+  const parts = new Intl.DateTimeFormat("en-US", {
     timeZone: "Asia/Seoul",
     year: "numeric",
     month: "2-digit",
     day: "2-digit",
-  }).format(new Date(value));
+  }).formatToParts(new Date(value));
+  const get = (type: string) => parts.find((part) => part.type === type)?.value || "";
+  return `${get("year")}-${get("month")}-${get("day")}`;
 }
 
 function todaySeoulDateKey() {
-  return new Intl.DateTimeFormat("en-CA", {
-    timeZone: "Asia/Seoul",
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-  }).format(new Date());
+  return seoulDateKey(new Date().toISOString());
 }
 
 function todaySeoulLabel() {
@@ -489,9 +486,15 @@ function buildCalendarDays(year: number, month: number) {
 
 export default function AdminPage() {
   const [password, setPassword] = useState("");
+  const [restoringAdmin, setRestoringAdmin] = useState(true);
   const [overview, setOverview] = useState<Overview | null>(null);
   const [message, setMessage] = useState("");
   const [activeTab, setActiveTab] = useState<AdminTab>("dashboard");
+  const [homeSelectedDate, setHomeSelectedDate] = useState(todaySeoulDateKey);
+  const [homeCalendarMonth, setHomeCalendarMonth] = useState(() => {
+    const [year,month] = todaySeoulDateKey().split("-").map(Number);
+    return { year, month };
+  });
   const [studentName, setStudentName] = useState("");
   const [phoneLast4, setPhoneLast4] = useState("");
   const [memo, setMemo] = useState("");
@@ -572,6 +575,19 @@ export default function AdminPage() {
     [filteredOneDayBookings],
   );
 
+  // Remain signed in while navigating between administrator sections in
+  // the current browser tab, without storing credentials permanently.
+  useEffect(() => {
+    let remembered = "";
+    try { remembered = window.sessionStorage.getItem("munjang_admin_session_password") || ""; } catch {}
+    if (remembered) {
+      setPassword(remembered);
+      void loadOverview(remembered).finally(() => setRestoringAdmin(false));
+    } else {
+      setRestoringAdmin(false);
+    }
+  }, []);
+
   const oneDayClassScheduleGroups = useMemo(() => {
     const todayKeyForClass = todaySeoulDateKey();
     const { endKey: thisWeekEndKey } = thisWeekSeoulRangeKeys();
@@ -611,20 +627,33 @@ export default function AdminPage() {
     ];
   }, [overview?.classes]);
 
-  async function loadOverview() {
+  async function loadOverview(credential = password) {
     setMessage("");
     const res = await fetch("/api/admin/overview", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ password }),
+      body: JSON.stringify({ password: credential }),
     });
     const json = await res.json();
     if (!res.ok) {
+      try { window.sessionStorage.removeItem("munjang_admin_session_password"); } catch {}
       setMessage(json.message || "관리자 페이지에 들어갈 수 없습니다.");
       return;
     }
+    setPassword(credential);
     setOverview(json);
-    setActiveTab("dashboard");
+    // Reuse admin credentials only in this browser tab, never in a URL.
+    try { window.sessionStorage.setItem("munjang_admin_session_password", credential); } catch {}
+    // Opening the admin page starts with this month's calendar and today's date.
+    // On subsequent refreshes, keep the administrator's currently selected day.
+    if (!overview) {
+      const key = todaySeoulDateKey();
+      const [year,month] = key.split("-").map(Number);
+      setHomeCalendarMonth({year,month});
+      setHomeSelectedDate(key);
+    }
+    const routeTab = new URLSearchParams(window.location.search).get("tab");
+    setActiveTab((!overview && routeTab === "students") ? "students" : "dashboard");
     const nextEdits: Record<string, string> = {};
     const nextStudentEdits: Record<string, StudentEdit> = {};
     for (const student of json.students || []) {
@@ -649,13 +678,13 @@ export default function AdminPage() {
       setSelectedHistoryStudentId(json.students[0].id);
     }
 
-    const bookings = (json.bookings || []) as Booking[];
-    if (bookings.length > 0) {
-      const first = [...bookings].sort((a, b) => new Date(a.start_at).getTime() - new Date(b.start_at).getTime())[0];
-      const key = seoulDateKey(first.start_at);
-      const parts = seoulParts(first.start_at);
-      setSelectedBookingDate((current) => current || key);
-      setBookingCalendarMonth({ year: parts.year, month: parts.month });
+    // The management calendar must not jump to the earliest booking from a
+    // previous month when the administrator logs in.
+    if (!overview) {
+      const today = todaySeoulDateKey();
+      const [year, month] = today.split("-").map(Number);
+      setSelectedBookingDate(today);
+      setBookingCalendarMonth({ year, month });
     }
   }
 
@@ -1435,6 +1464,93 @@ export default function AdminPage() {
     return Array.from(grouped.values());
   }, [overview, todayKey]);
 
+  // A month-wide view of actual lessons. Available-but-unbooked slots are not
+  // lessons and intentionally have no calendar marker.
+  // Directly entered lessons are in regular_bookings; manual outside/experience
+  // schedules are in blocked_times, and one-day lessons in oneday_classes.
+  const homeItemsByDay = useMemo<Record<string, TodayScheduleItem[]>>(() => {
+    const grouped: Record<string, TodayScheduleItem[]> = {};
+    if (!overview) return grouped;
+
+    const add = (item: TodayScheduleItem) => {
+      const dateKey = seoulDateKey(item.start_at);
+      (grouped[dateKey] ||= []).push(item);
+    };
+
+    for (const booking of overview.bookings || []) {
+      if (["cancelled", "late_cancelled"].includes(booking.status)) continue;
+      add({
+        id: `calendar-regular-${booking.id}`,
+        type: "regular",
+        start_at: booking.start_at,
+        end_at: booking.end_at,
+        label: "정규수업",
+        title: booking.students?.name || "수강생 이름 없음",
+        subtitle: STATUS_LABELS[booking.status] || booking.status,
+        detail: booking.memo || undefined,
+      });
+    }
+    for (const block of overview.blockedTimes || []) {
+      add({
+        id: `calendar-block-${block.id}`,
+        type: "block",
+        start_at: block.start_at,
+        end_at: block.end_at,
+        label: "관리자 일정",
+        title: block.title || "외부 일정 / 체험수업",
+        subtitle: block.memo || "관리자가 직접 등록한 일정",
+      });
+    }
+    for (const klass of overview.classes || []) {
+      const applications = (overview.onedayBookings || []).filter(
+        (booking) => (booking.class_id || booking.oneday_classes?.id) === klass.id
+          && isActiveOneDayBooking(booking.status),
+      );
+      add({
+        id: `calendar-oneday-${klass.id}`,
+        type: "oneday",
+        start_at: klass.start_at,
+        end_at: klass.end_at,
+        label: "원데이",
+        title: klass.title || "원데이 클래스",
+        subtitle: `신청 ${applications.length}건 · 정원 ${klass.capacity || 0}명`,
+        detail: klass.description || undefined,
+      });
+    }
+
+    for (const dateKey of Object.keys(grouped)) {
+      grouped[dateKey].sort((a,b) =>
+        new Date(a.start_at).getTime() - new Date(b.start_at).getTime());
+    }
+    return grouped;
+  }, [overview]);
+
+  const homeCalendarDays = useMemo(
+    () => buildCalendarDays(homeCalendarMonth.year, homeCalendarMonth.month),
+    [homeCalendarMonth],
+  );
+  const homeMonthKey = `${homeCalendarMonth.year}-${String(homeCalendarMonth.month).padStart(2,"0")}`;
+  const homeMonthlyCount = Object.entries(homeItemsByDay)
+    .filter(([day]) => day.startsWith(homeMonthKey))
+    .reduce((total, [,items]) => total + items.length, 0);
+  const homeSelectedItems = homeItemsByDay[homeSelectedDate] || [];
+
+  function moveHomeMonth(direction: -1 | 1) {
+    const target = new Date(Date.UTC(homeCalendarMonth.year, homeCalendarMonth.month - 1 + direction, 1));
+    const year = target.getUTCFullYear();
+    const month = target.getUTCMonth() + 1;
+    setHomeCalendarMonth({ year, month });
+    const targetKey = `${year}-${String(month).padStart(2,"0")}`;
+    const today = todaySeoulDateKey();
+    setHomeSelectedDate(today.startsWith(targetKey) ? today : `${targetKey}-01`);
+  }
+  function goHomeToday() {
+    const today = todaySeoulDateKey();
+    const [year,month] = today.split("-").map(Number);
+    setHomeCalendarMonth({ year,month });
+    setHomeSelectedDate(today);
+  }
+
   const bookedSlotIds = useMemo(() => {
     return new Set(
       (overview?.bookings || [])
@@ -1528,118 +1644,134 @@ export default function AdminPage() {
   }
 
   return (
-    <main className="container">
-      <Link href="/" className="small">← 처음으로</Link>
-      <section className="card">
-        <h1>관리자 페이지</h1>
-        <p>관리자 비밀번호를 입력해 주세요.</p>
-        <label>관리자 비밀번호</label>
-        <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="관리자 비밀번호" />
-        <button onClick={loadOverview}>관리자 페이지 열기</button>
-        {message && <p className={message.includes("등록") || message.includes("변경") || message.includes("삭제") || message.includes("만들") ? "success" : "error"}>{message}</p>}
-      </section>
+    <main className="container adminMobilePage">
+      <header className="adminMobileHeader">
+        <div className="adminBrand">
+          <span>문장학교</span>
+          <strong>관리자</strong>
+        </div>
+        <div className="adminHeaderActions">
+          <Link href="/" className="adminPublicLink" aria-label="수강생 예약 앱으로 이동">
+            수강생 화면
+          </Link>
+          {overview && (
+            <button
+              type="button"
+              className={`adminSettingsButton ${activeTab === "settings" ? "active" : ""}`}
+              aria-label="관리자 설정 열기"
+              title="관리자 설정"
+              onClick={() => openTab(activeTab === "settings" ? "dashboard" : "settings")}
+            >
+              <Settings2 size={21} strokeWidth={1.8}/>
+            </button>
+          )}
+        </div>
+      </header>
+
+      {!overview && restoringAdmin && (
+        <section className="card adminLoginCard"><p className="small">관리자 화면을 불러오는 중입니다...</p></section>
+      )}
+      {!overview && !restoringAdmin && (
+        <section className="card adminLoginCard">
+          <p className="adminEyebrow">문장학교 관리자 전용</p>
+          <h1>관리자 로그인</h1>
+          <p className="small">관리자 비밀번호를 입력하시면 수업 일정과 수강생 정보를 확인할 수 있습니다.</p>
+          <label htmlFor="adminPassword">관리자 비밀번호</label>
+          <input id="adminPassword" type="password" autoComplete="current-password"
+            value={password} onChange={(e) => setPassword(e.target.value)}
+            onKeyDown={(e) => { if (e.key === "Enter") void loadOverview(); }}
+            placeholder="비밀번호" />
+          <button className="adminLoginButton" onClick={() => void loadOverview()}>로그인</button>
+          {message && <p role="alert" className="error">{message}</p>}
+        </section>
+      )}
 
       {overview && (
         <>
-          <section className="card adminTabsCard">
-            <div className="adminTabs">
-              {TAB_LABELS.map((tab) => (
-                <button
-                  key={tab.id}
-                  className={`tabButton ${isTopMenuActive(tab.id) ? "active" : ""}`}
-                  onClick={() => openTab(tab.id)}
-                >
-                  {tab.label}
-                </button>
-              ))}
-            </div>
-          </section>
-
+          {message && <div className="adminFeedback" role="status">{message}</div>}
           {activeTab === "dashboard" && (
             <>
-              <section className="card todayCard dashboardFirstCard">
-                <div className="sectionHeaderRow">
+              <section className="card adminHomeCalendarCard">
+                <div className="adminHomeTitle">
                   <div>
-                    <p className="eyebrow">관리자 홈</p>
-                    <h2>오늘의 수업 일정</h2>
-                    <p className="small">정규수업, 외부 차단/체험수업, 원데이 클래스가 당일 기준으로 먼저 표시됩니다.</p>
+                    <p className="adminEyebrow">수업 일정 한눈에 보기</p>
+                    <h1>이달의 수업 일정</h1>
+                    <p className="small">오늘 날짜를 선택해 두었어요. 날짜를 누르면 직접 등록한 수업까지 확인할 수 있습니다.</p>
                   </div>
-                  <Link href="/admin/schedule" className="scheduleLink">통합 스케줄 보기</Link>
+                  <button type="button" className="adminTodayButton" onClick={goHomeToday}>오늘</button>
                 </div>
 
-                <div className="todaySummaryGrid">
-                  <div className="todaySummaryBox regular"><span>오늘 정규수업</span><strong>{todayCounts.regular}건</strong></div>
-                  <div className="todaySummaryBox block"><span>오늘 외부/체험</span><strong>{todayCounts.block}건</strong></div>
-                  <div className="todaySummaryBox oneday"><span>오늘 원데이</span><strong>{todayCounts.oneday}건</strong></div>
-                  <div className="todaySummaryBox warning"><span>수강권 0회</span><strong>{zeroCreditStudents.length}명</strong></div>
-                  <div className="todaySummaryBox warning"><span>기한 임박/만료</span><strong>{passAlertStudents.length}명</strong></div>
+                <div className="adminMonthHeader">
+                  <button type="button" className="adminMonthArrow" onClick={() => moveHomeMonth(-1)}
+                    aria-label="이전 달"><ChevronLeft size={21}/></button>
+                  <strong>{homeCalendarMonth.year}년 {homeCalendarMonth.month}월</strong>
+                  <button type="button" className="adminMonthArrow" onClick={() => moveHomeMonth(1)}
+                    aria-label="다음 달"><ChevronRight size={21}/></button>
                 </div>
 
-                {todayScheduleItems.length === 0 ? (
-                  <div className="emptyToday todayOnlyEmpty">
-                    <strong>{todayLabel}에 등록된 수업 일정이 없습니다.</strong>
-                    <p>오늘 일정이 비어 있으면 아래의 일자별 수업 일정에서 다가오는 수업을 확인할 수 있습니다.</p>
-                  </div>
-                ) : (
-                  <div className="todayTimeline todayOnlyTimeline">
-                    {todayScheduleItems.map((item) => (
-                      <div className={`todayItem ${item.type}`} key={item.id}>
-                        <div className="todayTime">
-                          <strong>{formatTime(item.start_at)}</strong>
-                          <span>{formatTime(item.end_at)}</span>
-                        </div>
-                        <div className="todayContent">
-                          <span className={`todayBadge ${item.type}`}>{item.label}</span>
-                          <strong>{item.title}</strong>
-                          <p>{item.subtitle}</p>
-                          {item.detail && <p className="todayMemo">{item.detail}</p>}
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </section>
+                <div className="adminMonthWeekdays" aria-hidden="true">
+                  <span>일</span><span>월</span><span>화</span><span>수</span><span>목</span><span>금</span><span>토</span>
+                </div>
+                <div className="adminMonthGrid" role="group" aria-label="월별 수업 달력">
+                  {homeCalendarDays.map((day,index) => {
+                    const items = day.key ? homeItemsByDay[day.key] || [] : [];
+                    const selected = day.key !== null && homeSelectedDate === day.key;
+                    const today = day.key !== null && day.key === todayKey;
+                    return day.key ? (
+                      <button key={day.key} type="button"
+                        className={`adminMonthDay ${selected ? "selected" : ""} ${today ? "today" : ""}`}
+                        aria-label={`${day.key} 수업 ${items.length}건`}
+                        aria-pressed={selected}
+                        onClick={() => setHomeSelectedDate(day.key!)}>
+                        <span className="adminMonthNumber">{day.day}</span>
+                        <span className="adminMonthDots" aria-hidden="true">
+                          {(["regular","oneday","block"] as const).filter(type => items.some(item => item.type === type))
+                            .map(type => <i key={type} className={type}/>)}
+                        </span>
+                      </button>
+                    ) : <span key={`empty-${index}`} className="adminMonthEmpty"/>;
+                  })}
+                </div>
 
-              <section className="card todayCard">
-                <div className="sectionHeaderRow">
-                  <div>
-                    <p className="eyebrow">일자별 수업 일정</p>
-                    <h2>오늘부터 한 달 일정</h2>
-                    <p className="small">정규수업, 외부 차단/체험수업, 원데이 클래스를 날짜별로 한 번에 확인할 수 있습니다.</p>
+                <div className="adminMonthFoot">
+                  <span>이달 등록된 수업·일정 <strong>{homeMonthlyCount}건</strong></span>
+                  <div className="adminMonthLegend">
+                    <span><i className="regular"/> 정규</span>
+                    <span><i className="oneday"/> 원데이</span>
+                    <span><i className="block"/> 관리자 일정</span>
                   </div>
                 </div>
 
-                <div className="dailyScheduleList">
-                  {dailyScheduleGroups.length === 0 && (
-                    <div className="emptyToday">
-                      <strong>오늘부터 한 달 안에 등록된 수업 일정이 없습니다.</strong>
-                      <p>정규 예약, 외부 차단, 원데이 클래스가 생기면 이곳에 날짜별로 표시됩니다.</p>
+                <div className="adminSelectedDay">
+                  <div className="adminSelectedDayHeader">
+                    <div>
+                      <p className="adminEyebrow">{homeSelectedDate === todayKey ? "오늘의 일정" : "선택한 날짜"}</p>
+                      <h2>{homeSelectedDate.replace(/-/g, ". ")} <small>{homeSelectedItems.length}건</small></h2>
+                    </div>
+                    <button type="button" className="adminSubtleButton" onClick={() => openTab("schedule")}>
+                      일정관리
+                    </button>
+                  </div>
+                  {homeSelectedItems.length === 0 ? (
+                    <div className="adminNoLessons">등록된 수업이나 일정이 없습니다.</div>
+                  ) : (
+                    <div className="adminDailyLessons">
+                      {homeSelectedItems.map(item => (
+                        <article key={item.id} className={`adminLessonRow ${item.type}`}>
+                          <div className="adminLessonTime">
+                            <strong>{formatTime(item.start_at)}</strong>
+                            <span>{formatTime(item.end_at)}</span>
+                          </div>
+                          <div className="adminLessonInfo">
+                            <span className={`adminLessonBadge ${item.type}`}>{item.label}</span>
+                            <strong>{item.title}</strong>
+                            <p>{item.subtitle}</p>
+                            {item.detail && <p className="adminLessonMemo">{item.detail}</p>}
+                          </div>
+                        </article>
+                      ))}
                     </div>
                   )}
-                  {dailyScheduleGroups.map((group) => (
-                    <div className="dailyScheduleGroup" key={group.key}>
-                      <div className="dailyDateHeader">
-                        <strong>{group.label}</strong>
-                        <span>{group.items.length}건</span>
-                      </div>
-                      <div className="todayTimeline">
-                        {group.items.map((item) => (
-                          <div className={`todayItem ${item.type}`} key={item.id}>
-                            <div className="todayTime">
-                              <strong>{formatTime(item.start_at)}</strong>
-                              <span>{formatTime(item.end_at)}</span>
-                            </div>
-                            <div className="todayContent">
-                              <span className={`todayBadge ${item.type}`}>{item.label}</span>
-                              <strong>{item.title}</strong>
-                              <p>{item.subtitle}</p>
-                              {item.detail && <p className="todayMemo">{item.detail}</p>}
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  ))}
                 </div>
               </section>
 
@@ -1756,6 +1888,10 @@ export default function AdminPage() {
                   <button className="quickCard" onClick={() => openTab("bookings")}>
                     <strong>정규 예약 달력</strong>
                     <span>날짜별 정규수업 예약자 확인</span>
+                  </button>
+                  <button className="quickCard" onClick={() => openTab("oneday")}>
+                    <strong>원데이 클래스 관리</strong>
+                    <span>원데이 일정 만들기·수정·신청자 확인</span>
                   </button>
                 </div>
               </section>
@@ -2404,6 +2540,19 @@ export default function AdminPage() {
               </section>
             </>
           )}
+          <nav className="adminBottomNav" aria-label="문장학교 관리자 메뉴">
+            {TAB_LABELS.map(({id,label,Icon}) => {
+              const active=isTopMenuActive(id);
+              return (
+                <button type="button" key={id} onClick={() => openTab(id)}
+                  className={`adminBottomNavItem ${active ? "active" : ""}`}
+                  aria-current={active ? "page" : undefined}>
+                  <Icon size={22} strokeWidth={active ? 2.3 : 1.75} />
+                  <span>{label}</span>
+                </button>
+              );
+            })}
+          </nav>
         </>
       )}
       <style jsx>{`

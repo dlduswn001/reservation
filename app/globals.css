@@ -1795,3 +1795,268 @@ body { color: var(--text); }
 /* 메인 첫 화면은 브랜드명만 보여주고 곧바로 수강권으로 연결합니다. */
 .studioApp .studioHeader { margin-bottom: 20px; }
 .studioApp .studioPassOverview { margin-top: 0; }
+
+/* adminMobileV2 */
+/* 관리자 앱: 수강생 문장학교 앱과 동일한 화이트/버건디 모바일 UI */
+.adminMobilePage {
+  max-width: 500px;
+  min-height: 100dvh;
+  margin: 0 auto;
+  padding: 16px 15px calc(106px + env(safe-area-inset-bottom));
+  background: #fff;
+  overflow-x: clip;
+}
+.adminMobilePage .card {
+  background: #fff;
+  border: 1px solid #ebebed;
+  border-radius: 18px;
+  padding: 18px;
+  margin-bottom: 14px;
+  box-shadow: none;
+  backdrop-filter: none;
+}
+.adminMobilePage .item {
+  background: #fff;
+  border-color: #eeeeef;
+  box-shadow: none;
+  border-radius: 14px;
+}
+.adminMobilePage h1, .adminMobilePage h2, .adminMobilePage h3 {
+  color: #252429;
+  letter-spacing: -.045em;
+}
+.adminMobilePage h2 { font-size: 19px; }
+.adminMobilePage button, .adminMobilePage .button { box-shadow: none; }
+.adminMobilePage input, .adminMobilePage textarea, .adminMobilePage select {
+  background: #fff;
+  border: 1px solid #e7e5e8;
+  border-radius: 11px;
+}
+.adminMobileHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  padding: 9px 2px 19px;
+}
+.adminBrand { display: flex; flex-direction: column; gap: 1px; }
+.adminBrand span { font-weight: 900; font-size: 21px; letter-spacing: -.055em; color: #32272b; }
+.adminBrand strong { font-size: 12px; font-weight: 700; color: #9b858a; }
+.adminHeaderActions { display: flex; align-items: center; gap: 9px; }
+.adminPublicLink {
+  font-size: 11px; color: #78767a; border-radius: 9px;
+  padding: 8px 9px; background: #f6f5f6;
+}
+.adminMobilePage .adminSettingsButton {
+  width: 36px; height: 36px; flex: 0 0 36px;
+  display: inline-flex; align-items: center; justify-content: center;
+  background: #f7f5f6; color: #68636a; border-radius: 10px;
+  padding: 0; margin: 0; border: 0;
+}
+.adminMobilePage .adminSettingsButton.active { color: #7a2638; background: #fbf1f3; }
+.adminFeedback {
+  color: #7a2638; font-size: 13px; font-weight: 700;
+  margin: 0 0 12px; padding: 11px 13px;
+  border-radius: 12px; background: #fbf5f6;
+}
+.adminMobilePage .adminLoginCard { padding: 26px 23px; }
+.adminMobilePage .adminLoginCard h1 { font-size: 25px; margin-bottom: 10px; }
+.adminMobilePage .adminLoginButton { width: 100%; margin-top: 20px; }
+.adminEyebrow {
+  margin: 0 0 5px; color: #8d6471 !important;
+  font-size: 11px !important; font-weight: 800; letter-spacing: .07em;
+}
+.adminMobilePage .adminHomeCalendarCard { padding: 19px 16px; }
+.adminHomeTitle {
+  display:flex;align-items:flex-start;justify-content:space-between;gap:12px;
+  padding: 0 2px 6px;
+}
+.adminHomeTitle h1 { font-size: 24px; margin: 0 0 7px; }
+.adminHomeTitle p.small { font-size: 12px; line-height: 1.55; margin: 0; }
+.adminMobilePage .adminTodayButton {
+  flex: 0 0 auto; padding: 9px 12px; margin: 3px 0 0;
+  border: 1px solid #eee3e6; border-radius: 10px;
+  font-size: 12px; font-weight: 800; background: #fcf6f8; color: #7a2638;
+}
+.adminMonthHeader {
+  display: flex; align-items: center; justify-content: space-between;
+  margin: 15px 0 13px; padding: 0 2px;
+}
+.adminMonthHeader strong { font-size: 17px; letter-spacing: -.03em; }
+.adminMobilePage .adminMonthArrow {
+  display:inline-flex;align-items:center;justify-content:center;
+  width: 35px; height: 35px; border-radius: 11px;
+  padding: 0; margin: 0; border: 1px solid #efeff0;
+  background: #fff; color: #3d3b40;
+}
+.adminMonthWeekdays,.adminMonthGrid {
+  display: grid; grid-template-columns: repeat(7,minmax(0,1fr)); gap: 3px;
+}
+.adminMonthWeekdays { margin-bottom: 4px; }
+.adminMonthWeekdays span {
+  text-align: center; font-size: 11px; font-weight: 700;
+  color: #8f8c90; padding: 5px 0;
+}
+.adminMonthWeekdays span:first-child { color: #b86b78; }
+.adminMonthWeekdays span:last-child { color: #667ca0; }
+.adminMobilePage .adminMonthDay {
+  width:100%; min-width:0; height:57px; padding:8px 1px 5px;
+  margin:0; display:flex; flex-direction:column;
+  align-items:center; justify-content:space-between;
+  border: 1px solid transparent; background:#fff; color:#383238;
+  border-radius: 11px; line-height: 1;
+}
+.adminMobilePage .adminMonthDay.today:not(.selected) {
+  border-color: #d8b2be; background: #fdf8f9;
+}
+.adminMobilePage .adminMonthDay.selected {
+  background: #7a2638; color: #fff; border-color: #7a2638;
+}
+.adminMonthNumber { font-size:14px;font-weight:700; }
+.adminMonthDots {
+  min-height:6px; display:flex; align-items:center; justify-content:center; gap:3px;
+}
+.adminMonthDots i, .adminMonthLegend i {
+  display:inline-block; width:5px;height:5px;border-radius:50%;background:#9a9a9c;
+}
+.adminMonthDots i.regular,.adminMonthLegend i.regular { background:#8e6782; }
+.adminMonthDots i.oneday,.adminMonthLegend i.oneday { background:#6c8aa6; }
+.adminMonthDots i.block,.adminMonthLegend i.block { background:#c7a469; }
+.adminMobilePage .adminMonthDay.selected .adminMonthDots i { background:#fff; }
+.adminMonthEmpty { height:57px; }
+.adminMonthFoot {
+  display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;
+  gap:9px; padding:14px 3px 17px; border-bottom:1px solid #ededee;
+  color:#777378;font-size:11px;
+}
+.adminMonthFoot strong { color: #782539; font-size:12px; }
+.adminMonthLegend { display:flex;gap:9px;flex-wrap:wrap; }
+.adminMonthLegend span { display:flex;align-items:center;gap:4px;white-space:nowrap; }
+.adminMonthLegend i { width:7px;height:7px; }
+.adminSelectedDay { padding-top:17px; }
+.adminSelectedDayHeader {
+  display:flex;justify-content:space-between;align-items:center;gap:12px;
+  margin-bottom:12px;
+}
+.adminSelectedDayHeader h2 { margin:0;font-size:18px; }
+.adminSelectedDayHeader h2 small { font-size:12px;color:#8c8589;font-weight:600; }
+.adminMobilePage .adminSubtleButton {
+  margin:0; flex:0 0 auto; padding:9px 11px; border-radius:10px;
+  background:#f6f4f5; color:#51464a; font-size:12px;
+}
+.adminNoLessons {
+  border:1px dashed #e6e2e3; border-radius:13px;
+  padding:22px 12px;text-align:center;color:#918a8d;font-size:13px;
+}
+.adminDailyLessons { display:grid;gap:9px; }
+.adminLessonRow {
+  display:flex; align-items:flex-start; gap:13px; min-width:0;
+  border:1px solid #eeecee;border-radius:13px;padding:12px;
+}
+.adminLessonRow.regular { border-left:3px solid #987382; }
+.adminLessonRow.oneday { border-left:3px solid #809bb8; }
+.adminLessonRow.block { border-left:3px solid #c1a071; }
+.adminLessonTime {
+  display:flex;flex:0 0 52px;flex-direction:column;gap:4px;
+  color:#373339;font-size:13px;padding-top:4px;
+}
+.adminLessonTime strong { font-size:14px; }
+.adminLessonTime span { font-size:11px;color:#aaa2a5; }
+.adminLessonInfo { display:flex;flex-direction:column;gap:3px;min-width:0; }
+.adminLessonInfo strong { font-size:14px;overflow-wrap:anywhere; }
+.adminLessonInfo p { font-size:11.5px;line-height:1.55;margin:0;color:#807a80;overflow-wrap:anywhere; }
+.adminLessonInfo .adminLessonMemo {
+  color:#69656a;margin-top:4px;white-space:pre-wrap;
+}
+.adminLessonBadge {
+  width:fit-content;border-radius:5px;font-size:10px;
+  font-weight:800;padding:4px 6px;line-height:1;
+  background:#f7f0f3;color:#865163;
+}
+.adminLessonBadge.oneday { background:#eff3f9;color:#5d7595; }
+.adminLessonBadge.block { background:#f8f4e9;color:#9b7e49; }
+.adminBottomNav {
+  position:fixed;left:50%;bottom:0;transform:translateX(-50%);
+  width:min(500px,100%);z-index:50;
+  display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:0;
+  background:rgba(255,255,255,.98);border-top:1px solid #eae8eb;
+  box-shadow:0 -5px 18px rgba(20,20,20,.035);
+  padding:8px 12px calc(8px + env(safe-area-inset-bottom));
+}
+.adminMobilePage .adminBottomNavItem {
+  display:flex;flex-direction:column;align-items:center;justify-content:center;gap:5px;
+  min-width:0;min-height:55px;margin:0;padding:6px 0;
+  border-radius:10px;background:transparent;color:#a3a0a6;
+  font-size:11px;font-weight:750;
+}
+.adminMobilePage .adminBottomNavItem.active { color:#7a2638;background:transparent; }
+.adminBottomNavItem:focus-visible,.adminMonthDay:focus-visible {
+  outline:2px solid #7a2638;outline-offset:2px;
+}
+.adminMobilePage .todaySummaryGrid { grid-template-columns: repeat(2,minmax(0,1fr)); }
+.adminMobilePage .statsGrid { grid-template-columns: repeat(2,minmax(0,1fr)); }
+.adminMobilePage .adminQuickGrid { grid-template-columns: repeat(2,minmax(0,1fr)); }
+.adminMobilePage .quickCard { min-height:110px;padding:13px; }
+.adminMobilePage .quickCard strong { font-size:14px; }
+.adminMobilePage .quickCard span { font-size:11px; }
+.adminMobilePage .todayCard,.adminMobilePage .dashboardFirstCard {
+  border:1px solid #ece8eb; box-shadow:none;
+  background:#fff;
+}
+@media (max-width: 390px) {
+  .adminMobilePage { padding-left:10px;padding-right:10px; }
+  .adminMobilePage .card { padding:14px; }
+  .adminMobilePage .adminHomeCalendarCard { padding:15px 11px; }
+  .adminHomeTitle h1 { font-size:22px; }
+  .adminMonthWeekdays,.adminMonthGrid { gap:1px; }
+  .adminMobilePage .adminMonthDay { height:52px;padding:8px 0 4px; }
+  .adminMonthEmpty { height:52px; }
+  .adminMonthNumber { font-size:13px; }
+  .adminMonthLegend { gap:6px; }
+  .adminMonthFoot { font-size:10px; }
+}
+
+/* The separate unified schedule shares the same administrator mobile shell. */
+.adminUnifiedPage {
+  max-width: 500px;
+  min-height: 100dvh;
+  margin: 0 auto;
+  padding: 16px 14px calc(105px + env(safe-area-inset-bottom));
+  background: #fff;
+  overflow-x: clip;
+}
+.adminUnifiedPage .card {
+  background:#fff;
+  border:1px solid #ebebed;
+  box-shadow:none;
+  border-radius:18px;
+  padding:18px;
+  margin-bottom:14px;
+}
+.adminUnifiedPage .heroCard { border:0; padding:14px 7px; }
+.adminUnifiedPage .heroCard h1 { font-size:25px; }
+.adminUnifiedPage input,.adminUnifiedPage select,.adminUnifiedPage textarea {
+  border:1px solid #e7e5e8;
+  background:#fff;
+  border-radius:11px;
+}
+.adminUnifiedPage .summaryGrid { grid-template-columns: repeat(2,minmax(0,1fr)); }
+.adminUnifiedBottomNav {
+  position:fixed;left:50%;bottom:0;transform:translateX(-50%);
+  width:min(500px,100%);z-index:50;
+  display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:0;
+  background:rgba(255,255,255,.98);border-top:1px solid #eae8eb;
+  box-shadow:0 -5px 18px rgba(20,20,20,.035);
+  padding:8px 12px calc(8px + env(safe-area-inset-bottom));
+}
+.adminUnifiedBottomNav a {
+  display:flex;flex-direction:column;align-items:center;justify-content:center;gap:5px;
+  min-width:0;min-height:55px;margin:0;padding:6px 0;
+  background:transparent;color:#a3a0a6;font-size:11px;font-weight:750;
+}
+.adminUnifiedBottomNav a.active { color:#7a2638; }
+.adminUnifiedBottomNav a:focus-visible { outline:2px solid #7a2638; }
+@media (max-width:390px) {
+  .adminUnifiedPage { padding-left:10px;padding-right:10px; }
+  .adminUnifiedPage .card { padding:14px; }
+}
