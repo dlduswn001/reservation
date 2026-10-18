@@ -1989,6 +1989,22 @@ export default function AdminPage() {
                             <strong>{item.title}</strong>
                             <p>{item.subtitle}</p>
                             {item.detail && <p className="adminLessonMemo">{item.detail}</p>}
+                            {item.type === "regular" && item.student_id &&
+                              new Date(item.end_at).getTime() <= Date.now() && (
+                                <button type="button" className="adminInlineJournalButton"
+                                  onClick={() => {
+                                    selectStudent(item.student_id || "");
+                                    setJournalDraft({
+                                      ...EMPTY_JOURNAL,
+                                      booking_id: item.booking_id || "",
+                                      lesson_date: seoulDateKey(item.start_at),
+                                      title: item.detail?.includes("필사생활") ? "1:1 필사생활"
+                                        : item.detail?.includes("서평생활") ? "1:1 서평생활" : "1:1 정규수업",
+                                    });
+                                  }}>
+                                  <NotebookPen size={14}/> 수업일지 작성
+                                </button>
+                              )}
                           </div>
                         </article>
                       ))}
