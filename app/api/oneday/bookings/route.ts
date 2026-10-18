@@ -110,7 +110,7 @@ export async function GET(request: Request) {
       }
     }
     const items = bookings.map((item) => ({
-      ...item,
+      ...(item as Record<string, unknown>),
       waitlist_position: queuePositions.get(String((item as { id: string }).id)) || null,
     }));
     return NextResponse.json({ bookings: items });
