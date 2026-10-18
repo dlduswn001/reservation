@@ -734,6 +734,10 @@ export default function RegularPage() {
                           {Array.from({ length: daysInMonth }, (_, i) => i + 1).map((day) => {
                             const dateKey = `${monthKey}-${String(day).padStart(2, "0")}`;
                             const available = dateKeys.includes(dateKey);
+                            const daySlots = slotsByDate[dateKey] || [];
+                            const hasBookable = daySlots.some((item) => !item.is_waitlist && !item.is_closed);
+                            const hasWaitlist = daySlots.some((item) => item.is_waitlist);
+                            const dayStatus = !available ? "예약 불가" : hasBookable ? "예약 가능" : hasWaitlist ? "대기 가능" : "마감";
                             const selected = selectedDate === dateKey;
                             return (
                               <button
@@ -741,12 +745,13 @@ export default function RegularPage() {
                                 type="button"
                                 className={`studioCalendarDate ${selected ? "selected" : ""} ${available ? "available" : ""}`}
                                 disabled={!available}
-                                aria-label={`${dateKey} ${available ? "예약 가능" : "예약 불가"}`}
+                                aria-label={`${dateKey} ${dayStatus}`}
+                                title={dayStatus}
                                 aria-pressed={selected}
                                 onClick={() => setSelectedDate(dateKey)}
                               >
                                 {day}
-                                {available && !selected && <span className="studioCalendarDot" aria-hidden="true" />}
+                                {available && !selected && (hasBookable || hasWaitlist) && <span className="studioCalendarDot" aria-hidden="true" />}
                               </button>
                             );
                           })}
