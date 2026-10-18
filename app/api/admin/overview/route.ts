@@ -31,7 +31,7 @@ export async function POST(request: Request) {
 
     let students: any = await supabase
       .from("students")
-      .select("id, name, phone_last4, phone_number, is_active, credits_zero_since, last_credit_refill_at, memo, lesson_credits, lesson_duration_minutes, pass_registered_at, pass_first_lesson_at, pass_expires_at, pass_extension_used, pass_extension_until, pass_extension_reason, created_at")
+      .select("id, name, phone_last4, is_active, credits_zero_since, last_credit_refill_at, memo, lesson_credits, lesson_duration_minutes, pass_registered_at, pass_first_lesson_at, pass_expires_at, pass_extension_used, pass_extension_until, pass_extension_reason, created_at")
       .order("created_at", { ascending: false });
 
     if (students.error && isMissingPassColumnError(students.error)) {
@@ -41,7 +41,7 @@ export async function POST(request: Request) {
         .order("created_at", { ascending: false });
     }
 
-    const [slots, bookings, classesResult, onedayBookings, lessonHistory, blockedTimes, statuses, registrations] = await Promise.all([
+    const [slots, bookings, classesResult, onedayBookings, lessonHistory, blockedTimes, statuses, registrations, privateContacts] = await Promise.all([
       supabase.from("available_slots").select("id, start_at, end_at, is_open, created_at").order("start_at", { ascending: true }),
       supabase.from("regular_bookings").select("id, student_id, slot_id, start_at, end_at, status, memo, created_at, students(name, phone_last4)").order("start_at", { ascending: true }),
       classesQuery,
@@ -52,9 +52,11 @@ export async function POST(request: Request) {
       supabase.from("student_registration_payments")
         .select("id,student_id,payment_date,registration_type,amount_krw,credits_added,memo,created_at")
         .order("payment_date",{ascending:false}).limit(1000),
+      supabase.from("student_private_contacts")
+        .select("student_id,phone_number"),
     ]);
 
-    for (const result of [students, slots, bookings, onedayBookings, lessonHistory, blockedTimes, statuses, registrations]) {
+    for (const result of [students, slots, bookings, onedayBookings, lessonHistory, blockedTimes, statuses, registrations, privateContacts]) {
       if (result.error) throw result.error;
     }
 
@@ -75,6 +77,7 @@ export async function POST(request: Request) {
         const status = (statuses.data || []).find((row: {student_id:string}) => row.student_id===student.id);
         return {
           ...student,
+          phone_number: (privateContacts.data || []).find((row:{student_id:string})=>row.student_id===student.id)?.phone_number || null,
           enrollment_status: status?.enrollment_status || (student.is_active === false ? "withdrawn" : "active"),
           last_attended_at: status?.last_attended_at || null,
           credits_zero_since: status?.credits_zero_since || student.credits_zero_since || null,
