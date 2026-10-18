@@ -69,8 +69,9 @@ export async function POST(request: Request) {
     const privateNote = safeText(body.private_note, 3000);
     const bookingId = String(body.booking_id || "");
 
-    if (!ISO_DAY.test(lessonDate) ||
-        new Date(lessonDate + "T00:00:00.000Z").toISOString().slice(0,10) !== lessonDate) {
+    const parsedLessonDay = new Date(lessonDate + "T00:00:00.000Z");
+    if (!ISO_DAY.test(lessonDate) || Number.isNaN(parsedLessonDay.getTime()) ||
+        parsedLessonDay.toISOString().slice(0,10) !== lessonDate) {
       return response({ message: "수업 날짜를 확인해 주세요." }, 400);
     }
     if (!title || !lessonSummary) {
