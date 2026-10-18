@@ -407,10 +407,13 @@ export async function GET(request: Request) {
 
     // 기존 DB에 평일 공통 5개 시간 중 누락된 시간이 있으면 숨기는 대신 '마감'으로 표시합니다.
     // 실제 available_slots 레코드를 생성하거나 예약 가능 상태로 변경하지 않습니다.
+    // Supabase dates may be "+00:00" while generated dates use ".000Z".
+    // Compare actual instants, not formatted strings, so one class time renders once.
+    const startInstant = (value: string) => new Date(value).getTime();
     const seenStartTimes = new Set([
-      ...available.map((slot) => slot.start_at),
-      ...waitingSlots.map((slot) => slot.start_at),
-      ...closedSlots.map((slot) => slot.start_at),
+      ...available.map((slot) => startInstant(slot.start_at)),
+      ...waitingSlots.map((slot) => startInstant(slot.start_at)),
+      ...closedSlots.map((slot) => startInstant(slot.start_at)),
     ]);
     for (const dateKey of activeClassDateKeys) {
       const [year, month, day] = dateKey.split("-").map(Number);
@@ -421,7 +424,7 @@ export async function GET(request: Request) {
       for (const time of times) {
         const [hour, minute] = time.split(":").map(Number);
         const startAt = kstDateTimeToIso(year, month, day, hour, minute);
-        if (seenStartTimes.has(startAt)) continue;
+        if (seenStartTimes.has(startInstant(startAt))) continue;
         const duration = getReservationLessonMinutes(startAt, lessonMinutes);
         const lifestyle = isLifestyleLessonSlot(startAt);
         closedSlots.push({
@@ -434,7 +437,7 @@ export async function GET(request: Request) {
           is_closed: true,
           rule_label: "해당 시간은 예약과 대기 신청이 마감되었습니다.",
         });
-        seenStartTimes.add(startAt);
+        seenStartTimes.add(startInstant(startAt));
       }
     }
 
@@ -448,6 +451,7 @@ export async function GET(request: Request) {
     type NoonModeStatus = "available" | "waitlist" | "closed";
     const getNoonModeStatus = (slot: SlotRow, lifestyle: boolean): NoonModeStatus => {
       if (!isAllowedLessonDateAndTime(slot) || slot.is_open === false
+        || slot.id.startsWith("closed:")
         || new Date(slot.start_at).getTime() <= cutoffDate.getTime()) return "closed";
 
       const duration = lifestyle ? 45 : lessonMinutes;
@@ -462,10 +466,14 @@ export async function GET(request: Request) {
       return occupied ? "waitlist" : "available";
     };
 
-    const noonRows = new Map<string, SlotRow>();
+    const noonRows = new Map<number, SlotRow>();
     for (const slot of [...slots, ...closedSlots]) {
-      if (isWeekendNoon(slot.start_at) && !noonRows.has(slot.start_at)) {
-        noonRows.set(slot.start_at, slot);
+      const startKey = startInstant(slot.start_at);
+      if (isWeekendNoon(slot.start_at)
+        && activeClassDateKeys.has(slotDateKey(slot.start_at))
+        && isAllowedLessonDateAndTime(slot)
+        && !noonRows.has(startKey)) {
+        noonRows.set(startKey, slot);
       }
     }
     const noonChoices = Array.from(noonRows.values()).map((slot) => {
