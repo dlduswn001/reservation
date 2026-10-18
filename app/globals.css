@@ -3072,3 +3072,154 @@ body { color: var(--text); }
   .adminMobilePage .adminPhotoItem { grid-template-columns: 75px minmax(0,1fr); gap: 8px; }
   .adminMobilePage .adminPhotoThumb { width: 75px; height: 75px; }
 }
+
+/* admin-20261019-lifecycle-revenue-calendar */
+.adminMobilePage .adminEnrollmentSnapshot {
+  display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin:0 0 13px;
+}
+.adminMobilePage .adminEnrollmentSnapshot>div {
+  display:flex;flex-direction:column;align-items:center;justify-content:center;gap:7px;
+  min-width:0;border:1px solid #ede7ea;border-radius:13px;background:#fff;padding:13px 4px;
+}
+.adminEnrollmentSnapshot span {font-size:12px;color:#8c8087;}
+.adminEnrollmentSnapshot strong {font-size:21px;font-weight:850;color:#742b42;font-variant-numeric:tabular-nums;}
+.adminMobilePage .adminEnrollmentTabs {grid-template-columns:repeat(3,minmax(0,1fr));gap:6px;}
+.adminMobilePage .adminEnrollmentTab {min-width:0;font-size:12px;padding:8px 2px;gap:5px;}
+.adminMobilePage .adminEnrollmentTab span {font-size:10px;min-width:20px;padding:0 3px;}
+.adminMobilePage .adminStatusRule {
+  font-size:11px;color:#887c83;line-height:1.65;background:#faf8f9;
+  padding:10px 12px;border-radius:10px;margin:11px 0 5px;
+}
+.adminMobilePage .adminContactHint {
+  margin:7px 0 11px!important;color:#91838b!important;
+  font-size:11px!important;line-height:1.55!important;
+}
+.adminMobilePage .adminRenewalHeading {
+  display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:8px;
+}
+.adminRenewalHeading h2 {font-size:19px;margin:0;}
+.adminRenewalHeading span {font-size:12px;color:#846678;font-weight:800;}
+.adminMobilePage .adminRevenueReport h2 {font-size:19px;margin:0;}
+.adminRevenueHeading {display:flex;gap:10px;justify-content:space-between;align-items:center;flex-wrap:wrap;}
+.adminRevenueMonthControls {display:flex;align-items:center;gap:7px;}
+.adminRevenueMonthControls strong {font-size:13px;white-space:nowrap;}
+.adminMobilePage .adminRevenueMonthControls button {
+  width:30px;height:32px;padding:0;margin:0;display:flex;align-items:center;justify-content:center;
+  background:#f8f3f5;color:#7a2638;border-radius:8px;
+}
+.adminRevenueStats {display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:9px;margin-top:17px;}
+.adminRevenueStats>div {
+  display:flex;flex-direction:column;align-items:flex-start;gap:6px;
+  padding:12px;background:#faf8f9;border:1px solid #efecef;border-radius:12px;min-width:0;
+}
+.adminRevenueStats>div.wide {grid-column:span 2;}
+.adminRevenueStats svg {color:#8b6373;}
+.adminRevenueStats span {color:#817781;font-size:11px;}
+.adminRevenueStats strong {color:#452f39;font-size:20px;font-weight:900;}
+.adminRevenueBreakdown {display:flex;flex-wrap:wrap;gap:8px;margin:11px 0 12px;}
+.adminRevenueBreakdown span {
+  border:1px solid #eee4e7;border-radius:100px;padding:6px 8px;
+  font-size:11px;color:#846b75;background:#fff;
+}
+.adminRevenueDetails {margin-top:9px;border:1px solid #eee8eb;border-radius:11px;background:#fff;}
+.adminRevenueDetails summary {padding:12px;font-size:12px;font-weight:800;cursor:pointer;color:#493943;}
+.adminRevenueDetails p {font-size:12px;padding:0 12px;color:#90868c;}
+.adminRevenueNames {display:flex;flex-wrap:wrap;gap:6px;padding:0 12px 12px;}
+.adminMobilePage .adminRevenueNames button {margin:0;padding:8px 10px;font-size:12px;background:#faf6f8;border-radius:8px;color:#7a2638;}
+.adminRevenueTransactions {display:flex;flex-direction:column;gap:7px;padding:0 10px 10px;}
+.adminMobilePage .adminRevenueTransactions button {
+  display:flex;flex-direction:column;align-items:flex-start;gap:5px;width:100%;margin:0;
+  background:#faf9fa;text-align:left;padding:10px;border-radius:9px;
+  color:#55414a;font-size:12px;line-height:1.5;
+}
+.adminRevenueTransactions button span:last-child {font-size:11px;color:#887c84;}
+.adminMobilePage .adminRevenueNote {font-size:11px!important;line-height:1.7!important;color:#92878b!important;margin:13px 0 0!important;}
+.adminMobilePage .adminOneDayCreator .adminOneDayCreatorHeading {
+  display:flex;gap:12px;align-items:center;justify-content:space-between;
+}
+.adminOneDayCreatorHeading h2 {font-size:21px;margin:0;}
+.adminMobilePage .adminOneDayCreatorHeading button {
+  margin:0;white-space:nowrap;padding:10px 11px;border-radius:10px;
+  background:#7a2638;color:#fff;font-size:12px;font-weight:800;
+}
+.adminMobilePage .adminOneDayCreator>p.small {margin:12px 0 0;}
+.adminMobilePage .adminOneDayCreatorForm {margin-top:19px;padding-top:15px;border-top:1px solid #f0e9ec;}
+.adminMobilePage .adminOneDayCreatorForm input,
+.adminMobilePage .adminOneDayCreatorForm textarea {
+  box-sizing:border-box;width:100%;max-width:100%;min-width:0;
+  font-size:16px;line-height:1.45;background:#fff;
+}
+.adminMobilePage .adminOneDayCreatorForm .adminStudentFormPair {
+  display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;
+}
+.adminMobilePage .adminOneDayCreatorForm .adminStudentFormPair>div {min-width:0;}
+.adminMobilePage .adminOneDayCreatorForm input[type="datetime-local"] {
+  padding:8px 5px;font-size:13px;min-width:0;max-width:100%;
+}
+.adminMobilePage .adminOneDayCalendar {padding:16px;}
+.adminOneDayCalendarTitle {display:flex;align-items:center;justify-content:space-between;gap:8px;}
+.adminOneDayCalendarTitle h2 {font-size:19px;margin:0;}
+.adminMobilePage .adminOneDayCalendarTitle>button {
+  font-size:12px;border-radius:8px;background:#faf4f5;color:#772d43;
+  padding:8px 10px;margin:0;
+}
+.adminOneDayCalendarNav {display:flex;align-items:center;justify-content:space-between;margin:18px 0 12px;}
+.adminOneDayCalendarNav strong {font-size:16px;}
+.adminMobilePage .adminOneDayCalendarNav button {
+  width:34px;height:34px;border:1px solid #eee6e9;border-radius:9px;
+  display:flex;align-items:center;justify-content:center;background:#fff;color:#7c4557;padding:0;margin:0;
+}
+.adminOneDayWeekdays,.adminOneDayDays {display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:2px;}
+.adminOneDayWeekdays span {font-size:11px;text-align:center;padding:6px 0;color:#867d83;font-weight:750;}
+.adminOneDayWeekdays span:first-child {color:#c16f85;}
+.adminOneDayWeekdays span:last-child {color:#6c7d97;}
+.adminOneDayDays>span {height:48px;}
+.adminMobilePage .adminOneDayDays>button {
+  min-width:0;width:100%;height:48px;padding:5px 0;display:flex;flex-direction:column;
+  align-items:center;justify-content:center;gap:4px;margin:0;
+  background:#fff;color:#494148;border-radius:9px;border:1px solid transparent;
+}
+.adminOneDayDays button strong {font-size:13px;font-weight:850;}
+.adminMobilePage .adminOneDayDays>button.today:not(.selected) {border-color:#ead5de;background:#fdf8fa;}
+.adminMobilePage .adminOneDayDays>button.selected {background:#7a2638;color:#fff;border-color:#7a2638;}
+.adminOneDayDayDot {width:6px;height:6px;border-radius:50%;background:#8c4a63;}
+.adminOneDayDays button.selected .adminOneDayDayDot {background:#fff;}
+.adminOneDayMonthCount {font-size:11px!important;margin:13px 0 0!important;color:#887f84!important;line-height:1.6!important;}
+.adminOneDayMonthCount b {color:#7a2638;}
+.adminOneDaySelectedDay {border-top:1px solid #eee8eb;margin-top:16px;padding-top:15px;}
+.adminOneDaySelectedDay h3 {display:flex;align-items:center;gap:7px;font-size:16px;margin:0 0 11px;}
+.adminOneDaySelectedDay h3 svg {color:#83465d;}
+.adminOneDaySelectedDay h3 small {font-size:11px;color:#928589;}
+.adminOneDayEmpty {font-size:12px!important;color:#89838a!important;padding:16px 7px!important;text-align:center;}
+.adminOneDaySelectedList {display:flex;flex-direction:column;gap:12px;}
+.adminOneDaySelectedItem {background:#fff;border-radius:12px;padding:0 0 13px;border-bottom:1px solid #eee8eb;min-width:0;}
+.adminOneDaySelectedItemHeading {display:flex;flex-direction:column;gap:5px;padding:9px 0;}
+.adminOneDaySelectedItemHeading b {font-size:14px;}
+.adminOneDaySelectedItemHeading span {font-size:12px;color:#8e8288;}
+.adminOneDayCalendarItemControls>button {
+  width:100%;font-size:12px;margin:4px 0 12px;padding:10px 12px;border-radius:9px;
+  color:#72394d;border:1px solid #eedee4;background:#fbf5f7;
+}
+.adminMobilePage .adminOneDayCalendar .onedayClassCard {
+  box-sizing:border-box;max-width:100%;margin:0;padding:10px;border:1px solid #eee5e9;
+  border-radius:11px;box-shadow:none;background:#fff;
+}
+.adminMobilePage .adminOneDayCalendar .oneDayClassRow {display:flex;flex-direction:column;gap:7px;}
+.adminMobilePage .adminOneDayCalendar .oneDayClassActions {display:flex;flex-wrap:wrap;width:100%;gap:5px;}
+.adminMobilePage .adminOneDayCalendar .oneDayClassActions button {flex:1;margin:0;min-width:0;padding:8px 6px;font-size:11px;}
+.adminMobilePage .adminOneDayApplicant {
+  display:flex;flex-direction:column;gap:8px;border:1px solid #eee6e9;border-radius:11px;
+  padding:13px;background:#fff;margin-bottom:10px;
+}
+.adminOneDayApplicant>div:first-child {display:flex;justify-content:space-between;gap:10px;align-items:center;}
+.adminOneDayApplicant strong {font-size:14px;}
+.adminOneDayApplicant span {font-size:12px;color:#826d79;}
+.adminOneDayApplicant p {font-size:12px!important;margin:0!important;color:#878087!important;}
+.adminOneDayApplicantActions button {padding:10px 13px;font-size:12px;border-radius:9px;}
+@media(max-width:390px){
+  .adminMobilePage .adminRevenueStats strong {font-size:19px;}
+  .adminMobilePage .adminOneDayCalendar {padding:11px;}
+  .adminOneDayWeekdays,.adminOneDayDays {gap:1px;}
+  .adminMobilePage .adminOneDayDays>button,.adminOneDayDays>span {height:44px;}
+  .adminMobilePage .adminOneDayCreatorForm .adminStudentFormPair {grid-template-columns:1fr;}
+}
