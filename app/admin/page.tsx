@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { House, CalendarDays, UsersRound, Settings2, ChevronLeft, ChevronRight, NotebookPen, Send, Copy, Search, UserRoundPlus } from "lucide-react";
+import OneDayImageManager from "./OneDayImageManager";
 import Link from "next/link";
 import { getRegularPassPolicyStatus, PASS_POLICY_START_DATE_KEY, todayDateKeyInKst } from "../../lib/passPolicy";
 
@@ -581,6 +582,7 @@ export default function AdminPage() {
   const [onedayNormalPrice, setOnedayNormalPrice] = useState("30000");
   const [onedayCapacity, setOnedayCapacity] = useState("6");
   const [editingOneDayClassId, setEditingOneDayClassId] = useState<string | null>(null);
+  const [imageManagerClassId, setImageManagerClassId] = useState("");
   const [oneDayClassEdits, setOneDayClassEdits] = useState<Record<string, {
     title: string;
     curriculum: string;
@@ -1919,10 +1921,17 @@ export default function AdminPage() {
               {c.description && <p className="onedayCurriculumPreview" style={{whiteSpace:"pre-line"}}>{c.description}</p>}
             </div>
             <div className="inlineActions oneDayClassActions">
-              <button className="secondary compact" onClick={() => startEditOneDayClass(c)}>수정</button>
-              <button className="danger compact" onClick={() => deleteOnedayClass(c.id, c.title)}>삭제</button>
+              <button type="button" className="secondary compact" onClick={() => startEditOneDayClass(c)}>수정</button>
+              <button type="button" className="secondary compact" onClick={() =>
+                setImageManagerClassId(id=>id===c.id?"":c.id)}>
+                {imageManagerClassId===c.id?"사진 관리 닫기":"사진 관리"}
+              </button>
+              <button type="button" className="danger compact" onClick={() => deleteOnedayClass(c.id, c.title)}>삭제</button>
             </div>
           </div>
+        )}
+        {(isEditing || imageManagerClassId===c.id) && (
+          <OneDayImageManager classId={c.id} password={password}/>
         )}
       </div>
     );
