@@ -2437,3 +2437,304 @@ body { color: var(--text); }
     font-size: 12px;
   }
 }
+
+/* oneday-class-readable-mobile-layout-20261018 */
+/* Keep one-day class information scannable in a narrow phone viewport. */
+.studioApp .oneDayDirectory,
+.studioApp .oneDayClassList,
+.studioApp .oneDayEventCard,
+.studioApp .oneDayEventDetails,
+.studioApp .oneDayEventSection,
+.studioApp .oneDayEventAction {
+  box-sizing: border-box;
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
+}
+.studioApp .oneDayDirectory {
+  margin: 0 0 16px;
+  padding: 19px 17px;
+  border-radius: 18px;
+  border: 1px solid #ece9ea;
+  background: #fff;
+}
+.studioApp .oneDayDirectoryIntro {
+  padding: 1px 2px 15px;
+}
+.studioApp .oneDayDirectoryIntro h2 {
+  margin: 0 0 15px;
+  color: #302b2e;
+  font-size: 19px;
+  font-weight: 850;
+  letter-spacing: -.045em;
+  line-height: 1.4;
+}
+.studioApp .oneDayInfoBadges {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.studioApp .oneDayInfoBadges span {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  min-width: 0;
+  padding: 6px 9px;
+  border-radius: 100px;
+  background: #faf4f5;
+  color: #794254;
+  font-size: 11px;
+  font-weight: 800;
+  line-height: 1.4;
+  white-space: normal;
+}
+.studioApp .oneDayDirectoryIntro > p {
+  margin: 11px 0 0;
+  font-size: 12px;
+  line-height: 1.55;
+  color: #827c7f;
+  overflow-wrap: break-word;
+  word-break: keep-all;
+}
+.studioApp .oneDayClassList {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+.studioApp .oneDayEventCard {
+  overflow: hidden;
+  border: 1px solid #e9e4e7;
+  border-radius: 16px;
+  background: #fff;
+}
+.studioApp .oneDayEventTop {
+  padding: 21px 17px 18px;
+  border-bottom: 1px solid #efebed;
+}
+.studioApp .oneDayEventEyebrow {
+  width: fit-content;
+  margin: 0 0 9px;
+  padding: 5px 8px;
+  border-radius: 6px;
+  color: #8b4c5d;
+  background: #fbf0f3;
+  font-size: 11px;
+  font-weight: 800;
+  line-height: 1.4;
+}
+.studioApp .oneDayEventTop h3 {
+  margin: 0 0 16px;
+  color: #322a2f;
+  font-size: 21px;
+  line-height: 1.45;
+  letter-spacing: -.045em;
+  font-weight: 850;
+  overflow-wrap: anywhere;
+  word-break: keep-all;
+}
+.studioApp .oneDayEventSchedule {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px 17px;
+}
+.studioApp .oneDayEventSchedule > div {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  min-width: 0;
+  color: #756e73;
+  line-height: 1.5;
+  font-size: 13px;
+  word-break: keep-all;
+}
+.studioApp .oneDayEventSchedule svg {
+  flex: 0 0 auto;
+  color: #8f6673;
+}
+.studioApp .oneDayEventSchedule strong {
+  color: #49313c;
+  font-size: 13px;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+}
+.studioApp .oneDayEventDetails {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: 19px 16px 17px;
+}
+.studioApp .oneDayEventSection {
+  overflow: hidden;
+}
+.studioApp .oneDayEventSection h4 {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0 0 12px;
+  color: #363035;
+  font-size: 15px;
+  line-height: 1.5;
+  font-weight: 850;
+}
+.studioApp .oneDayEventSection h4 svg {
+  color: #8b5262;
+  flex: 0 0 auto;
+}
+.studioApp .oneDayEventSection ul {
+  display: grid;
+  gap: 10px;
+  padding: 0;
+  margin: 0;
+  list-style: none;
+}
+.studioApp .oneDayEventSection li {
+  margin: 0;
+  min-width: 0;
+  color: #595257;
+  font-size: 13px;
+  font-weight: 450;
+  line-height: 1.65;
+  overflow-wrap: break-word;
+  word-break: keep-all;
+}
+.studioApp .oneDayIntroSteps li {
+  display: grid;
+  grid-template-columns: 25px minmax(0, 1fr);
+  align-items: start;
+  gap: 8px;
+}
+.studioApp .oneDayStepMarker {
+  display: inline-flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding-top: 1px;
+  font-size: 11px;
+  line-height: 1.8;
+  font-weight: 900;
+  color: #ae8090;
+  font-variant-numeric: tabular-nums;
+}
+.studioApp .oneDayPreparation {
+  padding: 15px 14px;
+  border: 1px solid #eee7e9;
+  border-radius: 13px;
+  background: #fbf8f9;
+}
+.studioApp .oneDayPreparation ul {
+  gap: 9px;
+}
+.studioApp .oneDayPreparation li {
+  display: grid;
+  grid-template-columns: 18px minmax(0, 1fr);
+  align-items: start;
+  gap: 9px;
+}
+.studioApp .oneDayPreparation li svg {
+  color: #8f6070;
+  margin-top: 3px;
+}
+.studioApp .oneDayCautions {
+  padding: 0 2px;
+}
+.studioApp .oneDayCautions h4 {
+  font-size: 13px;
+  margin-bottom: 8px;
+  color: #756b70;
+}
+.studioApp .oneDayCautions h4 svg {
+  color: #98868d;
+}
+.studioApp .oneDayCautions ul {
+  gap: 6px;
+}
+.studioApp .oneDayCautions li {
+  position: relative;
+  padding-left: 13px;
+  color: #858087;
+  font-size: 12px;
+}
+.studioApp .oneDayCautions li::before {
+  content: "•";
+  position: absolute;
+  left: 2px;
+  color: #aea4a9;
+}
+.studioApp .oneDayEventAction {
+  padding: 14px 16px 16px;
+  border-top: 1px solid #eee9eb;
+  background: #fff;
+}
+.studioApp .oneDaySeats {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 9px;
+  margin-bottom: 12px;
+  font-size: 12px;
+  color: #858084;
+}
+.studioApp .oneDaySeats strong {
+  color: #7d3549;
+  font-size: 13px;
+  font-weight: 850;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+.studioApp .oneDayApplyButton {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  min-height: 45px;
+  max-width: 100%;
+  margin: 0;
+  padding: 11px 13px;
+  border: 1px solid #7a2638;
+  border-radius: 11px;
+  background: #7a2638;
+  color: #fff;
+  box-shadow: none;
+  font-size: 14px;
+  font-weight: 850;
+}
+.studioApp .oneDayApplyButton:hover {
+  background: #6b2031;
+}
+.studioApp .oneDayEmpty {
+  padding: 28px 14px;
+  color: #827b80;
+  text-align: center;
+  font-size: 13px;
+  border: 1px dashed #eae5e8;
+  border-radius: 13px;
+}
+.studioApp .oneDayApplicationForm {
+  scroll-margin-top: 20px;
+}
+@media (max-width: 420px) {
+  .studioApp .oneDayDirectory {
+    padding: 16px 12px;
+    border-radius: 17px;
+  }
+  .studioApp .oneDayEventTop {
+    padding: 17px 13px 16px;
+  }
+  .studioApp .oneDayEventTop h3 {
+    font-size: 20px;
+  }
+  .studioApp .oneDayEventDetails {
+    padding: 17px 12px 15px;
+    gap: 16px;
+  }
+  .studioApp .oneDayEventAction {
+    padding: 13px 12px 14px;
+  }
+  .studioApp .oneDayPreparation {
+    padding: 13px 11px;
+  }
+  .studioApp .oneDayEventSection li {
+    font-size: 12.5px;
+  }
+}
