@@ -320,12 +320,12 @@ export default function RegularPage() {
     setWaitlist(json.waitlist || []);
   }
 
-  async function applyWaitlist(slotId: string) {
+  async function applyWaitlist(slotId: string, lifestyleClassName?: "1:1 서평생활" | "1:1 필사생활") {
     if (!student) return;
     setMessage("");
     const res = await fetch("/api/regular-waitlist", {
       method:"POST", headers:{"Content-Type":"application/json"},
-      body:JSON.stringify({studentId:student.id,slotId}),
+      body:JSON.stringify({studentId:student.id,slotId,lifestyleClassName}),
     });
     const json = await res.json();
     setMessage(res.ok ? `대기 ${json.position}번으로 접수되었습니다. 수강권은 아직 차감되지 않습니다.` : json.message || "대기 신청에 실패했습니다.");
@@ -778,8 +778,17 @@ export default function RegularPage() {
                                     onClick={() => cancelWaitlist(waitlist.find((item)=>item.slot_id===slot.id)!.id)}>대기 취소</button>
                                 </>
                               ) : (
-                                <button type="button" style={styles.timelineSecondaryButton}
-                                  onClick={() => applyWaitlist(slot.id)}>대기 신청하기</button>
+                                slot.is_lifestyle ? (
+                                  <>
+                                    <button type="button" style={styles.timelineSecondaryButton}
+                                      onClick={() => applyWaitlist(slot.id,"1:1 서평생활")}>서평생활 대기</button>
+                                    <button type="button" style={styles.timelineSecondaryButton}
+                                      onClick={() => applyWaitlist(slot.id,"1:1 필사생활")}>필사생활 대기</button>
+                                  </>
+                                ) : (
+                                  <button type="button" style={styles.timelineSecondaryButton}
+                                    onClick={() => applyWaitlist(slot.id)}>대기 신청하기</button>
+                                )
                               )}
                             </div>
                           ) : slot.is_lifestyle ? (
