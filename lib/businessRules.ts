@@ -61,9 +61,9 @@ export function isAutoAdjustmentCandidate(startAt: string, lessonMinutes: unknow
 export const WEEKDAY_START_TIME = "14:00";
 export const WEEKDAY_LAST_START_TIME = "20:40";
 export const WEEKDAY_END_TIME = "22:10";
-export const WEEKEND_START_TIME = "12:00";
+export const WEEKEND_START_TIME = "10:00";
 export const WEEKEND_LAST_START_TIME = "16:30";
-export const WEEKEND_END_TIME = "18:00";
+export const WEEKEND_END_TIME = "17:15";
 export const OCTOBER_TIMETABLE_START_DATE_KEY = "2026-10-01";
 export const LIFESTYLE_CLASS_CREDIT_COST_FOR_90 = 0.5;
 export const LIFESTYLE_CLASS_CREDIT_COST_FOR_45 = 1;
@@ -81,8 +81,10 @@ export const WEEKDAY_VISIBLE_TIMETABLE_START_TIMES = Array.from(new Set([
   ...WEEKDAY_REGULAR_START_TIMES,
   ...WEEKDAY_LIFESTYLE_START_TIMES,
 ]));
-export const WEEKEND_REGULAR_START_TIMES = ["12:00", "14:00", "16:00"];
+export const WEEKEND_REGULAR_START_TIMES = ["10:00", "13:00", "14:40"];
+// 주말 45분 정규수업도 정규수업 칸에서만 예약해 생활수업과 시간 충돌을 방지합니다.
 export const WEEKEND_REGULAR_START_TIMES_45 = [...WEEKEND_REGULAR_START_TIMES];
+// 생활수업은 정규수업 시간에 열리지 않습니다. 강사 1명이 모든 수업을 진행합니다.
 export const WEEKEND_LIFESTYLE_START_TIMES = ["12:00", "16:30"];
 
 export const WEEKDAY_ALL_TIMETABLE_START_TIMES = Array.from(new Set([
