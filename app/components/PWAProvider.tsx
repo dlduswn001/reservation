@@ -20,7 +20,15 @@ export default function PWAProvider() {
         updateViaCache: "none",
       })
       .then((registration) => {
-        registration.update().catch(() => undefined);
+        const refreshServiceWorker = () => {
+          if (document.visibilityState === "visible") {
+            registration.update().catch(() => undefined);
+          }
+        };
+        refreshServiceWorker();
+        window.addEventListener("pageshow", refreshServiceWorker);
+        document.addEventListener("visibilitychange", refreshServiceWorker);
+        return registration;
       })
       .catch((error) => {
         console.error("서비스 워커 등록 실패:", error);
