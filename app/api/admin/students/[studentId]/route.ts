@@ -54,6 +54,8 @@ export async function PATCH(request: Request, context: { params: Promise<{ stude
     const { studentId } = await context.params;
     const name = String(body.name || "").trim();
     const phoneLast4 = String(body.phone_last4 || "").trim();
+    const phoneNumber = body.phone_number === undefined ? undefined
+      : String(body.phone_number || "").replace(/[^0-9]/g, "");
     const memo = String(body.memo || "").trim();
     const lessonCredits = Number(body.lesson_credits ?? 0);
     const isActive = body.is_active !== false;
@@ -66,6 +68,10 @@ export async function PATCH(request: Request, context: { params: Promise<{ stude
     if (!name || !/^\d{4}$/.test(phoneLast4)) {
       return NextResponse.json({ message: "이름과 핸드폰번호 뒷자리 4자리를 정확히 입력해 주세요." }, { status: 400 });
     }
+    if (phoneNumber !== undefined && phoneNumber !== "" &&
+      (!/^01[016789][0-9]{7,8}$/.test(phoneNumber) || !phoneNumber.endsWith(phoneLast4))) {
+      return NextResponse.json({message:"전체 휴대폰 번호를 확인해 주세요. 끝 4자리와 일치해야 합니다."},{status:400});
+    }
     if (!Number.isFinite(lessonCredits) || lessonCredits < 0) {
       return NextResponse.json({ message: "수강권 횟수는 0 이상의 숫자로 입력해 주세요." }, { status: 400 });
     }
@@ -74,6 +80,7 @@ export async function PATCH(request: Request, context: { params: Promise<{ stude
     const basePayload = {
       name,
       phone_last4: phoneLast4,
+      ...(phoneNumber !== undefined ? {phone_number: phoneNumber || null} : {}),
       // Preserve the existing private memo if the new UI does not show it.
       ...("memo" in body ? { memo } : {}),
       lesson_credits: Number(lessonCredits.toFixed(2)),
