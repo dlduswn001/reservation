@@ -156,3 +156,49 @@ language sql stable security invoker set search_path = '' as $$
 $$;
 revoke all on function public.munjang_admin_student_statuses() from public,anon,authenticated;
 grant execute on function public.munjang_admin_student_statuses() to service_role;
+
+-- Atomic creation of a student and optional first-payment ledger entry.
+create or replace function public.munjang_admin_create_student(
+  p_name text,
+  p_phone_last4 text,
+  p_phone_number text,
+  p_initial_credits numeric,
+  p_duration integer,
+  p_registered_at date,
+  p_paid_amount integer default 0
+) returns uuid
+language plpgsql security invoker set search_path = '' as $$
+declare v_id uuid;
+begin
+  if nullif(trim(p_name),'') is null
+    or p_phone_last4 !~ '^\\d{4}$'
+    or p_initial_credits < 0 or p_initial_credits > 1000
+    or p_duration not in (45,90,120)
+    or p_paid_amount < 0
+    or (nullif(p_phone_number,'') is not null and
+       (p_phone_number !~ '^01[016789][0-9]{7,8}$'
+         or right(p_phone_number,4)<>p_phone_last4)) then
+    raise exception 'Invalid student input';
+  end if;
+  insert into public.students (
+    name,phone_last4,phone_number,lesson_credits,lesson_duration_minutes,
+    pass_registered_at,is_active
+  ) values(
+    trim(p_name),p_phone_last4,nullif(p_phone_number,''),
+    p_initial_credits,p_duration,p_registered_at,true
+  ) returning id into v_id;
+
+  if p_paid_amount > 0 then
+    insert into public.student_registration_payments
+      (student_id,payment_date,registration_type,amount_krw,credits_added)
+    values(
+      v_id,coalesce(p_registered_at,(now() at time zone 'Asia/Seoul')::date),
+      'new',p_paid_amount,p_initial_credits
+    );
+  end if;
+  return v_id;
+end $$;
+revoke all on function public.munjang_admin_create_student(text,text,text,numeric,integer,date,integer)
+  from public,anon,authenticated;
+grant execute on function public.munjang_admin_create_student(text,text,text,numeric,integer,date,integer)
+  to service_role;
