@@ -1447,6 +1447,93 @@ export default function AdminPage() {
     return Array.from(grouped.values());
   }, [overview, todayKey]);
 
+  // A month-wide view of actual lessons. Available-but-unbooked slots are not
+  // lessons and intentionally have no calendar marker.
+  // Directly entered lessons are in regular_bookings; manual outside/experience
+  // schedules are in blocked_times, and one-day lessons in oneday_classes.
+  const homeItemsByDay = useMemo<Record<string, TodayScheduleItem[]>>(() => {
+    const grouped: Record<string, TodayScheduleItem[]> = {};
+    if (!overview) return grouped;
+
+    const add = (item: TodayScheduleItem) => {
+      const dateKey = seoulDateKey(item.start_at);
+      (grouped[dateKey] ||= []).push(item);
+    };
+
+    for (const booking of overview.bookings || []) {
+      if (["cancelled", "late_cancelled"].includes(booking.status)) continue;
+      add({
+        id: `calendar-regular-${booking.id}`,
+        type: "regular",
+        start_at: booking.start_at,
+        end_at: booking.end_at,
+        label: "정규수업",
+        title: booking.students?.name || "수강생 이름 없음",
+        subtitle: STATUS_LABELS[booking.status] || booking.status,
+        detail: booking.memo || undefined,
+      });
+    }
+    for (const block of overview.blockedTimes || []) {
+      add({
+        id: `calendar-block-${block.id}`,
+        type: "block",
+        start_at: block.start_at,
+        end_at: block.end_at,
+        label: "관리자 일정",
+        title: block.title || "외부 일정 / 체험수업",
+        subtitle: block.memo || "관리자가 직접 등록한 일정",
+      });
+    }
+    for (const klass of overview.classes || []) {
+      const applications = (overview.onedayBookings || []).filter(
+        (booking) => (booking.class_id || booking.oneday_classes?.id) === klass.id
+          && isActiveOneDayBooking(booking.status),
+      );
+      add({
+        id: `calendar-oneday-${klass.id}`,
+        type: "oneday",
+        start_at: klass.start_at,
+        end_at: klass.end_at,
+        label: "원데이",
+        title: klass.title || "원데이 클래스",
+        subtitle: `신청 ${applications.length}건 · 정원 ${klass.capacity || 0}명`,
+        detail: klass.description || undefined,
+      });
+    }
+
+    for (const dateKey of Object.keys(grouped)) {
+      grouped[dateKey].sort((a,b) =>
+        new Date(a.start_at).getTime() - new Date(b.start_at).getTime());
+    }
+    return grouped;
+  }, [overview]);
+
+  const homeCalendarDays = useMemo(
+    () => buildCalendarDays(homeCalendarMonth.year, homeCalendarMonth.month),
+    [homeCalendarMonth],
+  );
+  const homeMonthKey = `${homeCalendarMonth.year}-${String(homeCalendarMonth.month).padStart(2,"0")}`;
+  const homeMonthlyCount = Object.entries(homeItemsByDay)
+    .filter(([day]) => day.startsWith(homeMonthKey))
+    .reduce((total, [,items]) => total + items.length, 0);
+  const homeSelectedItems = homeItemsByDay[homeSelectedDate] || [];
+
+  function moveHomeMonth(direction: -1 | 1) {
+    const target = new Date(Date.UTC(homeCalendarMonth.year, homeCalendarMonth.month - 1 + direction, 1));
+    const year = target.getUTCFullYear();
+    const month = target.getUTCMonth() + 1;
+    setHomeCalendarMonth({ year, month });
+    const targetKey = `${year}-${String(month).padStart(2,"0")}`;
+    const today = todaySeoulDateKey();
+    setHomeSelectedDate(today.startsWith(targetKey) ? today : `${targetKey}-01`);
+  }
+  function goHomeToday() {
+    const today = todaySeoulDateKey();
+    const [year,month] = today.split("-").map(Number);
+    setHomeCalendarMonth({ year,month });
+    setHomeSelectedDate(today);
+  }
+
   const bookedSlotIds = useMemo(() => {
     return new Set(
       (overview?.bookings || [])
