@@ -30,6 +30,9 @@ type Slot = {
   is_lifestyle?: boolean;
   is_waitlist?: boolean;
   is_closed?: boolean;
+  is_dual_noon?: boolean;
+  regular_option_status?: "available" | "waitlist" | "closed";
+  lifestyle_option_status?: "available" | "waitlist" | "closed";
 };
 
 type WaitEntry = {
@@ -323,7 +326,7 @@ export default function RegularPage() {
     setWaitlist(json.waitlist || []);
   }
 
-  async function applyWaitlist(slotId: string, lifestyleClassName?: "1:1 서평생활" | "1:1 필사생활") {
+  async function applyWaitlist(slotId: string, lifestyleClassName?: "정규수업" | "1:1 서평생활" | "1:1 필사생활") {
     if (!student) return;
     setMessage("");
     const res = await fetch("/api/regular-waitlist", {
@@ -477,8 +480,13 @@ export default function RegularPage() {
   }, [availableDateKeys, activeCalendarMonth, dateKeysByMonth]);
 
   const selectedSlots = selectedDate ? slotsByDate[selectedDate] || [] : [];
+  // A started lesson no longer has a live queue, even before the next refresh.
+  const visibleWaitlist = waitlist.filter((item) => (
+    item.available_slots?.start_at
+    && new Date(item.available_slots.start_at).getTime() > currentTime
+  ));
 
-  async function book(slot: Slot, lifestyleClassName?: "1:1 서평생활" | "1:1 필사생활") {
+  async function book(slot: Slot, lifestyleClassName?: "정규수업" | "1:1 서평생활" | "1:1 필사생활") {
     if (!student) return;
     if (slot.is_lifestyle && !lifestyleClassName) {
       setMessage("1:1 서평생활 또는 1:1 필사생활을 선택해 주세요.");
@@ -599,10 +607,10 @@ export default function RegularPage() {
 
       {student && (
         <>
-          {waitlist.length > 0 && (
+          {visibleWaitlist.length > 0 && (
             <section className="card" style={styles.cardFix}>
               <h2>내 대기 신청</h2>
-              {waitlist.map(item => (
+              {visibleWaitlist.map(item => (
                 <div key={item.id} className="item" style={{display:"flex",justifyContent:"space-between",gap:10,alignItems:"center",flexWrap:"wrap"}}>
                   <span><strong>{item.available_slots?.start_at ? formatDateTime(item.available_slots.start_at) : "수업 시간"}</strong> · 대기 {item.position}번</span>
                   <button className="secondary compact" onClick={()=>cancelWaitlist(item.id)}>대기 취소</button>
@@ -774,9 +782,9 @@ export default function RegularPage() {
                         </div>
                         <div style={styles.timelineContent}>
                           <div style={styles.timelineTopLine}>
-                            <strong style={styles.timelineTime}>{formatTime(slot.start_at)} – {formatTime(slot.end_at)}</strong>
+                            <strong style={styles.timelineTime}>{slot.is_dual_noon ? `${formatTime(slot.start_at)} 시작` : `${formatTime(slot.start_at)} – ${formatTime(slot.end_at)}`}</strong>
                             <span style={slot.is_closed ? styles.timelineClosedLabel : styles.timelineDuration}>
-                              {slot.is_closed ? "마감" : slot.is_waitlist ? "예약 마감 · 대기 가능" : slot.is_lifestyle ? "45분" : `${slot.lesson_minutes || 90}분`}
+                              {slot.is_dual_noon ? "정규수업 · 생활수업 선택" : slot.is_closed ? "마감" : slot.is_waitlist ? "예약 마감 · 대기 가능" : slot.is_lifestyle ? "45분" : `${slot.lesson_minutes || 90}분`}
                             </span>
                           </div>
                           <p style={styles.timelineDescription}>
@@ -784,17 +792,47 @@ export default function RegularPage() {
                               ? `1:1 서평생활 / 필사생활 · ${lifestyleCreditText} 차감`
                               : "1:1 정규수업 · 수강권 1회 차감")}
                           </p>
-                          {slot.is_closed ? (
+                          {slot.is_dual_noon ? (
+                            <div style={styles.timelineActions}>
+                              {visibleWaitlist.find((item) => item.slot_id === slot.id) ? (
+                                <>
+                                  <strong style={{fontSize:13,color:"#79283E"}}>
+                                    대기 {visibleWaitlist.find((item)=>item.slot_id===slot.id)?.position}번
+                                  </strong>
+                                  <button type="button" className="secondary compact"
+                                    onClick={() => cancelWaitlist(visibleWaitlist.find((item)=>item.slot_id===slot.id)!.id)}>대기 취소</button>
+                                </>
+                              ) : (
+                                <>
+                                  {([
+                                    {label:"정규수업",choice:"정규수업",state:slot.regular_option_status,cost:1},
+                                    {label:"서평생활",choice:"1:1 서평생활",state:slot.lifestyle_option_status,cost:studentLessonMinutes===45?1:0.5},
+                                    {label:"필사생활",choice:"1:1 필사생활",state:slot.lifestyle_option_status,cost:studentLessonMinutes===45?1:0.5},
+                                  ] as const).map((option) => option.state === "closed" ? (
+                                    <span key={option.choice} style={styles.timelineClosedButton}>{option.label} 마감</span>
+                                  ) : (
+                                    <button key={option.choice} type="button" style={styles.timelineSecondaryButton}
+                                      disabled={option.state === "available" && (student.lesson_credits ?? 0) < option.cost}
+                                      onClick={() => option.state === "waitlist"
+                                        ? applyWaitlist(slot.id,option.choice)
+                                        : book(slot,option.choice)}>
+                                      {option.label} {option.state === "waitlist" ? "대기 신청" : "신청"}
+                                    </button>
+                                  ))}
+                                </>
+                              )}
+                            </div>
+                          ) : slot.is_closed ? (
                             <div style={styles.timelineActions}>
                               <span style={styles.timelineClosedButton} aria-label="예약 및 대기 신청 마감">마감</span>
                             </div>
                           ) : slot.is_waitlist ? (
                             <div style={styles.timelineActions}>
-                              {waitlist.find((item) => item.slot_id === slot.id) ? (
+                              {visibleWaitlist.find((item) => item.slot_id === slot.id) ? (
                                 <>
-                                  <strong style={{fontSize:13,color:"#79283E"}}>대기 {waitlist.find((item)=>item.slot_id===slot.id)?.position}번</strong>
+                                  <strong style={{fontSize:13,color:"#79283E"}}>대기 {visibleWaitlist.find((item)=>item.slot_id===slot.id)?.position}번</strong>
                                   <button type="button" className="secondary compact"
-                                    onClick={() => cancelWaitlist(waitlist.find((item)=>item.slot_id===slot.id)!.id)}>대기 취소</button>
+                                    onClick={() => cancelWaitlist(visibleWaitlist.find((item)=>item.slot_id===slot.id)!.id)}>대기 취소</button>
                                 </>
                               ) : (
                                 slot.is_lifestyle ? (
