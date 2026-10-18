@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import type { CSSProperties } from "react";
 import BottomNav from "../components/BottomNav";
+import { disconnectPushOnLogout } from "../../lib/pushClient";
 
 type Student = {
   id: string;
@@ -500,6 +501,7 @@ export default function RegularPage() {
   }
 
   function logoutStudent() {
+    void disconnectPushOnLogout(student);
     clearStoredStudentLogin();
     setStudent(null);
     setName("");
