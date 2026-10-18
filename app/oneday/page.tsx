@@ -2,10 +2,15 @@
 
 import { useEffect, useState } from "react";
 import BottomNav from "../components/BottomNav";
+import { ArrowRight, BookOpenText, CalendarDays, CheckCircle2, ChevronLeft, ChevronRight, Clock3, ClipboardList, Image as ImageIcon, Info, UsersRound, X } from "lucide-react";
 
+type OneDayPhoto = {
+  id: string; public_url: string; caption: string; is_cover: boolean;
+};
 type Lesson = {
   id: string; title: string; start_at: string; end_at: string;
   description?: string | null; remaining: number; waiting_count?: number;
+  images?: OneDayPhoto[];
 };
 type Booking = {
   id: string; people_count?: number; status?: string; waitlist_position?: number | null;
@@ -29,6 +34,55 @@ function formatDate(value: string) {
     weekday: "short", hour: "2-digit", minute: "2-digit",
   }).format(new Date(value));
 }
+function formatClassDay(value: string) {
+  return new Intl.DateTimeFormat("ko-KR", {
+    timeZone: "Asia/Seoul", month: "long", day: "numeric", weekday: "short",
+  }).format(new Date(value));
+}
+function formatClassTime(value: string) {
+  return new Intl.DateTimeFormat("ko-KR", {
+    timeZone: "Asia/Seoul", hour: "numeric", minute: "2-digit", hour12: true,
+  }).format(new Date(value));
+}
+function formatClassTimeRange(start: string, end: string) {
+  return `${formatClassTime(start)} – ${formatClassTime(end)}`;
+}
+type ClassSections = { introduction: string[]; preparation: string[]; cautions: string[] };
+function parseClassSections(description?: string | null): ClassSections {
+  const result: ClassSections = { introduction: [], preparation: [], cautions: [] };
+  const copy = (description || "").replace(/(?:원데이 클래스 신청 후|입금 안내)[\s\S]*$/, "").trim();
+  if (!copy) return result;
+  let current: keyof ClassSections = "introduction";
+
+  for (const original of copy.split(/\r?\n/)) {
+    const line = original.trim();
+    if (!line) continue;
+    const heading = line.replace(/^#+\s*/, "").replace(/[:：]$/, "").trim();
+    if (/^(?:수업\s*소개|클래스\s*소개|수업\s*내용|커리큘럼)$/.test(heading)) {
+      current = "introduction";
+      continue;
+    }
+    if (/^(?:준비물|준비물\s*안내|수업\s*준비물)$/.test(heading)) {
+      current = "preparation";
+      continue;
+    }
+    if (/^(?:유의사항|주의사항|참고사항|안내사항)$/.test(heading)) {
+      current = "cautions";
+      continue;
+    }
+    const clean = line.replace(/^(?:[-•·✓✔]\s*|\d+[.)]\s*)/, "").trim();
+    if (clean) result[current].push(clean);
+  }
+  return result;
+}
+function getClassHeading(value: string) {
+  const parts = value.split(/\s*\|\s*/);
+  if (parts.length < 2) return { eyebrow: "문장학교 클래스", heading: value };
+  return {
+    eyebrow: parts[0].trim(),
+    heading: parts.slice(1).join(" | ").trim(),
+  };
+}
 function dayKey(value: string | number) {
   return new Intl.DateTimeFormat("en-CA", {
     timeZone: "Asia/Seoul", year: "numeric", month: "2-digit", day: "2-digit",
@@ -40,6 +94,8 @@ export default function OneDayPage() {
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
   const [selectedId, setSelectedId] = useState("");
+  const [photoIndexByClass, setPhotoIndexByClass] = useState<Record<string,number>>({});
+  const [previewPhoto, setPreviewPhoto] = useState<{classId:string;index:number}|null>(null);
   const [withGuest, setWithGuest] = useState(false);
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState("");
@@ -120,6 +176,10 @@ export default function OneDayPage() {
   }
   const available = classes.filter((c) => new Date(c.start_at).getTime() - now >= CUTOFF_MS);
   const selected = classes.find((c) => c.id === selectedId);
+  const previewLesson = previewPhoto && classes.find((klass) => klass.id === previewPhoto.classId);
+  const previewImages = previewLesson?.images || [];
+  const previewIndex = previewPhoto && previewImages.length
+    ? ((previewPhoto.index % previewImages.length) + previewImages.length) % previewImages.length : 0;
   const people = withGuest ? 2 : 1;
   return (
     <main className="container studioApp" style={{ maxWidth: 760, paddingBottom: 90 }}>
@@ -128,29 +188,149 @@ export default function OneDayPage() {
         <p style={secondary}>정규수강생과 함께 읽고, 쓰고, 새로운 경험을 나누는 시간</p>
       </header>
       {message && <div role="status" style={{ ...simpleCard, background: "#fafafa", fontSize: 14 }}>{message}</div>}
-      <section style={simpleCard}>
-        <h2 style={{ fontSize: 18, marginBottom: 12 }}>원데이 클래스 소개 및 신청</h2>
-        <p style={secondary}>정규수강생 전용 · 정원 6명(동반자 포함) · 수업 시작 3시간 전까지 신청 가능 · 마감 시 대기 접수</p>
-        <p style={secondary}>가족 또는 친구를 1명 동반할 수 있습니다. 수업 당일에는 취소할 수 없습니다.</p>
-        {available.length === 0 && <p style={secondary}>현재 신청 가능한 클래스가 없습니다.</p>}
-        {available.map((lesson) => (
-          <article key={lesson.id} style={{ borderTop: "1px solid #ededed", padding: "16px 0" }}>
-            <strong style={{ display: "block", fontSize: 16 }}>{lesson.title}</strong>
-            <p style={{ ...secondary, marginTop: 5 }}>{formatDate(lesson.start_at)}</p>
-            {lesson.description && <p style={{ fontSize: 14, whiteSpace: "pre-wrap", lineHeight: 1.7 }}>{lesson.description.replace(/(?:원데이 클래스 신청 후|입금 안내)[\s\S]*$/,"").trim()}</p>}
-            <p style={secondary}>{lesson.waiting_count ? `대기 ${lesson.waiting_count}명 · 대기 접수 가능` : lesson.remaining > 0 ? `남은 자리 ${lesson.remaining} / 6` : "정원 마감 · 대기 접수 가능"}</p>
-            <button type="button" className="secondary" disabled={false}
-              onClick={() => { setSelectedId(lesson.id); setWithGuest(false); }}>
-              {selectedId === lesson.id ? "선택됨" : lesson.remaining < 1 || (lesson.waiting_count || 0) > 0 ? "대기 신청하기" : "신청하기"}
-            </button>
-          </article>
-        ))}
+      <section className="oneDayDirectory" aria-label="문장학교 원데이 클래스 목록">
+        <div className="oneDayDirectoryIntro">
+          <h2>원데이 클래스 소개 및 신청</h2>
+          <div className="oneDayInfoBadges" aria-label="신청 안내">
+            <span><UsersRound size={13} aria-hidden="true"/> 정규수강생 전용</span>
+            <span>정원 6명</span>
+            <span><Clock3 size={13} aria-hidden="true"/> 시작 3시간 전까지</span>
+          </div>
+          <p>가족·친구 1명 동반 가능 · 수업 당일 취소 불가</p>
+        </div>
+        {available.length === 0 && (
+          <div className="oneDayEmpty" role="status">현재 신청 가능한 클래스가 없습니다.</div>
+        )}
+        <div className="oneDayClassList">
+          {available.map((lesson) => {
+            const sections = parseClassSections(lesson.description);
+            const heading = getClassHeading(lesson.title);
+            const waiting = (lesson.waiting_count || 0) > 0 || lesson.remaining <= 0;
+            const actionTitle = waiting ? "대기 신청하기" : "신청하기";
+            const photos = lesson.images || [];
+            const currentIndex = photos.length
+              ? Math.min(Math.max(0,photoIndexByClass[lesson.id] || 0),photos.length-1) : 0;
+            const currentPhoto = photos[currentIndex];
+            return (
+              <article className="oneDayEventCard" key={lesson.id}>
+                <div className="oneDayEventTop">
+                  <p className="oneDayEventEyebrow">{heading.eyebrow}</p>
+                  <h3>{heading.heading}</h3>
+                  <div className="oneDayEventSchedule" aria-label="수업 일정">
+                    <div><CalendarDays size={16} aria-hidden="true"/><span>{formatClassDay(lesson.start_at)}</span></div>
+                    <div><Clock3 size={16} aria-hidden="true"/><strong>{formatClassTimeRange(lesson.start_at, lesson.end_at)}</strong></div>
+                  </div>
+                </div>
+
+                {currentPhoto && (
+                  <section className="oneDayReferenceGallery" aria-label="클래스 참고 사진">
+                    <div className="oneDayReferenceHeading">
+                      <span><ImageIcon size={16} aria-hidden="true"/> 사진으로 미리보기</span>
+                      <small>{currentIndex + 1} / {photos.length}</small>
+                    </div>
+                    <div className="oneDayGalleryFrame">
+                      <button type="button" className="oneDayPhotoOpen" 
+                        onClick={() => setPreviewPhoto({classId:lesson.id,index:currentIndex})}
+                        aria-label={`${heading.heading} 참고 사진 ${currentIndex+1}번 크게 보기`}>
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img src={currentPhoto.public_url}
+                          alt={currentPhoto.caption || `${heading.heading} 참고 이미지 ${currentIndex+1}`}
+                          loading="lazy" decoding="async" />
+                        <span className="oneDayPhotoZoomHint">사진 크게 보기</span>
+                      </button>
+                      {photos.length > 1 && (
+                        <>
+                          <button type="button" className="oneDayPhotoArrow left"
+                            aria-label="이전 참고 사진"
+                            onClick={() => setPhotoIndexByClass((cur) => ({
+                              ...cur,[lesson.id]:(currentIndex - 1 + photos.length)%photos.length,
+                            }))}><ChevronLeft size={22}/></button>
+                          <button type="button" className="oneDayPhotoArrow right"
+                            aria-label="다음 참고 사진"
+                            onClick={() => setPhotoIndexByClass((cur) => ({
+                              ...cur,[lesson.id]:(currentIndex + 1)%photos.length,
+                            }))}><ChevronRight size={22}/></button>
+                        </>
+                      )}
+                    </div>
+                    {currentPhoto.caption && <p className="oneDayPhotoCaption">{currentPhoto.caption}</p>}
+                    {photos.length > 1 && (
+                      <div className="oneDayPhotoDots" role="group" aria-label="사진 선택">
+                        {photos.map((photo,index) => (
+                          <button type="button" key={photo.id}
+                            aria-label={`${index+1}번 참고 사진`}
+                            aria-current={currentIndex === index ? "true" : undefined}
+                            className={currentIndex === index ? "active" : ""}
+                            onClick={() => setPhotoIndexByClass(cur=>({...cur,[lesson.id]:index}))}/>
+                        ))}
+                      </div>
+                    )}
+                  </section>
+                )}
+
+                <div className="oneDayEventDetails">
+                  {sections.introduction.length > 0 && (
+                    <section className="oneDayEventSection">
+                      <h4><BookOpenText size={17} aria-hidden="true"/> 수업 소개</h4>
+                      <ul className="oneDayIntroSteps">
+                        {sections.introduction.map((line, index) => (
+                          <li key={index}><span className="oneDayStepMarker">{String(index + 1).padStart(2, "0")}</span><span>{line}</span></li>
+                        ))}
+                      </ul>
+                    </section>
+                  )}
+                  {sections.preparation.length > 0 && (
+                    <section className="oneDayEventSection oneDayPreparation">
+                      <h4><ClipboardList size={17} aria-hidden="true"/> 준비물</h4>
+                      <ul>
+                        {sections.preparation.map((line,index) => (
+                          <li key={index}><CheckCircle2 size={16} aria-hidden="true"/><span>{line}</span></li>
+                        ))}
+                      </ul>
+                    </section>
+                  )}
+                  {sections.cautions.length > 0 && (
+                    <section className="oneDayEventSection oneDayCautions">
+                      <h4><Info size={17} aria-hidden="true"/> 유의사항</h4>
+                      <ul>{sections.cautions.map((line,index) => <li key={index}>{line}</li>)}</ul>
+                    </section>
+                  )}
+                </div>
+
+                <div className="oneDayEventAction">
+                  <div className="oneDaySeats">
+                    <span>{waiting ? "예약 현황" : "예약 가능한 자리"}</span>
+                    <strong>{lesson.waiting_count
+                      ? `대기 ${lesson.waiting_count}명`
+                      : lesson.remaining > 0
+                        ? `남은 자리 ${lesson.remaining} / 6`
+                        : "정원 마감"}</strong>
+                  </div>
+                  <button
+                    type="button" className="oneDayApplyButton"
+                    onClick={() => {
+                      setSelectedId(lesson.id);
+                      setWithGuest(false);
+                      window.requestAnimationFrame(() => {
+                        document.getElementById("oneDayApplyForm")?.scrollIntoView({behavior:"smooth",block:"start"});
+                      });
+                    }}
+                    aria-label={`${heading.heading} ${actionTitle}`}
+                  >
+                    {selectedId === lesson.id ? "선택한 클래스" : actionTitle}
+                    <ArrowRight size={17} aria-hidden="true"/>
+                  </button>
+                </div>
+              </article>
+            );
+          })}
+        </div>
       </section>
       {selected && (
-        <section style={simpleCard}>
+        <section id="oneDayApplyForm" className="oneDayApplicationForm" style={simpleCard}>
           <h2 style={{ fontSize: 18, marginBottom: 12 }}>신청하기</h2>
           <strong>{selected.title}</strong>
-          <p style={secondary}>{formatDate(selected.start_at)}</p>
+          <p style={secondary}>{formatClassDay(selected.start_at)} · {formatClassTimeRange(selected.start_at, selected.end_at)}</p>
           <p style={secondary}>신청자 본인 외 동반자 1명 참석 여부</p>
           <label style={{ display: "block", padding: "7px 0" }}>
             <input type="radio" checked={!withGuest} onChange={() => setWithGuest(false)} /> 혼자 참석
@@ -204,6 +384,37 @@ export default function OneDayPage() {
           );
         })}
       </section>
+      {previewPhoto && previewImages.length > 0 && (
+        <div className="oneDayPhotoLightbox" role="dialog" aria-modal="true"
+          aria-label="원데이 클래스 참고 이미지 크게 보기">
+          <div className="oneDayLightboxToolbar">
+            <span>{previewIndex+1} / {previewImages.length}</span>
+            <button type="button" onClick={()=>setPreviewPhoto(null)} aria-label="사진 닫기">
+              <X size={24}/>
+            </button>
+          </div>
+          <div className="oneDayLightboxPicture">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src={previewImages[previewIndex].public_url}
+              alt={previewImages[previewIndex].caption || "원데이 클래스 참고 이미지"}/>
+          </div>
+          {previewImages[previewIndex].caption && (
+            <p className="oneDayLightboxCaption">{previewImages[previewIndex].caption}</p>
+          )}
+          {previewImages.length > 1 && (
+            <div className="oneDayLightboxControls">
+              <button type="button" onClick={()=>setPreviewPhoto(cur => cur
+                ? {...cur,index:(previewIndex - 1 + previewImages.length)%previewImages.length} : null)}>
+                <ChevronLeft size={22}/> 이전 사진
+              </button>
+              <button type="button" onClick={()=>setPreviewPhoto(cur => cur
+                ? {...cur,index:(previewIndex + 1)%previewImages.length} : null)}>
+                다음 사진 <ChevronRight size={22}/>
+              </button>
+            </div>
+          )}
+        </div>
+      )}
       <BottomNav />
     </main>
   );

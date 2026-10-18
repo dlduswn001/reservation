@@ -2437,3 +2437,638 @@ body { color: var(--text); }
     font-size: 12px;
   }
 }
+
+/* oneday-class-readable-mobile-layout-20261018 */
+/* Keep one-day class information scannable in a narrow phone viewport. */
+.studioApp .oneDayDirectory,
+.studioApp .oneDayClassList,
+.studioApp .oneDayEventCard,
+.studioApp .oneDayEventDetails,
+.studioApp .oneDayEventSection,
+.studioApp .oneDayEventAction {
+  box-sizing: border-box;
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
+}
+.studioApp .oneDayDirectory {
+  margin: 0 0 16px;
+  padding: 19px 17px;
+  border-radius: 18px;
+  border: 1px solid #ece9ea;
+  background: #fff;
+}
+.studioApp .oneDayDirectoryIntro {
+  padding: 1px 2px 15px;
+}
+.studioApp .oneDayDirectoryIntro h2 {
+  margin: 0 0 15px;
+  color: #302b2e;
+  font-size: 19px;
+  font-weight: 850;
+  letter-spacing: -.045em;
+  line-height: 1.4;
+}
+.studioApp .oneDayInfoBadges {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.studioApp .oneDayInfoBadges span {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  min-width: 0;
+  padding: 6px 9px;
+  border-radius: 100px;
+  background: #faf4f5;
+  color: #794254;
+  font-size: 11px;
+  font-weight: 800;
+  line-height: 1.4;
+  white-space: normal;
+}
+.studioApp .oneDayDirectoryIntro > p {
+  margin: 11px 0 0;
+  font-size: 12px;
+  line-height: 1.55;
+  color: #827c7f;
+  overflow-wrap: break-word;
+  word-break: keep-all;
+}
+.studioApp .oneDayClassList {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+.studioApp .oneDayEventCard {
+  overflow: hidden;
+  border: 1px solid #e9e4e7;
+  border-radius: 16px;
+  background: #fff;
+}
+.studioApp .oneDayEventTop {
+  padding: 21px 17px 18px;
+  border-bottom: 1px solid #efebed;
+}
+.studioApp .oneDayEventEyebrow {
+  width: fit-content;
+  margin: 0 0 9px;
+  padding: 5px 8px;
+  border-radius: 6px;
+  color: #8b4c5d;
+  background: #fbf0f3;
+  font-size: 11px;
+  font-weight: 800;
+  line-height: 1.4;
+}
+.studioApp .oneDayEventTop h3 {
+  margin: 0 0 16px;
+  color: #322a2f;
+  font-size: 21px;
+  line-height: 1.45;
+  letter-spacing: -.045em;
+  font-weight: 850;
+  overflow-wrap: anywhere;
+  word-break: keep-all;
+}
+.studioApp .oneDayEventSchedule {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px 17px;
+}
+.studioApp .oneDayEventSchedule > div {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  min-width: 0;
+  color: #756e73;
+  line-height: 1.5;
+  font-size: 13px;
+  word-break: keep-all;
+}
+.studioApp .oneDayEventSchedule svg {
+  flex: 0 0 auto;
+  color: #8f6673;
+}
+.studioApp .oneDayEventSchedule strong {
+  color: #49313c;
+  font-size: 13px;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+}
+.studioApp .oneDayEventDetails {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: 19px 16px 17px;
+}
+.studioApp .oneDayEventSection {
+  overflow: hidden;
+}
+.studioApp .oneDayEventSection h4 {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0 0 12px;
+  color: #363035;
+  font-size: 15px;
+  line-height: 1.5;
+  font-weight: 850;
+}
+.studioApp .oneDayEventSection h4 svg {
+  color: #8b5262;
+  flex: 0 0 auto;
+}
+.studioApp .oneDayEventSection ul {
+  display: grid;
+  gap: 10px;
+  padding: 0;
+  margin: 0;
+  list-style: none;
+}
+.studioApp .oneDayEventSection li {
+  margin: 0;
+  min-width: 0;
+  color: #595257;
+  font-size: 13px;
+  font-weight: 450;
+  line-height: 1.65;
+  overflow-wrap: break-word;
+  word-break: keep-all;
+}
+.studioApp .oneDayIntroSteps li {
+  display: grid;
+  grid-template-columns: 25px minmax(0, 1fr);
+  align-items: start;
+  gap: 8px;
+}
+.studioApp .oneDayStepMarker {
+  display: inline-flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding-top: 1px;
+  font-size: 11px;
+  line-height: 1.8;
+  font-weight: 900;
+  color: #ae8090;
+  font-variant-numeric: tabular-nums;
+}
+.studioApp .oneDayPreparation {
+  padding: 15px 14px;
+  border: 1px solid #eee7e9;
+  border-radius: 13px;
+  background: #fbf8f9;
+}
+.studioApp .oneDayPreparation ul {
+  gap: 9px;
+}
+.studioApp .oneDayPreparation li {
+  display: grid;
+  grid-template-columns: 18px minmax(0, 1fr);
+  align-items: start;
+  gap: 9px;
+}
+.studioApp .oneDayPreparation li svg {
+  color: #8f6070;
+  margin-top: 3px;
+}
+.studioApp .oneDayCautions {
+  padding: 0 2px;
+}
+.studioApp .oneDayCautions h4 {
+  font-size: 13px;
+  margin-bottom: 8px;
+  color: #756b70;
+}
+.studioApp .oneDayCautions h4 svg {
+  color: #98868d;
+}
+.studioApp .oneDayCautions ul {
+  gap: 6px;
+}
+.studioApp .oneDayCautions li {
+  position: relative;
+  padding-left: 13px;
+  color: #858087;
+  font-size: 12px;
+}
+.studioApp .oneDayCautions li::before {
+  content: "•";
+  position: absolute;
+  left: 2px;
+  color: #aea4a9;
+}
+.studioApp .oneDayEventAction {
+  padding: 14px 16px 16px;
+  border-top: 1px solid #eee9eb;
+  background: #fff;
+}
+.studioApp .oneDaySeats {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 9px;
+  margin-bottom: 12px;
+  font-size: 12px;
+  color: #858084;
+}
+.studioApp .oneDaySeats strong {
+  color: #7d3549;
+  font-size: 13px;
+  font-weight: 850;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+.studioApp .oneDayApplyButton {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  min-height: 45px;
+  max-width: 100%;
+  margin: 0;
+  padding: 11px 13px;
+  border: 1px solid #7a2638;
+  border-radius: 11px;
+  background: #7a2638;
+  color: #fff;
+  box-shadow: none;
+  font-size: 14px;
+  font-weight: 850;
+}
+.studioApp .oneDayApplyButton:hover {
+  background: #6b2031;
+}
+.studioApp .oneDayEmpty {
+  padding: 28px 14px;
+  color: #827b80;
+  text-align: center;
+  font-size: 13px;
+  border: 1px dashed #eae5e8;
+  border-radius: 13px;
+}
+.studioApp .oneDayApplicationForm {
+  scroll-margin-top: 20px;
+}
+@media (max-width: 420px) {
+  .studioApp .oneDayDirectory {
+    padding: 16px 12px;
+    border-radius: 17px;
+  }
+  .studioApp .oneDayEventTop {
+    padding: 17px 13px 16px;
+  }
+  .studioApp .oneDayEventTop h3 {
+    font-size: 20px;
+  }
+  .studioApp .oneDayEventDetails {
+    padding: 17px 12px 15px;
+    gap: 16px;
+  }
+  .studioApp .oneDayEventAction {
+    padding: 13px 12px 14px;
+  }
+  .studioApp .oneDayPreparation {
+    padding: 13px 11px;
+  }
+  .studioApp .oneDayEventSection li {
+    font-size: 12.5px;
+  }
+}
+
+/* One-day-class reference photos: single-image mobile carousel and lightbox */
+.studioApp .oneDayReferenceGallery {
+  padding: 15px 16px 16px;
+  border-bottom: 1px solid #efebed;
+  width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+}
+.studioApp .oneDayReferenceHeading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 11px;
+}
+.studioApp .oneDayReferenceHeading span {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  color: #493c43;
+  font-size: 13px;
+  font-weight: 850;
+}
+.studioApp .oneDayReferenceHeading svg { color: #865262; }
+.studioApp .oneDayReferenceHeading small {
+  font-size: 11px;
+  color: #898288;
+  font-variant-numeric: tabular-nums;
+}
+.studioApp .oneDayGalleryFrame {
+  position: relative;
+  width: 100%;
+  max-width: 100%;
+  aspect-ratio: 5/3.2;
+  border-radius: 12px;
+  overflow: hidden;
+  background: #f6f3f4;
+}
+.studioApp .oneDayPhotoOpen {
+  display: block;
+  position: relative;
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  padding: 0;
+  border: none;
+  border-radius: 12px;
+  background: transparent;
+  overflow: hidden;
+}
+.studioApp .oneDayPhotoOpen img {
+  width: 100%;
+  height: 100%;
+  display: block;
+  object-fit: contain;
+}
+.studioApp .oneDayPhotoZoomHint {
+  position: absolute;
+  bottom: 9px;
+  right: 10px;
+  border-radius: 100px;
+  padding: 5px 9px;
+  background: rgba(28,23,26,.72);
+  color: #fff;
+  font-weight: 700;
+  font-size: 10px;
+}
+.studioApp .oneDayPhotoArrow {
+  position: absolute;
+  z-index: 2;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 33px;
+  height: 36px;
+  padding: 0;
+  margin: 0;
+  border: 0;
+  border-radius: 9px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(255,255,255,.87);
+  color: #694a56;
+}
+.studioApp .oneDayPhotoArrow.left { left: 6px; }
+.studioApp .oneDayPhotoArrow.right { right: 6px; }
+.studioApp .oneDayPhotoCaption {
+  margin: 10px 2px 0;
+  color: #736970;
+  font-size: 12px;
+  line-height: 1.6;
+  word-break: keep-all;
+  overflow-wrap: anywhere;
+}
+.studioApp .oneDayPhotoDots {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 8px;
+  margin: 12px 0 0;
+}
+.studioApp .oneDayPhotoDots button {
+  height: 8px;
+  width: 8px;
+  padding: 0;
+  margin: 0;
+  border: 0;
+  border-radius: 100px;
+  background: #ded7da;
+}
+.studioApp .oneDayPhotoDots button.active {
+  width: 20px;
+  background: #7a2638;
+}
+.studioApp .oneDayPhotoLightbox {
+  position: fixed;
+  z-index: 150;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  background: rgba(14,10,13,.96);
+  color: #fff;
+  padding: max(14px,env(safe-area-inset-top)) 14px max(24px,env(safe-area-inset-bottom));
+  box-sizing: border-box;
+}
+.studioApp .oneDayLightboxToolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 15px;
+  color: #eee;
+  font-variant-numeric: tabular-nums;
+  font-size: 13px;
+}
+.studioApp .oneDayLightboxToolbar button {
+  margin: 0;
+  padding: 7px;
+  border: 0;
+  background: transparent;
+  color: #fff;
+}
+.studioApp .oneDayLightboxPicture {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 0;
+}
+.studioApp .oneDayLightboxPicture img {
+  width: 100%;
+  height: 100%;
+  max-height: 75dvh;
+  object-fit: contain;
+}
+.studioApp .oneDayLightboxCaption {
+  color: #f1edf0;
+  font-size: 13px;
+  line-height: 1.6;
+  text-align: center;
+}
+.studioApp .oneDayLightboxControls {
+  display: flex;
+  justify-content: space-between;
+  gap: 14px;
+  margin: 12px 0 0;
+}
+.studioApp .oneDayLightboxControls button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  padding: 10px 12px;
+  background: #fff;
+  color: #55444c;
+  font-size: 12px;
+  border-radius: 9px;
+  flex: 1;
+  margin: 0;
+}
+/* Admin gallery uploads and editing controls are confined to the class card */
+.adminMobilePage .adminPhotoManager {
+  box-sizing: border-box;
+  min-width: 0;
+  max-width: 100%;
+  margin-top: 15px;
+  padding: 13px;
+  border: 1px solid #eee8ea;
+  border-radius: 13px;
+  background: #faf8f9;
+}
+.adminMobilePage .adminPhotoManager h4 {
+  margin: 0 0 4px;
+  font-size: 14px;
+  letter-spacing: -.02em;
+}
+.adminMobilePage .adminPhotoManager > p {
+  margin: 0 0 11px;
+  color: #8e858a;
+  font-size: 11px;
+  line-height: 1.6;
+}
+.adminMobilePage .adminPhotoUploadButton {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  width: 100%;
+  min-height: 44px;
+  margin: 0;
+  padding: 10px 12px;
+  border-radius: 11px;
+  background: #fff;
+  border: 1px dashed #ab8692;
+  color: #733247;
+  font-size: 12px;
+  font-weight: 800;
+  cursor: pointer;
+}
+.adminMobilePage .adminPhotoUploadButton input[type="file"] {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  opacity: 0;
+  cursor: pointer;
+  margin: 0;
+}
+.adminMobilePage .adminPhotoUploadButton[aria-disabled="true"] {
+  opacity: .5;
+}
+.adminMobilePage .adminPhotoGrid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 10px;
+  margin-top: 13px;
+}
+.adminMobilePage .adminPhotoItem {
+  box-sizing: border-box;
+  display: grid;
+  grid-template-columns: 87px minmax(0,1fr);
+  gap: 10px;
+  align-items: start;
+  width: 100%;
+  border: 1px solid #e9e0e4;
+  border-radius: 11px;
+  background: #fff;
+  padding: 9px;
+}
+.adminMobilePage .adminPhotoThumb {
+  position: relative;
+  min-width: 0;
+  width: 87px;
+  height: 87px;
+  overflow: hidden;
+  border-radius: 8px;
+  background: #f0edef;
+}
+.adminMobilePage .adminPhotoThumb img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.adminMobilePage .adminPhotoCoverBadge {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  background: rgba(113,32,55,.90);
+  color: #fff;
+  text-align: center;
+  font-size: 10px;
+  padding: 4px;
+}
+.adminMobilePage .adminPhotoContent { min-width: 0; }
+.adminMobilePage .adminPhotoContent label {
+  margin: 0 0 3px;
+  padding: 0;
+  font-size: 11px;
+}
+.adminMobilePage .adminPhotoContent input {
+  display: block;
+  box-sizing: border-box;
+  width: 100%;
+  min-width: 0;
+  margin: 0;
+  padding: 8px;
+  font-size: 12px;
+  line-height: 1.45;
+}
+.adminMobilePage .adminPhotoActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+  margin-top: 8px;
+}
+.adminMobilePage .adminPhotoActions button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  padding: 7px 9px;
+  min-height: 32px;
+  margin: 0;
+  background: #f9f3f5;
+  border: 1px solid #eee2e6;
+  color: #743a4d;
+  border-radius: 8px;
+  font-size: 11px;
+  font-weight: 750;
+}
+.adminMobilePage .adminPhotoActions button:disabled {
+  opacity: .4;
+  cursor: not-allowed;
+}
+.adminMobilePage .adminPhotoActions button.delete {
+  color: #a95a6a;
+  background: #fff;
+  border-color: #efd9de;
+}
+.adminMobilePage .adminPhotoFeedback {
+  margin: 8px 0 0;
+  color: #82465a;
+  font-size: 12px;
+  line-height: 1.55;
+}
+@media(max-width:420px) {
+  .studioApp .oneDayReferenceGallery { padding: 13px 12px; }
+  .adminMobilePage .adminPhotoManager { padding: 11px; }
+  .adminMobilePage .adminPhotoItem { grid-template-columns: 75px minmax(0,1fr); gap: 8px; }
+  .adminMobilePage .adminPhotoThumb { width: 75px; height: 75px; }
+}

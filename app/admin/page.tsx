@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { House, CalendarDays, UsersRound, Settings2, ChevronLeft, ChevronRight, NotebookPen, Send, Copy, Search, UserRoundPlus } from "lucide-react";
+import OneDayImageManager from "./OneDayImageManager";
 import Link from "next/link";
 import { getRegularPassPolicyStatus, PASS_POLICY_START_DATE_KEY, todayDateKeyInKst } from "../../lib/passPolicy";
 
@@ -581,6 +582,7 @@ export default function AdminPage() {
   const [onedayNormalPrice, setOnedayNormalPrice] = useState("30000");
   const [onedayCapacity, setOnedayCapacity] = useState("6");
   const [editingOneDayClassId, setEditingOneDayClassId] = useState<string | null>(null);
+  const [imageManagerClassId, setImageManagerClassId] = useState("");
   const [oneDayClassEdits, setOneDayClassEdits] = useState<Record<string, {
     title: string;
     curriculum: string;
@@ -1879,8 +1881,9 @@ export default function AdminPage() {
           <div className="editBox">
             <label>제목</label>
             <input value={edit.title} onChange={(e) => updateOneDayClassEdit(c.id, "title", e.target.value)} />
-            <label>커리큘럼</label>
-            <textarea rows={5} value={edit.curriculum} onChange={(e) => updateOneDayClassEdit(c.id, "curriculum", e.target.value)} />
+            <label>수업 소개 · 준비물 · 유의사항</label>
+            <p className="small">각 항목을 새 줄에 ‘수업 소개’, ‘준비물’, ‘유의사항’으로 구분해 적으면 수강생 화면에서 보기 좋은 카드로 표시됩니다.</p>
+            <textarea rows={9} value={edit.curriculum} onChange={(e) => updateOneDayClassEdit(c.id, "curriculum", e.target.value)} />
             <label>수업 시작 일정</label>
             <input type="datetime-local" value={edit.start_at} onChange={(e) => updateOneDayClassEdit(c.id, "start_at", e.target.value)} />
             <label>수업 종료 일정</label>
@@ -1915,13 +1918,20 @@ export default function AdminPage() {
                 <span>{c.is_open ? "예약 화면 노출" : "예약 화면 숨김"}</span>
               </div>
               <p className="small">정규수강생 전용 · 신청 즉시 확정 · 정원 초과 시 대기</p>
-              {c.description && <p className="onedayCurriculumPreview">커리큘럼: {c.description}</p>}
+              {c.description && <p className="onedayCurriculumPreview" style={{whiteSpace:"pre-line"}}>{c.description}</p>}
             </div>
             <div className="inlineActions oneDayClassActions">
-              <button className="secondary compact" onClick={() => startEditOneDayClass(c)}>수정</button>
-              <button className="danger compact" onClick={() => deleteOnedayClass(c.id, c.title)}>삭제</button>
+              <button type="button" className="secondary compact" onClick={() => startEditOneDayClass(c)}>수정</button>
+              <button type="button" className="secondary compact" onClick={() =>
+                setImageManagerClassId(id=>id===c.id?"":c.id)}>
+                {imageManagerClassId===c.id?"사진 관리 닫기":"사진 관리"}
+              </button>
+              <button type="button" className="danger compact" onClick={() => deleteOnedayClass(c.id, c.title)}>삭제</button>
             </div>
           </div>
+        )}
+        {(isEditing || imageManagerClassId===c.id) && (
+          <OneDayImageManager classId={c.id} password={password}/>
         )}
       </div>
     );
@@ -2746,8 +2756,9 @@ export default function AdminPage() {
                 <p className="small">원데이 클래스 생성 후에도 아래 목록에서 제목, 커리큘럼, 일정, 비용, 정원, 노출 여부를 수정하거나 클래스를 삭제할 수 있습니다.</p>
                 <label>제목</label>
                 <input value={onedayTitle} onChange={(e) => setOnedayTitle(e.target.value)} placeholder="예: 자서전쓰기 원데이 클래스" />
-                <label>커리큘럼</label>
-                <textarea value={onedayCurriculum} onChange={(e) => setOnedayCurriculum(e.target.value)} placeholder="예: 1. 기억 꺼내기 2. 장면 정리하기 3. 짧은 자서전 초안 쓰기" rows={5} />
+                <label>수업 소개 · 준비물 · 유의사항</label>
+                <p className="small">각 제목을 한 줄씩 적으면 예약 앱에서 자동으로 구분해 표시됩니다. 항목별 내용은 한 줄에 하나씩 입력해 주세요.</p>
+                <textarea value={onedayCurriculum} onChange={(e) => setOnedayCurriculum(e.target.value)} placeholder={"수업 소개\n책에 대해 이야기 나누기\n함께 작품 완성하기\n\n준비물\n책 1권\n\n유의사항\n표지 재질을 확인해 주세요."} rows={8} />
                 <label>수업 시작 일정</label>
                 <input type="datetime-local" value={onedayStartAt} onChange={(e) => setOnedayStartAt(e.target.value)} />
                 <label>수업 종료 일정</label>
