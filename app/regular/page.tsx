@@ -67,7 +67,7 @@ type OpenMonth = {
 };
 
 const STUDENT_LOGIN_STORAGE_KEY = "munjangStudentLogin";
-const SLOT_CACHE_STORAGE_KEY = "munjangRegularSlotCacheV36";
+const SLOT_CACHE_STORAGE_KEY = "munjangRegularSlotCacheV37";
 
 const STATUS_LABELS: Record<string, string> = {
   booked: "예약 완료",
@@ -290,7 +290,21 @@ export default function RegularPage() {
       .then(async (slotRes) => {
         const slotJson = await slotRes.json();
         if (!slotRes.ok) throw new Error(slotJson.message || "예약 가능한 시간을 불러오지 못했습니다.");
-        const nextSlots: Slot[] = [...(slotJson.slots || []), ...(slotJson.waitlist_slots || []), ...(slotJson.closed_slots || [])]
+        // One timeline row per real start instant, even if an older API response
+        // mixes "+00:00" DB dates with ".000Z" generated closed entries.
+        const byStart = new Map<number, Slot>();
+        const priority = (slot: Slot) => slot.is_dual_noon ? 4 : slot.is_closed ? 1 : slot.is_waitlist ? 2 : 3;
+        for (const slot of [
+          ...(slotJson.slots || []),
+          ...(slotJson.waitlist_slots || []),
+          ...(slotJson.closed_slots || []),
+        ] as Slot[]) {
+          const start = new Date(slot.start_at).getTime();
+          if (!Number.isFinite(start)) continue;
+          const previous = byStart.get(start);
+          if (!previous || priority(slot) > priority(previous)) byStart.set(start, slot);
+        }
+        const nextSlots: Slot[] = [...byStart.values()]
           .sort((a, b) => new Date(a.start_at).getTime() - new Date(b.start_at).getTime());
         setSlots(nextSlots);
         setOpenMonth(slotJson.open_month || null);
