@@ -2092,180 +2092,242 @@ export default function AdminPage() {
 
           {activeTab === "students" && (
             <>
-              <section className="card compactMenuCard">
-                <h2>수강생</h2>
-                <p className="small">수강생 등록, 계정 수정, 수강권 관리는 여기서 처리합니다. 지난 수업 기록은 아래 버튼으로 이동할 수 있습니다.</p>
-                <div className="row">
-                  <button className="secondary compact activeSoft">수강생 관리</button>
-                  <button className="secondary compact" onClick={() => openTab("history")}>수강 기록</button>
+              <section className="card adminStudentHub">
+                <div className="adminStudentHeading">
+                  <div><p className="adminEyebrow">문장학교 수강생</p><h1>수강생관리</h1></div>
+                  <button className="adminSmallAction" type="button"
+                    onClick={() => setShowNewStudentForm((value)=>!value)}>
+                    <UserRoundPlus size={17}/> {showNewStudentForm ? "닫기" : "신규 등록"}
+                  </button>
                 </div>
-              </section>
-              <section className="card">
-                <h2>정규 수강생 등록</h2>
-                <label>이름</label>
-                <input value={studentName} onChange={(e) => setStudentName(e.target.value)} placeholder="예: 김문장" />
-                <label>핸드폰번호 뒷자리 4자리</label>
-                <input value={phoneLast4} onChange={(e) => setPhoneLast4(e.target.value)} placeholder="예: 6789" maxLength={4} />
-                <label>수강권 잔여 횟수</label>
-                <input type="number" min="0" step="0.5" value={lessonCredits} onChange={(e) => setLessonCredits(e.target.value)} placeholder="예: 4" />
-                <label>정규수업 유형</label>
-                <select value={lessonDurationMinutes} onChange={(e) => setLessonDurationMinutes(e.target.value)}>
-                  <option value="45">45분 수강생</option>
-                  <option value="90">90분 수강생</option>
-                  <option value="120">120분 수강생</option>
-                </select>
-                <p className="small">관리자가 정하는 수강생별 수업 유형입니다. 수강생은 예약할 때 수강권 유형을 직접 선택하지 않습니다. 이 선택은 2026년 7월 1일부터 적용되고, 2026년 6월 30일까지는 기존대로 80분 수업으로 운영됩니다.</p>
-                <div className="policyBox">
-                  <strong>8월 1일 이후 4회 수강권 사용기한</strong>
-                  <p className="small">8월 1일 이후 결제·재등록한 수강권만 적용됩니다. 기존 수강생은 수강권 등록/재등록일을 비워두거나 2026-08-01 이전 날짜로 두면 정책 적용 전으로 처리됩니다.</p>
-                </div>
-                <label>수강권 등록/재등록일</label>
-                <input type="date" value={passRegisteredAt} onChange={(e) => setPassRegisteredAt(e.target.value)} />
-                <label>첫 수업일</label>
-                <input type="date" value={passFirstLessonAt} onChange={(e) => setPassFirstLessonAt(e.target.value)} />
-                <p className="small">첫 수업일을 비워두면 수강생이 첫 정규수업을 예약할 때 자동으로 입력되고, 사용기한은 첫 수업일로부터 10주로 계산됩니다.</p>
-                <label className="checkboxLabel">
-                  <input type="checkbox" checked={passExtensionUsed} onChange={(e) => setPassExtensionUsed(e.target.checked)} />
-                  필요 시 연장 적용
-                </label>
-                <label>연장 기한</label>
-                <input type="date" value={passExtensionUntil} onChange={(e) => setPassExtensionUntil(e.target.value)} />
-                <button
-                  type="button"
-                  className="secondary compact"
-                  onClick={() => {
-                    const nextDate = nextOneWeekExtensionDate(passExtensionUntil, passFirstLessonAt, "");
-                    if (nextDate) {
-                      setPassExtensionUntil(nextDate);
-                      setPassExtensionUsed(true);
-                    }
-                  }}
-                >
-                  1주 연장하기
-                </button>
-                <p className="small">필요할 때마다 누르면 기존 연장 기한 또는 기본 사용기한에서 1주씩 추가됩니다.</p>
-                <label>연장 사유</label>
-                <input value={passExtensionReason} onChange={(e) => setPassExtensionReason(e.target.value)} placeholder="예: 질병 치료, 장기 출장" />
-                <label>메모</label>
-                <input value={memo} onChange={(e) => setMemo(e.target.value)} placeholder="예: 주 1회 정규수업" />
-                <button onClick={addStudent}>수강생 등록</button>
-              </section>
 
-              <section className="card zeroCreditCard">
-                <h2>수강권 0회 수강생</h2>
-                <p className="small">추가 등록 안내가 필요한 수강생입니다. 수강권을 추가하면 이 목록에서 자동으로 사라집니다.</p>
-                {zeroCreditStudents.length === 0 ? (
-                  <p>수강권 0회 수강생이 없습니다.</p>
-                ) : (
-                  <div className="zeroCreditList">
-                    {zeroCreditStudents.map((student) => (
-                      <div className="zeroCreditItem" key={student.id}>
-                        <div>
-                          <strong>{student.name}</strong>
-                          <p className="small">{student.phone_last4} · 정규수업 유형 {student.lesson_duration_minutes ?? 90}분</p>
-                          <p className="small">{passPolicySummary(student)}</p>
-                          {student.memo && <p className="small">메모: {student.memo}</p>}
-                        </div>
-                        <button className="secondary compact" onClick={() => setEditingStudentId(student.id)}>수강권 수정</button>
-                      </div>
-                    ))}
+                {showNewStudentForm && (
+                  <div className="adminStudentNewForm">
+                    <h2>새 수강생 등록</h2>
+                    <label>이름</label>
+                    <input value={studentName} onChange={e=>setStudentName(e.target.value)} placeholder="수강생 이름"/>
+                    <label>휴대폰 번호 뒤 4자리</label>
+                    <input value={phoneLast4} maxLength={4} inputMode="numeric"
+                      onChange={e=>setPhoneLast4(e.target.value)} placeholder="0000"/>
+                    <div className="adminStudentFormPair">
+                      <div><label>수강권 잔여 횟수</label>
+                        <input type="number" min="0" step="0.5" value={lessonCredits}
+                          onChange={e=>setLessonCredits(e.target.value)}/></div>
+                      <div><label>수업 유형</label>
+                        <select value={lessonDurationMinutes} onChange={e=>setLessonDurationMinutes(e.target.value)}>
+                          <option value="45">45분</option><option value="90">90분</option><option value="120">120분</option>
+                        </select></div>
+                    </div>
+                    <label>수강권 등록일</label>
+                    <input type="date" value={passRegisteredAt} onChange={e=>setPassRegisteredAt(e.target.value)}/>
+                    <p className="adminValidityHint">사용기간: 첫 수업일로부터 10주 이내</p>
+                    <button type="button" className="adminFormSubmit" onClick={addStudent}>수강생 등록하기</button>
                   </div>
                 )}
+
+                <label className="adminRosterSearchLabel" htmlFor="adminStudentSearch">수강생 찾기 · 가나다순</label>
+                <div className="adminRosterSearch">
+                  <Search size={18} />
+                  <input id="adminStudentSearch" value={studentSearch}
+                    onChange={e=>setStudentSearch(e.target.value)}
+                    placeholder="이름 또는 전화번호 뒤 4자리 검색" />
+                </div>
+                <div className="adminRosterCount">전체 {alphabeticalStudents.length}명 · 표시 {visibleStudents.length}명</div>
+                <div className="adminRosterNames" role="group" aria-label="가나다순 수강생 목록">
+                  {visibleStudents.map(student => (
+                    <button type="button" key={student.id}
+                      className={`adminRosterName ${student.id===selectedStudentId ? "selected" : ""}`}
+                      aria-pressed={student.id===selectedStudentId}
+                      onClick={()=>selectStudent(student.id)}>
+                      <strong>{student.name}</strong>
+                      <span>{Number(student.lesson_credits ?? 0).toLocaleString("ko-KR")}회</span>
+                    </button>
+                  ))}
+                </div>
+                {visibleStudents.length===0 && <p className="adminAlertEmpty">검색 결과가 없습니다.</p>}
               </section>
 
-              <section className="card">
-                <h2>수강생 목록</h2>
-                <p className="small">각 수강생의 ‘계정 수정’을 누르면 이름, 전화번호 뒷자리, 수강권, 메모, 이용 상태를 한 번에 수정할 수 있습니다.</p>
-                <div className="list">
-                  {overview.students.map((s) => {
-                    const edit = studentEdits[s.id] || { name: s.name, phone_last4: s.phone_last4, memo: s.memo || "", lesson_credits: String(s.lesson_credits ?? 0), lesson_duration_minutes: String(s.lesson_duration_minutes ?? 90), pass_registered_at: s.pass_registered_at || "", pass_first_lesson_at: s.pass_first_lesson_at || "", pass_extension_used: Boolean(s.pass_extension_used), pass_extension_until: s.pass_extension_until || "", pass_extension_reason: s.pass_extension_reason || "", is_active: s.is_active !== false };
-                    const isEditing = editingStudentId === s.id;
-                    return (
-                      <div className="item" key={s.id}>
-                        {!isEditing ? (
-                          <>
-                            <div className="row between">
-                              <div>
-                                <strong>{s.name}</strong> / {s.phone_last4}
-                                {Number(s.lesson_credits ?? 0) <= 0 && s.is_active !== false && <span className="creditBadge">수강권 0회</span>}
-                                {(() => { const status = getRegularPassPolicyStatus(s); return status.expired ? <span className="creditBadge">사용기한 만료</span> : status.expiringSoon ? <span className="creditBadge">기한 임박</span> : null; })()}
-                                <p className="small">수강권: {s.lesson_credits ?? 0}회 / 정규수업 유형: {s.lesson_duration_minutes ?? 90}분 / 상태: {s.is_active ? "이용 중" : "이용 중지"}</p>
-                                <p className="small">수강권 기한: {passPolicySummary(s)}</p>
-                                <p className="small">메모: {s.memo || "-"}</p>
-                              </div>
-                              <div className="row itemActions">
-                                <button className="secondary compact" onClick={() => setEditingStudentId(s.id)}>계정 수정</button>
-                                <button className="secondary compact" onClick={() => openStudentHistory(s.id)}>수강 기록</button>
-                                <button className="danger compact" onClick={() => deleteStudent(s.id, s.name)}>삭제</button>
-                              </div>
-                            </div>
-                          </>
-                        ) : (
-                          <div className="editPanel">
-                            <h3>{s.name} 계정 수정</h3>
-                            <label>이름</label>
-                            <input value={edit.name} onChange={(e) => setStudentEdits((current) => ({ ...current, [s.id]: { ...edit, name: e.target.value } }))} />
-                            <label>핸드폰번호 뒷자리 4자리</label>
-                            <input maxLength={4} value={edit.phone_last4} onChange={(e) => setStudentEdits((current) => ({ ...current, [s.id]: { ...edit, phone_last4: e.target.value } }))} />
-                            <label>수강권 잔여 횟수</label>
-                            <input type="number" min="0" step="0.5" value={edit.lesson_credits} onChange={(e) => setStudentEdits((current) => ({ ...current, [s.id]: { ...edit, lesson_credits: e.target.value } }))} />
-                            <label>정규수업 유형</label>
-                            <select value={edit.lesson_duration_minutes} onChange={(e) => setStudentEdits((current) => ({ ...current, [s.id]: { ...edit, lesson_duration_minutes: e.target.value } }))}>
-                              <option value="45">45분 수강생</option>
-                              <option value="90">90분 수강생</option>
-                              <option value="120">120분 수강생</option>
-                            </select>
-                            <div className="policyBox">
-                              <strong>8월 1일 이후 4회 수강권 사용기한</strong>
-                              <p className="small">수강권 등록/재등록일이 2026-08-01 이후인 경우에만 첫 수업일 기준 10주 사용기한이 적용됩니다.</p>
-                              <p className="small">현재 상태: {passPolicySummary(s)}</p>
-                            </div>
-                            <label>수강권 등록/재등록일</label>
-                            <input type="date" value={edit.pass_registered_at} onChange={(e) => setStudentEdits((current) => ({ ...current, [s.id]: { ...edit, pass_registered_at: e.target.value } }))} />
-                            <label>첫 수업일</label>
-                            <input type="date" value={edit.pass_first_lesson_at} onChange={(e) => setStudentEdits((current) => ({ ...current, [s.id]: { ...edit, pass_first_lesson_at: e.target.value } }))} />
-                            <p className="small">첫 수업일을 입력하면 사용기한은 자동으로 첫 수업일 + 10주로 저장됩니다.</p>
-                            <label className="checkboxLabel">
-                              <input type="checkbox" checked={edit.pass_extension_used} onChange={(e) => setStudentEdits((current) => ({ ...current, [s.id]: { ...edit, pass_extension_used: e.target.checked } }))} />
-                              필요 시 연장 적용
-                            </label>
-                            <label>연장 기한</label>
-                            <input type="date" value={edit.pass_extension_until} onChange={(e) => setStudentEdits((current) => ({ ...current, [s.id]: { ...edit, pass_extension_until: e.target.value } }))} />
-                            <button
-                              type="button"
-                              className="secondary compact"
-                              onClick={() => {
-                                const nextDate = nextOneWeekExtensionDate(edit.pass_extension_until, edit.pass_first_lesson_at, s.pass_expires_at || "");
-                                if (nextDate) {
-                                  setStudentEdits((current) => ({
-                                    ...current,
-                                    [s.id]: { ...edit, pass_extension_used: true, pass_extension_until: nextDate },
-                                  }));
-                                }
-                              }}
-                            >
-                              1주 연장하기
-                            </button>
-                            <p className="small">필요할 때마다 누르면 기존 연장 기한 또는 기본 사용기한에서 1주씩 추가됩니다.</p>
-                            <label>연장 사유</label>
-                            <input value={edit.pass_extension_reason} onChange={(e) => setStudentEdits((current) => ({ ...current, [s.id]: { ...edit, pass_extension_reason: e.target.value } }))} placeholder="예: 질병 치료, 장기 출장" />
-                            <label>메모</label>
-                            <textarea rows={3} value={edit.memo} onChange={(e) => setStudentEdits((current) => ({ ...current, [s.id]: { ...edit, memo: e.target.value } }))} />
-                            <label className="checkboxLabel">
-                              <input type="checkbox" checked={edit.is_active} onChange={(e) => setStudentEdits((current) => ({ ...current, [s.id]: { ...edit, is_active: e.target.checked } }))} />
-                              예약 사이트 이용 가능
-                            </label>
-                            <div className="row">
-                              <button onClick={() => updateStudent(s.id)}>저장</button>
-                              <button className="secondary" onClick={() => cancelStudentEdit(s)}>취소</button>
-                            </div>
+              {!selectedStudent && (
+                <section className="card adminSelectStudentEmpty">
+                  <UsersRound size={25} />
+                  <p>위에서 수강생 이름을 선택하면 수강권과 수업일지를 확인할 수 있어요.</p>
+                </section>
+              )}
+
+              {selectedStudent && [selectedStudent].map(s=>{
+                const edit=studentEdits[s.id] || {
+                  name:s.name,phone_last4:s.phone_last4,memo:s.memo||"",
+                  lesson_credits:String(s.lesson_credits??0),
+                  lesson_duration_minutes:String(s.lesson_duration_minutes??90),
+                  pass_registered_at:s.pass_registered_at||"",
+                  pass_first_lesson_at:s.pass_first_lesson_at||"",
+                  pass_extension_used:Boolean(s.pass_extension_used),
+                  pass_extension_until:s.pass_extension_until||"",
+                  pass_extension_reason:s.pass_extension_reason||"",
+                  is_active:s.is_active!==false,
+                };
+                const isEditing=editingStudentId===s.id;
+                return (
+                  <section key={s.id} className="card adminSelectedStudentCard">
+                    <div className="adminSelectedStudentHeading">
+                      <div><p className="adminEyebrow">선택한 수강생</p><h2>{s.name}</h2>
+                        <span>{s.phone_last4} · {s.is_active ? "이용 중" : "이용 중지"}</span>
+                      </div>
+                      {!isEditing && <button type="button" className="adminSmallAction"
+                        onClick={()=>setEditingStudentId(s.id)}>정보 수정</button>}
+                    </div>
+
+                    {!isEditing ? (
+                      <>
+                        <div className="adminStudentInfoGrid">
+                          <div><span>남은 수강권</span><strong>{s.lesson_credits ?? 0}회</strong></div>
+                          <div><span>수업 유형</span><strong>{s.lesson_duration_minutes ?? 90}분</strong></div>
+                          <div className="wide"><span>수강권 등록일</span><strong>{s.pass_registered_at || "미등록"}</strong></div>
+                          <div className="wide"><span>사용기간</span><strong>{passPolicySummary(s)}</strong></div>
+                        </div>
+                        <button type="button" className="adminRecordLink" onClick={()=>openStudentHistory(s.id)}>
+                          기존 수강 기록 확인 <ChevronRight size={18}/>
+                        </button>
+                      </>
+                    ) : (
+                      <div className="adminStudentEditForm">
+                        <label>이름</label>
+                        <input value={edit.name} onChange={e=>setStudentEdits(current=>({
+                          ...current,[s.id]:{...edit,name:e.target.value}}))}/>
+                        <label>휴대폰 번호 뒤 4자리</label>
+                        <input maxLength={4} inputMode="numeric" value={edit.phone_last4}
+                          onChange={e=>setStudentEdits(current=>({
+                            ...current,[s.id]:{...edit,phone_last4:e.target.value}}))}/>
+                        <div className="adminStudentFormPair">
+                          <div><label>남은 수강권</label>
+                            <input type="number" min="0" step="0.5" value={edit.lesson_credits}
+                              onChange={e=>setStudentEdits(current=>({
+                                ...current,[s.id]:{...edit,lesson_credits:e.target.value}}))}/></div>
+                          <div><label>수업 유형</label>
+                            <select value={edit.lesson_duration_minutes}
+                              onChange={e=>setStudentEdits(current=>({
+                                ...current,[s.id]:{...edit,lesson_duration_minutes:e.target.value}}))}>
+                              <option value="45">45분</option><option value="90">90분</option><option value="120">120분</option>
+                            </select></div>
+                        </div>
+                        <label>수강권 등록일</label>
+                        <input type="date" value={edit.pass_registered_at}
+                          onChange={e=>setStudentEdits(current=>({
+                            ...current,[s.id]:{...edit,pass_registered_at:e.target.value}}))}/>
+                        <p className="adminValidityHint">{passPolicySummary(s)}</p>
+                        <label className="checkboxLabel">
+                          <input type="checkbox" checked={edit.is_active}
+                            onChange={e=>setStudentEdits(current=>({
+                              ...current,[s.id]:{...edit,is_active:e.target.checked}}))}/>
+                          예약 앱 이용 가능
+                        </label>
+                        <div className="adminStudentFormActions">
+                          <button type="button" onClick={()=>updateStudent(s.id)}>변경 사항 저장</button>
+                          <button type="button" className="secondary" onClick={()=>cancelStudentEdit(s)}>취소</button>
+                        </div>
+                        <button type="button" className="adminStudentDelete"
+                          onClick={()=>deleteStudent(s.id,s.name)}>수강생 삭제</button>
+                      </div>
+                    )}
+                  </section>
+                );
+              })}
+
+              {selectedStudent && (
+                <section className="card adminJournalCard">
+                  <div className="adminJournalHeading">
+                    <div>
+                      <p className="adminEyebrow">1:1 수업 기록</p>
+                      <h2>{selectedStudent.name}님의 수업일지</h2>
+                    </div>
+                    <NotebookPen size={22}/>
+                  </div>
+                  <p className="small">수업을 마친 뒤 일지를 저장하세요. 카카오톡 공유 시 수강생과 전송 대상을 직접 선택합니다.</p>
+
+                  <div id="journal-editor" className="adminJournalEditor">
+                    <h3>{journalDraft.id ? "수업일지 수정" : "새 수업일지 작성"}</h3>
+                    <label>마친 수업 선택 <span className="small">(선택 사항)</span></label>
+                    <select value={journalDraft.booking_id} onChange={e=>selectJournalBooking(e.target.value)}>
+                      <option value="">직접 날짜 입력</option>
+                      {selectedStudentBookings.map(booking=>(
+                        <option key={booking.id} value={booking.id}>
+                          {formatDateTime(booking.start_at)} · {STATUS_LABELS[booking.status] || "예약"}
+                        </option>
+                      ))}
+                    </select>
+                    <label>수업일</label>
+                    <input type="date" value={journalDraft.lesson_date}
+                      max={todaySeoulDateKey()}
+                      disabled={Boolean(journalDraft.booking_id)}
+                      onChange={e=>setJournalDraft(current=>({...current,lesson_date:e.target.value}))}/>
+                    <label>수업 주제</label>
+                    <input value={journalDraft.title}
+                      onChange={e=>setJournalDraft(current=>({...current,title:e.target.value}))}
+                      placeholder="예: 서평에서 나만의 질문 찾기"/>
+                    <label>오늘 다룬 내용</label>
+                    <textarea rows={4} value={journalDraft.lesson_summary}
+                      onChange={e=>setJournalDraft(current=>({...current,lesson_summary:e.target.value}))}
+                      placeholder="오늘 읽고 쓰고 이야기한 내용을 기록해 주세요."/>
+                    <label>수강생 피드백</label>
+                    <textarea rows={3} value={journalDraft.feedback}
+                      onChange={e=>setJournalDraft(current=>({...current,feedback:e.target.value}))}
+                      placeholder="잘한 점과 다음에 발전시키면 좋을 점"/>
+                    <label>다음 수업까지의 과제</label>
+                    <textarea rows={2} value={journalDraft.homework}
+                      onChange={e=>setJournalDraft(current=>({...current,homework:e.target.value}))}
+                      placeholder="예: 책 1권 읽고 질문 3개 정리하기"/>
+                    <label>선생님만 보는 메모 <span className="small">(카카오톡에는 포함되지 않아요)</span></label>
+                    <textarea rows={2} value={journalDraft.private_note}
+                      onChange={e=>setJournalDraft(current=>({...current,private_note:e.target.value}))}
+                      placeholder="수업 준비에 필요한 내부 기록"/>
+                    <div className="adminStudentFormActions">
+                      <button type="button" onClick={saveJournal}
+                        disabled={journalSaving || !journalDraft.lesson_date || !journalDraft.title.trim() || !journalDraft.lesson_summary.trim()}>
+                        {journalSaving ? "저장 중..." : journalDraft.id ? "수업일지 수정 저장" : "수업일지 저장"}
+                      </button>
+                      {journalDraft.id && (
+                        <button type="button" className="secondary"
+                          onClick={()=>setJournalDraft({...EMPTY_JOURNAL,lesson_date:todaySeoulDateKey()})}>수정 취소</button>
+                      )}
+                    </div>
+                  </div>
+
+                  {journalFeedback && <p className="adminJournalFeedback" role="status">{journalFeedback}</p>}
+                  <div className="adminJournalHistory">
+                    <h3>저장된 수업일지 <small>{journals.length}건</small></h3>
+                    {journalsLoading && <p className="small">수업일지를 불러오는 중입니다...</p>}
+                    {!journalsLoading && journals.length===0 && <p className="adminAlertEmpty">아직 작성한 수업일지가 없습니다.</p>}
+                    {journals.map(journal=>(
+                      <article className="adminJournalItem" key={journal.id}>
+                        <div className="adminJournalItemHeading">
+                          <div><small>{journal.lesson_date}</small><strong>{journal.title}</strong></div>
+                          <button type="button" className="adminTextLink" onClick={()=>editJournal(journal)}>수정</button>
+                        </div>
+                        <p>{journal.lesson_summary}</p>
+                        {journal.feedback && <p className="adminJournalDetail"><b>피드백</b> {journal.feedback}</p>}
+                        {journal.homework && <p className="adminJournalDetail"><b>과제</b> {journal.homework}</p>}
+                        <div className="adminJournalActions">
+                          <button type="button" onClick={()=>shareJournalMessage(journal)}>
+                            <Send size={16}/> 카카오톡 공유
+                          </button>
+                          <button type="button" className="secondary"
+                            onClick={()=>copyJournalMessage(journal)}><Copy size={15}/> 복사</button>
+                          <button type="button" className="adminJournalDelete"
+                            onClick={()=>deleteJournal(journal)}>삭제</button>
+                        </div>
+                        {journalPreviewId===journal.id && (
+                          <div className="adminJournalPreview">
+                            <strong>수강생에게 보낼 메시지</strong>
+                            <textarea readOnly rows={10}
+                              value={journalKakaoMessage(selectedStudent.name,journal)}/>
+                            <p className="small">발송은 자동으로 처리되지 않습니다. 카카오톡에서 받는 사람과 전송 여부를 확인해 주세요.</p>
                           </div>
                         )}
-                      </div>
-                    );
-                  })}
-                </div>
-              </section>
+                      </article>
+                    ))}
+                  </div>
+                </section>
+              )}
             </>
           )}
 
