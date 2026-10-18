@@ -116,9 +116,14 @@ export async function POST(request:Request) {
     if(body.action !== "list")
       return json({message:"지원하지 않는 요청입니다."},400);
     const supabase=getSupabaseAdmin();
-    const {data,error}=await supabase.from("oneday_class_images").select(FIELDS)
-      .order("sort_order",{ascending:true}).order("created_at",{ascending:true})
-      .limit(500);
+    const targetClassId = String(body.class_id || "");
+    if (targetClassId && !UUID.test(targetClassId)) {
+      return json({message:"원데이 클래스 정보가 올바르지 않습니다."},400);
+    }
+    let query = supabase.from("oneday_class_images").select(FIELDS);
+    if (targetClassId) query = query.eq("class_id",targetClassId);
+    const {data,error}=await query.order("sort_order",{ascending:true})
+      .order("created_at",{ascending:true}).limit(500);
     if(error)throw error;
     return json({photos:formatPhotos((data||[]) as GalleryPhoto[])});
   }catch(error){
