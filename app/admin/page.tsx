@@ -1950,11 +1950,7 @@ export default function AdminPage() {
             <input type="datetime-local" value={edit.start_at} onChange={(e) => updateOneDayClassEdit(c.id, "start_at", e.target.value)} />
             <label>수업 종료 일정</label>
             <input type="datetime-local" value={edit.end_at} onChange={(e) => updateOneDayClassEdit(c.id, "end_at", e.target.value)} />
-            <p className="small">정원 6명 고정 (동반자 포함)</p>
-            <label>정규수강생 추가 참석 비용</label>
-            <input type="number" min="0" value={edit.regular_price} onChange={(e) => updateOneDayClassEdit(c.id, "regular_price", e.target.value)} />
-            <label>일반 수강 비용</label>
-            <input type="number" min="0" value={edit.normal_price} onChange={(e) => updateOneDayClassEdit(c.id, "normal_price", e.target.value)} />
+            <p className="adminValidityHint">정규수강생 전용 · 동반자 포함 정원 6명</p>
             <label className="checkboxRow">
               <input type="checkbox" checked={edit.is_open} onChange={(e) => updateOneDayClassEdit(c.id, "is_open", e.target.checked)} />
               <span>수강생 원데이 신청 화면에 노출</span>
@@ -1979,7 +1975,7 @@ export default function AdminPage() {
                 <span>정원 6명</span>
                 <span>{c.is_open ? "예약 화면 노출" : "예약 화면 숨김"}</span>
               </div>
-              <p className="small">정규수강생 전용 · 신청 즉시 확정 · 정원 초과 시 대기</p>
+              <p className="small">정규수강생 전용 · 정원 6명 · 마감 시 대기 신청</p>
               {c.description && <p className="onedayCurriculumPreview" style={{whiteSpace:"pre-line"}}>{c.description}</p>}
             </div>
             <div className="inlineActions oneDayClassActions">
@@ -2954,66 +2950,25 @@ export default function AdminPage() {
                 <div className="list">
                   {overview.onedayBookings.length === 0 && <p>원데이 신청 내역이 없습니다.</p>}
                   {overview.onedayBookings.length > 0 && filteredOneDayBookings.length === 0 && <p>선택한 수업의 신청자가 없습니다.</p>}
-                  {monthlyOneDayBookings.map((group) => {
-                    const stats = getOneDayMonthStats(group.bookings);
-                    return (
-                    <div className="monthGroup" key={group.key}>
-                      <h3>{group.label}</h3>
-                      <p className="small">무료 혜택 사용 {stats.freeCount}건 / 추가 유료 신청 {stats.paidCount}건 / 활성 신청 {stats.activeCount}건</p>
-                      {stats.paidCount > 0 && <p className="paymentNotice">추가 수강료 입금 안내가 필요한 신청이 {stats.paidCount}건 있습니다.</p>}
-                      {stats.students.length > 0 && (
-                        <div className="benefitSummary">
-                          {stats.students.map((student) => (
-                            <span className="benefitPill" key={`${group.key}-${student.name}-${student.phoneLast4}`}>
-                              {student.name}({student.phoneLast4}) · 무료 {student.freeCount}회 · 추가 {student.paidCount}회
-                              {student.paidCount > 0 ? ` · 입금 안내 ${formatPrice(student.paidAmount)}` : ""}
-                            </span>
-                          ))}
-                        </div>
-                      )}
-                      <div className="list compactList">
-                        {group.bookings.map((b) => (
-                          <div className="item" key={b.id}>
-                            <strong>{b.student_name}</strong>
-                            <p className="small">클래스: {b.oneday_classes?.title || "-"}</p>
-                            {b.oneday_classes?.start_at && (
-                              <p className="small">일정: {formatDateOnly(b.oneday_classes.start_at)} {formatTime(b.oneday_classes.start_at)}{b.oneday_classes.end_at ? ` - ${formatTime(b.oneday_classes.end_at)}` : ""}</p>
-                            )}
-                            <p className="small">인원: {b.people_count || 1}명 / 상태: {onedayStatusLabel(b.status)}</p>
-                            <p className="small">적용 비용: {formatOneDayAmount(b.amount_due)}</p>
-                            <p className="small">월 무료 혜택: {Number(b.amount_due ?? 10000) === 0 ? "사용" : "추가 유료 신청"}</p>
-                            {Number(b.amount_due ?? 10000) > 0 && ["booked", "입금대기"].includes(String(b.status || "")) && (
-                              <p className="paymentNotice">추가 수강료 {formatOneDayAmount(b.amount_due)} 입금 안내 필요</p>
-                            )}
-                            <p className="small">연락처 뒷자리: {b.phone_last4 || "-"}</p>
-                            <div className="inlineActions smallActionRow">
-                              {["booked", "입금대기", "등록대기"].includes(String(b.status || "")) && (
-                                <button
-                                  className="compact"
-                                  onClick={() => updateOneDayBookingStatus(b.id, "등록완료", "등록 완료")}
-                                >
-                                  {Number(b.amount_due ?? 10000) === 0 ? "무료 신청 등록 완료" : "입금 확인 / 등록 완료"}
-                                </button>
-                              )}
-                              {["입금완료", "등록완료"].includes(String(b.status || "")) && (
-                                <button
-                                  className="secondary compact"
-                                  onClick={() => updateOneDayBookingStatus(
-                                    b.id,
-                                    Number(b.amount_due ?? 10000) === 0 ? "등록대기" : "입금대기",
-                                    Number(b.amount_due ?? 10000) === 0 ? "무료 등록 대기" : "입금 대기",
-                                  )}
-                                >
-                                  {Number(b.amount_due ?? 10000) === 0 ? "무료 등록 대기로 되돌리기" : "입금 대기로 되돌리기"}
-                                </button>
-                              )}
-                            </div>
-                          </div>
-                        ))}
+                  {!selectedOneDayClassId && <p className="adminOneDayEmpty">달력에서 클래스를 선택하면 신청자 내역이 표시됩니다.</p>}
+                  {selectedOneDayClassId && filteredOneDayBookings.length===0 &&
+                    <p className="adminOneDayEmpty">이 클래스에는 아직 신청자가 없습니다.</p>}
+                  {selectedOneDayClassId && filteredOneDayBookings.map((b) => (
+                    <article className="adminOneDayApplicant" key={b.id}>
+                      <div><strong>{b.student_name}</strong>
+                        <span>{b.people_count||1}명 · {onedayStatusLabel(b.status)}</span></div>
+                      <p>연락처 끝 4자리: {b.phone_last4||"-"}</p>
+                      <div className="adminOneDayApplicantActions">
+                        {["booked","입금대기","등록대기"].includes(String(b.status||"")) && (
+                          <button type="button" onClick={()=>updateOneDayBookingStatus(b.id,"등록완료","등록 완료")}>등록 완료 처리</button>
+                        )}
+                        {["입금완료","등록완료"].includes(String(b.status||"")) && (
+                          <button type="button" className="secondary"
+                            onClick={()=>updateOneDayBookingStatus(b.id,"등록대기","등록 대기")}>등록 대기로 되돌리기</button>
+                        )}
                       </div>
-                    </div>
-                    );
-                  })}
+                    </article>
+                  ))}
                 </div>
               </section>
             </>
