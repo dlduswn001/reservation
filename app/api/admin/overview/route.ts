@@ -26,7 +26,8 @@ export async function POST(request: Request) {
     const classesQuery = supabase
       .from("oneday_classes")
       .select("id, title, start_at, end_at, capacity, regular_price, normal_price, description, is_open, is_deleted")
-      .or("is_deleted.is.false,is_deleted.is.null")
+      // Keep soft-deleted classes in the admin calendar as historical records.
+      // The public/student list remains limited to is_open=true classes.
       .order("start_at", { ascending: true });
 
     let students: any = await supabase
