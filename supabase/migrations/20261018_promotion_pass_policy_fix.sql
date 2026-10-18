@@ -1,4 +1,5 @@
--- Match pass validity and first-lesson expiration policy used by the regular booking API.\ncreate or replace function public.munjang_regular_promote_after_cancellation(
+-- Match pass validity and first-lesson expiration policy used by the regular booking API.
+create or replace function public.munjang_regular_promote_after_cancellation(
  p_old_slot uuid,p_cancel_start timestamptz,p_cancel_end timestamptz
 ) returns integer language plpgsql security definer set search_path=public as $$
 declare
