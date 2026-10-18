@@ -772,20 +772,26 @@ export default function AdminPage() {
     [overview?.students],
   );
 
-  const activeStudentCount = alphabeticalStudents.filter((student) => student.is_active !== false).length;
-  const inactiveStudentCount = alphabeticalStudents.filter((student) => student.is_active === false).length;
-  const visibleStudents = useMemo(() => {
-    const keyword = studentSearch.trim().toLocaleLowerCase("ko");
-    const inSelectedGroup = alphabeticalStudents.filter((student) =>
-      enrollmentFilter === "active" ? student.is_active !== false : student.is_active === false);
-    if (!keyword) return inSelectedGroup;
-    return inSelectedGroup.filter((student) =>
-      student.name.toLocaleLowerCase("ko").includes(keyword) || student.phone_last4.includes(keyword));
-  }, [alphabeticalStudents, studentSearch, enrollmentFilter]);
+  const studentStatus = (student: Student) =>
+    student.enrollment_status || (student.is_active === false ? "withdrawn" : "active");
 
-  const selectedStudent = alphabeticalStudents.find((student) =>
-    student.id === selectedStudentId &&
-    (enrollmentFilter === "active" ? student.is_active !== false : student.is_active === false)) || null;
+  const activeStudentCount = alphabeticalStudents.filter(student => studentStatus(student)==="active").length;
+  const pausedStudentCount = alphabeticalStudents.filter(student => studentStatus(student)==="paused").length;
+  const withdrawnStudentCount = alphabeticalStudents.filter(student => studentStatus(student)==="withdrawn").length;
+  const visibleStudents = useMemo(() => {
+    const keyword=studentSearch.trim().toLocaleLowerCase("ko");
+    const relevant=alphabeticalStudents.filter(student =>
+      (student.enrollment_status || (student.is_active === false?"withdrawn":"active"))===enrollmentFilter);
+    if(!keyword)return relevant;
+    const digits=keyword.replace(/[^0-9]/g,"");
+    return relevant.filter(student =>
+      student.name.toLocaleLowerCase("ko").includes(keyword)
+      || student.phone_last4.includes(keyword)
+      || (digits && (student.phone_number || "").includes(digits)));
+  },[alphabeticalStudents,studentSearch,enrollmentFilter]);
+
+  const selectedStudent=alphabeticalStudents.find(student =>
+    student.id===selectedStudentId && studentStatus(student)===enrollmentFilter) || null;
   const selectedStudentBookings = (overview?.bookings || [])
     .filter((booking) => booking.student_id === selectedStudentId &&
       !["cancelled","late_cancelled"].includes(booking.status) &&
@@ -794,7 +800,7 @@ export default function AdminPage() {
 
   function selectStudent(studentId: string) {
     const student = alphabeticalStudents.find((item) => item.id === studentId);
-    if (student) setEnrollmentFilter(student.is_active === false ? "inactive" : "active");
+    if (student) setEnrollmentFilter(studentStatus(student));
     setSelectedStudentId(studentId);
     setEditingStudentId(null);
     setJournalDraft({ ...EMPTY_JOURNAL, lesson_date: todaySeoulDateKey() });
@@ -804,7 +810,7 @@ export default function AdminPage() {
     window.scrollTo({top:0,behavior:"smooth"});
   }
 
-  function switchEnrollmentFilter(nextFilter: "active" | "inactive") {
+  function switchEnrollmentFilter(nextFilter: "active" | "paused" | "withdrawn") {
     if (nextFilter === enrollmentFilter) return;
     setEnrollmentFilter(nextFilter);
     setSelectedStudentId("");
@@ -817,8 +823,8 @@ export default function AdminPage() {
   async function updateEnrollmentStatus(student: Student, nextActive: boolean) {
     const actionLabel = nextActive ? "재원생으로 전환" : "퇴원 처리";
     const detail = nextActive
-      ? "다시 예약 앱을 이용할 수 있습니다."
-      : "예약 앱 사용이 중단되지만 수강권·수업 기록·수업일지는 보관됩니다.";
+      ? "수강권이 남고 최근 수업이 있으면 재원으로 분류됩니다. 휴원·자동퇴원 기준은 계속 적용됩니다."
+      : "퇴원 목록으로 이동하지만 기존 수강권·수업 기록·수업일지는 모두 유지됩니다.";
     if (!window.confirm(`${student.name} 수강생을 ${actionLabel}할까요?\n${detail}`)) return;
     setEnrollmentSaving(true);
     setMessage("");
@@ -838,7 +844,7 @@ export default function AdminPage() {
       const json = await res.json();
       if (!res.ok) throw new Error(json.message || "재원 상태를 변경하지 못했습니다.");
       await loadOverview();
-      setEnrollmentFilter(nextActive ? "active" : "inactive");
+      setEnrollmentFilter(nextActive ? "active" : "withdrawn");
       setSelectedStudentId(student.id);
       setEditingStudentId(null);
       setActiveTab("students");
