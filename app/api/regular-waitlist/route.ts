@@ -46,8 +46,9 @@ export async function POST(request: Request) {
       return NextResponse.json(data);
     }
     if (!body.slotId) return NextResponse.json({message:"수업 시간이 없습니다."},{status:400});
-    const {data,error}=await db.rpc("munjang_regular_waitlist_join",{
-      p_slot_id:String(body.slotId),p_student_id:String(body.studentId)
+    const {data,error}=await db.rpc("munjang_regular_waitlist_join_v2",{
+      p_slot_id:String(body.slotId),p_student_id:String(body.studentId),
+      p_preferred_lifestyle:body.lifestyleClassName || null
     });
     if(error) throw error;
     return NextResponse.json(data);
