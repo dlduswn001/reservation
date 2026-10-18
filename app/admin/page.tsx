@@ -2483,7 +2483,7 @@ export default function AdminPage() {
                 <label htmlFor="adminMonthYear">열어둘 수업 월</label>
                 <div className="adminMonthPickerRow" role="group" aria-label="열어둘 수업 연도와 월">
                   <select id="adminMonthYear" aria-label="수업 연도" value={monthToOpen.slice(0, 4)}
-                    onChange={e=>setMonthToOpen(`${e.target.value}-${monthToOpen.slice(5, 7)}`)}>
+                    onChange={e=>setMonthToOpen(`${e.target.value}-${Number(e.target.value) === 2026 && Number(monthToOpen.slice(5,7)) < 10 ? "10" : monthToOpen.slice(5,7)}`)}>
                     {Array.from({length: 7}, (_,i)=> 2026+i).map(year=>(
                       <option key={year} value={year}>{year}년</option>
                     ))}
