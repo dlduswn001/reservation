@@ -2256,3 +2256,184 @@ body { color: var(--text); }
   border:1px solid #efdfe5;background:#faf2f5;color:#7a2638;
   border-radius:8px;font-size:11px;font-weight:800;
 }
+
+/* admin-mobile-alignment-and-enrollment-20261018 */
+/* iOS Safari native month inputs have an intrinsic width larger than narrow cards.
+   Two normal selects avoid that while retaining native mobile option pickers. */
+.adminMobilePage,
+.adminMobilePage .card,
+.adminMobilePage .adminMonthOpenCard,
+.adminMobilePage .adminStudentHub,
+.adminMobilePage .adminStudentNewForm,
+.adminMobilePage .adminStudentEditForm,
+.adminMobilePage .adminJournalEditor {
+  box-sizing: border-box;
+  min-width: 0;
+  max-width: 100%;
+}
+.adminMobilePage .card input,
+.adminMobilePage .card select,
+.adminMobilePage .card textarea {
+  display: block;
+  box-sizing: border-box;
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
+  font-size: 16px;
+  line-height: 1.45;
+}
+.adminMobilePage .card input[type="checkbox"] {
+  display: inline-block;
+  width: auto;
+  min-width: auto;
+}
+.adminMobilePage .adminMonthOpenCard .adminMonthPickerRow {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 10px;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+}
+.adminMobilePage .adminMonthOpenCard .adminMonthPickerRow select {
+  display: block;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  height: 50px;
+  margin: 0;
+  padding: 9px 30px 9px 12px;
+  border-radius: 11px;
+  border: 1px solid #e8e3e6;
+  background: #fff;
+  color: #302a30;
+  text-align: center;
+  text-align-last: center;
+  font-weight: 750;
+  font-size: 16px;
+}
+.adminMobilePage .adminMonthOpenCard .adminFormSubmit {
+  box-sizing: border-box;
+  min-width: 0;
+  max-width: 100%;
+  white-space: normal;
+  text-align: center;
+  overflow-wrap: anywhere;
+}
+.adminMobilePage .adminMonthOpenCard > p,
+.adminMobilePage .adminMonthOpenCard > label,
+.adminMobilePage .adminMonthOpenCard h1 {
+  max-width: 100%;
+  overflow-wrap: anywhere;
+}
+.adminMobilePage .adminFeedback {
+  overflow-wrap: anywhere;
+  word-break: keep-all;
+  font-size: 13px;
+  line-height: 1.6;
+}
+.adminMobilePage .adminEnrollmentTabs {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  width: 100%;
+  min-width: 0;
+  margin-top: 18px;
+}
+.adminMobilePage .adminEnrollmentTab {
+  width: 100%;
+  min-width: 0;
+  min-height: 45px;
+  margin: 0;
+  padding: 10px 8px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 7px;
+  border: 1px solid #eae5e7;
+  border-radius: 11px;
+  background: #faf9fa;
+  color: #827980;
+  font-size: 13px;
+  font-weight: 800;
+}
+.adminMobilePage .adminEnrollmentTab span {
+  display: inline-flex;
+  min-width: 23px;
+  height: 23px;
+  padding: 0 5px;
+  align-items: center;
+  justify-content: center;
+  border-radius: 8px;
+  background: #efeced;
+  color: #6b6268;
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+}
+.adminMobilePage .adminEnrollmentTab.selected {
+  background: #7a2638;
+  border-color: #7a2638;
+  color: #fff;
+}
+.adminMobilePage .adminEnrollmentTab.selected span {
+  background: rgba(255,255,255,.18);
+  color: #fff;
+}
+.adminMobilePage .adminEnrollmentTab:focus-visible,
+.adminMobilePage .adminEnrollmentMove:focus-visible {
+  outline: 2px solid #7a2638;
+  outline-offset: 2px;
+}
+.adminMobilePage .adminEnrollmentActions {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  align-items: flex-start;
+  margin-top: 13px;
+  padding-top: 13px;
+  border-top: 1px solid #f0eced;
+}
+.adminMobilePage .adminEnrollmentActions .adminEnrollmentMove {
+  box-sizing: border-box;
+  width: 100%;
+  min-height: 39px;
+  max-width: 100%;
+  margin: 0;
+  padding: 10px 11px;
+  border-radius: 10px;
+  font-size: 12px;
+  font-weight: 800;
+}
+.adminMobilePage .adminEnrollmentMove.deactivate {
+  color: #8a5361;
+  border: 1px solid #e9dbe0;
+  background: #faf6f7;
+}
+.adminMobilePage .adminEnrollmentMove.reactivate {
+  color: #fff;
+  border: 1px solid #7a2638;
+  background: #7a2638;
+}
+.adminMobilePage .adminEnrollmentMove:disabled {
+  opacity: .55;
+  cursor: not-allowed;
+}
+.adminMobilePage .adminEnrollmentActions p.small {
+  margin: 4px 0 0;
+  color: #91878c;
+  font-size: 11px;
+  line-height: 1.6;
+}
+@media (max-width: 390px) {
+  .adminMobilePage .adminMonthOpenCard .adminMonthPickerRow {
+    gap: 8px;
+  }
+  .adminMobilePage .adminMonthOpenCard .adminMonthPickerRow select {
+    height: 47px;
+    padding: 8px 24px 8px 6px;
+    font-size: 15px;
+  }
+  .adminMobilePage .adminEnrollmentTab {
+    font-size: 12px;
+  }
+}

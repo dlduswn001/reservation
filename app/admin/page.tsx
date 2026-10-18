@@ -554,6 +554,8 @@ export default function AdminPage() {
   const [editingStudentId, setEditingStudentId] = useState<string | null>(null);
   const [selectedStudentId, setSelectedStudentId] = useState("");
   const [studentSearch, setStudentSearch] = useState("");
+  const [enrollmentFilter, setEnrollmentFilter] = useState<"active" | "inactive">("active");
+  const [enrollmentSaving, setEnrollmentSaving] = useState(false);
   const [showNewStudentForm, setShowNewStudentForm] = useState(false);
   const [showScheduleAdvanced, setShowScheduleAdvanced] = useState(false);
   const [monthToOpen, setMonthToOpen] = useState(() => todaySeoulDateKey().slice(0,7));
@@ -745,14 +747,20 @@ export default function AdminPage() {
     [overview?.students],
   );
 
+  const activeStudentCount = alphabeticalStudents.filter((student) => student.is_active !== false).length;
+  const inactiveStudentCount = alphabeticalStudents.filter((student) => student.is_active === false).length;
   const visibleStudents = useMemo(() => {
     const keyword = studentSearch.trim().toLocaleLowerCase("ko");
-    if (!keyword) return alphabeticalStudents;
-    return alphabeticalStudents.filter((student) =>
+    const inSelectedGroup = alphabeticalStudents.filter((student) =>
+      enrollmentFilter === "active" ? student.is_active !== false : student.is_active === false);
+    if (!keyword) return inSelectedGroup;
+    return inSelectedGroup.filter((student) =>
       student.name.toLocaleLowerCase("ko").includes(keyword) || student.phone_last4.includes(keyword));
-  }, [alphabeticalStudents,studentSearch]);
+  }, [alphabeticalStudents, studentSearch, enrollmentFilter]);
 
-  const selectedStudent = alphabeticalStudents.find((student) => student.id === selectedStudentId) || null;
+  const selectedStudent = alphabeticalStudents.find((student) =>
+    student.id === selectedStudentId &&
+    (enrollmentFilter === "active" ? student.is_active !== false : student.is_active === false)) || null;
   const selectedStudentBookings = (overview?.bookings || [])
     .filter((booking) => booking.student_id === selectedStudentId &&
       !["cancelled","late_cancelled"].includes(booking.status) &&
@@ -760,6 +768,8 @@ export default function AdminPage() {
     .sort((a,b) => new Date(b.start_at).getTime() - new Date(a.start_at).getTime());
 
   function selectStudent(studentId: string) {
+    const student = alphabeticalStudents.find((item) => item.id === studentId);
+    if (student) setEnrollmentFilter(student.is_active === false ? "inactive" : "active");
     setSelectedStudentId(studentId);
     setEditingStudentId(null);
     setJournalDraft({ ...EMPTY_JOURNAL, lesson_date: todaySeoulDateKey() });
@@ -767,6 +777,52 @@ export default function AdminPage() {
     setJournalFeedback("");
     setActiveTab("students");
     window.scrollTo({top:0,behavior:"smooth"});
+  }
+
+  function switchEnrollmentFilter(nextFilter: "active" | "inactive") {
+    if (nextFilter === enrollmentFilter) return;
+    setEnrollmentFilter(nextFilter);
+    setSelectedStudentId("");
+    setStudentSearch("");
+    setEditingStudentId(null);
+    setJournalFeedback("");
+    setJournalDraft({ ...EMPTY_JOURNAL });
+  }
+
+  async function updateEnrollmentStatus(student: Student, nextActive: boolean) {
+    const actionLabel = nextActive ? "재원생으로 전환" : "퇴원 처리";
+    const detail = nextActive
+      ? "다시 예약 앱을 이용할 수 있습니다."
+      : "예약 앱 사용이 중단되지만 수강권·수업 기록·수업일지는 보관됩니다.";
+    if (!window.confirm(`${student.name} 수강생을 ${actionLabel}할까요?\n${detail}`)) return;
+    setEnrollmentSaving(true);
+    setMessage("");
+    try {
+      const res = await fetch(`/api/admin/students/${student.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          password,
+          name: student.name,
+          phone_last4: student.phone_last4,
+          lesson_credits: Number(student.lesson_credits ?? 0),
+          lesson_duration_minutes: Number(student.lesson_duration_minutes ?? 90),
+          is_active: nextActive,
+        }),
+      });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.message || "재원 상태를 변경하지 못했습니다.");
+      await loadOverview();
+      setEnrollmentFilter(nextActive ? "active" : "inactive");
+      setSelectedStudentId(student.id);
+      setEditingStudentId(null);
+      setActiveTab("students");
+      setMessage(`${student.name} 수강생을 ${nextActive ? "재원생" : "퇴원생"}으로 변경했습니다. 기존 기록은 유지됩니다.`);
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : "재원 상태를 변경하지 못했습니다.");
+    } finally {
+      setEnrollmentSaving(false);
+    }
   }
 
   useEffect(() => {
@@ -912,8 +968,8 @@ export default function AdminPage() {
   }
 
   async function openMonthlySchedule() {
-    if(!/^\d{4}-(0[1-9]|1[0-2])$/.test(monthToOpen)){
-      setMessage("열려는 월을 선택해 주세요.");return;
+    if(!/^\d{4}-(0[1-9]|1[0-2])$/.test(monthToOpen) || monthToOpen < "2026-10"){
+      setMessage("2026년 10월 이후의 수업 월을 선택해 주세요.");return;
     }
     if(!window.confirm(`${monthToOpen} 월간 수업 시간을 열까요? 기존 예약과 닫힌 시간, 월·화 휴무는 변경하지 않습니다.`))return;
     setMonthlyOpening(true);setMessage("");
@@ -2122,14 +2178,26 @@ export default function AdminPage() {
                   </div>
                 )}
 
-                <label className="adminRosterSearchLabel" htmlFor="adminStudentSearch">수강생 찾기 · 가나다순</label>
+                <div className="adminEnrollmentTabs" role="tablist" aria-label="수강생 재원 상태">
+                  <button type="button" role="tab" aria-selected={enrollmentFilter === "active"}
+                    className={`adminEnrollmentTab ${enrollmentFilter === "active" ? "selected" : ""}`}
+                    onClick={() => switchEnrollmentFilter("active")}>
+                    재원생 <span>{activeStudentCount}</span>
+                  </button>
+                  <button type="button" role="tab" aria-selected={enrollmentFilter === "inactive"}
+                    className={`adminEnrollmentTab ${enrollmentFilter === "inactive" ? "selected" : ""}`}
+                    onClick={() => switchEnrollmentFilter("inactive")}>
+                    퇴원생 <span>{inactiveStudentCount}</span>
+                  </button>
+                </div>
+                <label className="adminRosterSearchLabel" htmlFor="adminStudentSearch">{enrollmentFilter === "active" ? "재원생" : "퇴원생"} 찾기 · 가나다순</label>
                 <div className="adminRosterSearch">
                   <Search size={18} />
                   <input id="adminStudentSearch" value={studentSearch}
                     onChange={e=>setStudentSearch(e.target.value)}
                     placeholder="이름 또는 전화번호 뒤 4자리 검색" />
                 </div>
-                <div className="adminRosterCount">전체 {alphabeticalStudents.length}명 · 표시 {visibleStudents.length}명</div>
+                <div className="adminRosterCount">{enrollmentFilter === "active" ? "재원생" : "퇴원생"} {enrollmentFilter === "active" ? activeStudentCount : inactiveStudentCount}명 · 표시 {visibleStudents.length}명</div>
                 <div className="adminRosterNames" role="group" aria-label="가나다순 수강생 목록">
                   {visibleStudents.map(student => (
                     <button type="button" key={student.id}
@@ -2141,7 +2209,7 @@ export default function AdminPage() {
                     </button>
                   ))}
                 </div>
-                {visibleStudents.length===0 && <p className="adminAlertEmpty">검색 결과가 없습니다.</p>}
+                {visibleStudents.length===0 && <p className="adminAlertEmpty">{studentSearch ? "검색 결과가 없습니다." : "해당 목록에 수강생이 없습니다."}</p>}
               </section>
 
               {!selectedStudent && (
@@ -2168,7 +2236,7 @@ export default function AdminPage() {
                   <section key={s.id} className="card adminSelectedStudentCard">
                     <div className="adminSelectedStudentHeading">
                       <div><p className="adminEyebrow">선택한 수강생</p><h2>{s.name}</h2>
-                        <span>{s.phone_last4} · {s.is_active ? "이용 중" : "이용 중지"}</span>
+                        <span>{s.phone_last4} · {s.is_active === false ? "퇴원생 · 예약 중지" : "재원생 · 예약 가능"}</span>
                       </div>
                       {!isEditing && <button type="button" className="adminSmallAction"
                         onClick={()=>setEditingStudentId(s.id)}>정보 수정</button>}
@@ -2185,6 +2253,16 @@ export default function AdminPage() {
                         <button type="button" className="adminRecordLink" onClick={()=>openStudentHistory(s.id)}>
                           기존 수강 기록 확인 <ChevronRight size={18}/>
                         </button>
+                        <div className="adminEnrollmentActions">
+                          <button type="button" className={`adminEnrollmentMove ${s.is_active === false ? "reactivate" : "deactivate"}`}
+                            disabled={enrollmentSaving}
+                            onClick={() => void updateEnrollmentStatus(s, s.is_active === false)}>
+                            {enrollmentSaving ? "변경 중..." : s.is_active === false ? "재원생으로 다시 등록" : "퇴원생으로 이동"}
+                          </button>
+                          <p className="small">{s.is_active === false
+                            ? "재원생으로 전환하면 기존 계정으로 다시 예약할 수 있습니다."
+                            : "퇴원 처리해도 수강권과 수업 기록은 삭제되지 않습니다."}</p>
+                        </div>
                       </>
                     ) : (
                       <div className="adminStudentEditForm">
@@ -2212,18 +2290,10 @@ export default function AdminPage() {
                           onChange={e=>setStudentEdits(current=>({
                             ...current,[s.id]:{...edit,pass_registered_at:e.target.value}}))}/>
                         <p className="adminValidityHint">{passPolicySummary(s)}</p>
-                        <label className="checkboxLabel">
-                          <input type="checkbox" checked={edit.is_active}
-                            onChange={e=>setStudentEdits(current=>({
-                              ...current,[s.id]:{...edit,is_active:e.target.checked}}))}/>
-                          예약 앱 이용 가능
-                        </label>
                         <div className="adminStudentFormActions">
                           <button type="button" onClick={()=>updateStudent(s.id)}>변경 사항 저장</button>
                           <button type="button" className="secondary" onClick={()=>cancelStudentEdit(s)}>취소</button>
                         </div>
-                        <button type="button" className="adminStudentDelete"
-                          onClick={()=>deleteStudent(s.id,s.name)}>수강생 삭제</button>
                       </div>
                     )}
                   </section>
@@ -2410,9 +2480,24 @@ export default function AdminPage() {
                 <p className="adminEyebrow">정규 수업 일정</p>
                 <h1>월별 수업 열기</h1>
                 <p className="small">원하는 월을 선택하면 수·목·금, 토·일 공식 수업 시간 중 빠진 시간을 추가합니다.</p>
-                <label>열어둘 수업 월</label>
-                <input type="month" min="2026-10" value={monthToOpen}
-                  onChange={e=>setMonthToOpen(e.target.value)}/>
+                <label htmlFor="adminMonthYear">열어둘 수업 월</label>
+                <div className="adminMonthPickerRow" role="group" aria-label="열어둘 수업 연도와 월">
+                  <select id="adminMonthYear" aria-label="수업 연도" value={monthToOpen.slice(0, 4)}
+                    onChange={e=>setMonthToOpen(`${e.target.value}-${Number(e.target.value) === 2026 && Number(monthToOpen.slice(5,7)) < 10 ? "10" : monthToOpen.slice(5,7)}`)}>
+                    {Array.from({length: 7}, (_,i)=> 2026+i).map(year=>(
+                      <option key={year} value={year}>{year}년</option>
+                    ))}
+                  </select>
+                  <select aria-label="수업 월" value={monthToOpen.slice(5,7)}
+                    onChange={e=>setMonthToOpen(`${monthToOpen.slice(0,4)}-${e.target.value}`)}>
+                    {Array.from({length: 12}, (_,i)=>String(i+1).padStart(2,"0")).map(month=>(
+                      <option key={month} value={month}
+                        disabled={monthToOpen.startsWith("2026-") && Number(month)<10}>
+                        {Number(month)}월
+                      </option>
+                    ))}
+                  </select>
+                </div>
                 <button type="button" className="adminFormSubmit"
                   disabled={monthlyOpening} onClick={openMonthlySchedule}>
                   {monthlyOpening ? "시간표를 준비하는 중..." : `${monthToOpen.replace("-","년 ")}월 수업 열기`}
