@@ -1,4 +1,4 @@
-const CACHE_VERSION = "munjang-pwa-v41-moonjang-app-name-20261016";
+const CACHE_VERSION = "munjang-pwa-v42-push-notifications-20261018";
 const STATIC_CACHE = `${CACHE_VERSION}-static`;
 const RUNTIME_CACHE = `${CACHE_VERSION}-runtime`;
 
@@ -60,4 +60,39 @@ self.addEventListener("fetch", (event) => {
       })
       .catch(() => caches.match(request))
   );
+});
+
+self.addEventListener("push", (event) => {
+  const data = (() => {
+    try { return event.data ? event.data.json() : {}; } catch { return {}; }
+  })();
+  const title = String(data.title || "문장학교");
+  const body = String(data.body || "새 수업 알림이 도착했습니다.");
+  const target = String(data.url || "/notifications");
+  const targetUrl = new URL(target, self.location.origin);
+  const safeUrl = targetUrl.origin === self.location.origin ? targetUrl.pathname : "/notifications";
+  event.waitUntil(self.registration.showNotification(title, {
+    body,
+    icon: "/icons/icon-192x192.png",
+    badge: "/icons/icon-192x192.png",
+    tag: String(data.tag || "munjang-notice"),
+    data: { url: safeUrl },
+    renotify: true,
+  }));
+});
+
+self.addEventListener("notificationclick", (event) => {
+  event.notification.close();
+  const targetUrl = new URL(event.notification.data?.url || "/notifications", self.location.origin);
+  const target = targetUrl.origin === self.location.origin ? targetUrl.href : self.location.origin + "/notifications";
+  event.waitUntil((async () => {
+    const windows = await self.clients.matchAll({ type:"window", includeUncontrolled:true });
+    for (const client of windows) {
+      if (client.url.startsWith(self.location.origin)) {
+        await client.focus();
+        return client.navigate(target);
+      }
+    }
+    return self.clients.openWindow(target);
+  })());
 });
