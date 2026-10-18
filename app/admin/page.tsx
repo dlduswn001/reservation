@@ -3,6 +3,8 @@
 import { useEffect, useMemo, useState } from "react";
 import { House, CalendarDays, UsersRound, Settings2, ChevronLeft, ChevronRight, NotebookPen, Send, Copy, Search, UserRoundPlus } from "lucide-react";
 import OneDayImageManager from "./OneDayImageManager";
+import MonthlyRegistrationReport from "./MonthlyRegistrationReport";
+import OneDayClassCalendar from "./OneDayClassCalendar";
 import Link from "next/link";
 import { getRegularPassPolicyStatus, PASS_POLICY_START_DATE_KEY, todayDateKeyInKst } from "../../lib/passPolicy";
 
@@ -10,7 +12,12 @@ type Student = {
   id: string;
   name: string;
   phone_last4: string;
+  phone_number?: string | null;
   is_active: boolean;
+  enrollment_status?: "active" | "paused" | "withdrawn";
+  last_attended_at?: string | null;
+  credits_zero_since?: string | null;
+  created_at?: string;
   memo?: string;
   lesson_credits?: number;
   lesson_duration_minutes?: number;
@@ -25,6 +32,7 @@ type Student = {
 type StudentEdit = {
   name: string;
   phone_last4: string;
+  phone_number: string;
   memo: string;
   lesson_credits: string;
   lesson_duration_minutes: string;
@@ -140,8 +148,14 @@ type OneDayBooking = {
   oneday_classes?: { id?: string; title?: string; start_at?: string; end_at?: string } | null;
 };
 
+type StudentRegistration = {
+  id: string; student_id: string; payment_date: string;
+  registration_type: "new" | "renewal";
+  amount_krw: number; credits_added: number; memo?: string;
+};
 type Overview = {
   students: Student[];
+  registrations: StudentRegistration[];
   slots: any[];
   bookings: Booking[];
   classes: OneDayClass[];
@@ -541,6 +555,13 @@ export default function AdminPage() {
   });
   const [studentName, setStudentName] = useState("");
   const [phoneLast4, setPhoneLast4] = useState("");
+  const [fullPhoneNumber, setFullPhoneNumber] = useState("");
+  const [newStudentPaidAmount, setNewStudentPaidAmount] = useState("");
+  const [renewalAmount, setRenewalAmount] = useState("");
+  const [renewalCredits, setRenewalCredits] = useState("4");
+  const [renewalDate, setRenewalDate] = useState(todaySeoulDateKey);
+  const [renewalMemo, setRenewalMemo] = useState("");
+  const [renewalSaving, setRenewalSaving] = useState(false);
   const [lessonCredits, setLessonCredits] = useState("4");
   const [lessonDurationMinutes, setLessonDurationMinutes] = useState("90");
   const [passRegisteredAt, setPassRegisteredAt] = useState(defaultPassRegisteredAtForNewStudent);
@@ -555,7 +576,7 @@ export default function AdminPage() {
   const [editingStudentId, setEditingStudentId] = useState<string | null>(null);
   const [selectedStudentId, setSelectedStudentId] = useState("");
   const [studentSearch, setStudentSearch] = useState("");
-  const [enrollmentFilter, setEnrollmentFilter] = useState<"active" | "inactive">("active");
+  const [enrollmentFilter, setEnrollmentFilter] = useState<"active" | "paused" | "withdrawn">("active");
   const [enrollmentSaving, setEnrollmentSaving] = useState(false);
   const [showNewStudentForm, setShowNewStudentForm] = useState(false);
   const [showScheduleAdvanced, setShowScheduleAdvanced] = useState(false);
@@ -575,6 +596,7 @@ export default function AdminPage() {
   const [historyMemo, setHistoryMemo] = useState("");
   const [editingHistoryId, setEditingHistoryId] = useState<string | null>(null);
   const [onedayTitle, setOnedayTitle] = useState("");
+  const [showOneDayCreator, setShowOneDayCreator] = useState(false);
   const [onedayCurriculum, setOnedayCurriculum] = useState("");
   const [onedayStartAt, setOnedayStartAt] = useState("");
   const [onedayEndAt, setOnedayEndAt] = useState("");
@@ -607,14 +629,14 @@ export default function AdminPage() {
   const [adminBookingLessonMinutes, setAdminBookingLessonMinutes] = useState("120");
   const [adminBookingMemo, setAdminBookingMemo] = useState("");
   const [adminBookingDeductCredit, setAdminBookingDeductCredit] = useState(true);
-  const [selectedOneDayClassId, setSelectedOneDayClassId] = useState("all");
+  const [selectedOneDayClassId, setSelectedOneDayClassId] = useState("");
   const oneDayClassOptions = useMemo(
     () => buildOneDayClassOptions(overview?.classes || [], overview?.onedayBookings || []),
     [overview?.classes, overview?.onedayBookings],
   );
   const filteredOneDayBookings = useMemo(() => {
     const bookings = overview?.onedayBookings || [];
-    if (selectedOneDayClassId === "all") return bookings;
+    if (!selectedOneDayClassId) return [];
     return bookings.filter((booking) => (booking.class_id || booking.oneday_classes?.id) === selectedOneDayClassId);
   }, [overview?.onedayBookings, selectedOneDayClassId]);
   const selectedOneDayClassOption = useMemo(
@@ -716,6 +738,7 @@ export default function AdminPage() {
       nextStudentEdits[student.id] = {
         name: student.name || "",
         phone_last4: student.phone_last4 || "",
+        phone_number: student.phone_number || "",
         memo: student.memo || "",
         lesson_credits: String(student.lesson_credits ?? 0),
         lesson_duration_minutes: String(student.lesson_duration_minutes ?? 90),
@@ -749,20 +772,26 @@ export default function AdminPage() {
     [overview?.students],
   );
 
-  const activeStudentCount = alphabeticalStudents.filter((student) => student.is_active !== false).length;
-  const inactiveStudentCount = alphabeticalStudents.filter((student) => student.is_active === false).length;
-  const visibleStudents = useMemo(() => {
-    const keyword = studentSearch.trim().toLocaleLowerCase("ko");
-    const inSelectedGroup = alphabeticalStudents.filter((student) =>
-      enrollmentFilter === "active" ? student.is_active !== false : student.is_active === false);
-    if (!keyword) return inSelectedGroup;
-    return inSelectedGroup.filter((student) =>
-      student.name.toLocaleLowerCase("ko").includes(keyword) || student.phone_last4.includes(keyword));
-  }, [alphabeticalStudents, studentSearch, enrollmentFilter]);
+  const studentStatus = (student: Student) =>
+    student.enrollment_status || (student.is_active === false ? "withdrawn" : "active");
 
-  const selectedStudent = alphabeticalStudents.find((student) =>
-    student.id === selectedStudentId &&
-    (enrollmentFilter === "active" ? student.is_active !== false : student.is_active === false)) || null;
+  const activeStudentCount = alphabeticalStudents.filter(student => studentStatus(student)==="active").length;
+  const pausedStudentCount = alphabeticalStudents.filter(student => studentStatus(student)==="paused").length;
+  const withdrawnStudentCount = alphabeticalStudents.filter(student => studentStatus(student)==="withdrawn").length;
+  const visibleStudents = useMemo(() => {
+    const keyword=studentSearch.trim().toLocaleLowerCase("ko");
+    const relevant=alphabeticalStudents.filter(student =>
+      (student.enrollment_status || (student.is_active === false?"withdrawn":"active"))===enrollmentFilter);
+    if(!keyword)return relevant;
+    const digits=keyword.replace(/[^0-9]/g,"");
+    return relevant.filter(student =>
+      student.name.toLocaleLowerCase("ko").includes(keyword)
+      || student.phone_last4.includes(keyword)
+      || (digits && (student.phone_number || "").includes(digits)));
+  },[alphabeticalStudents,studentSearch,enrollmentFilter]);
+
+  const selectedStudent=alphabeticalStudents.find(student =>
+    student.id===selectedStudentId && studentStatus(student)===enrollmentFilter) || null;
   const selectedStudentBookings = (overview?.bookings || [])
     .filter((booking) => booking.student_id === selectedStudentId &&
       !["cancelled","late_cancelled"].includes(booking.status) &&
@@ -771,7 +800,7 @@ export default function AdminPage() {
 
   function selectStudent(studentId: string) {
     const student = alphabeticalStudents.find((item) => item.id === studentId);
-    if (student) setEnrollmentFilter(student.is_active === false ? "inactive" : "active");
+    if (student) setEnrollmentFilter(studentStatus(student));
     setSelectedStudentId(studentId);
     setEditingStudentId(null);
     setJournalDraft({ ...EMPTY_JOURNAL, lesson_date: todaySeoulDateKey() });
@@ -781,7 +810,7 @@ export default function AdminPage() {
     window.scrollTo({top:0,behavior:"smooth"});
   }
 
-  function switchEnrollmentFilter(nextFilter: "active" | "inactive") {
+  function switchEnrollmentFilter(nextFilter: "active" | "paused" | "withdrawn") {
     if (nextFilter === enrollmentFilter) return;
     setEnrollmentFilter(nextFilter);
     setSelectedStudentId("");
@@ -794,8 +823,8 @@ export default function AdminPage() {
   async function updateEnrollmentStatus(student: Student, nextActive: boolean) {
     const actionLabel = nextActive ? "재원생으로 전환" : "퇴원 처리";
     const detail = nextActive
-      ? "다시 예약 앱을 이용할 수 있습니다."
-      : "예약 앱 사용이 중단되지만 수강권·수업 기록·수업일지는 보관됩니다.";
+      ? "수강권이 남고 최근 수업이 있으면 재원으로 분류됩니다. 휴원·자동퇴원 기준은 계속 적용됩니다."
+      : "퇴원 목록으로 이동하지만 기존 수강권·수업 기록·수업일지는 모두 유지됩니다.";
     if (!window.confirm(`${student.name} 수강생을 ${actionLabel}할까요?\n${detail}`)) return;
     setEnrollmentSaving(true);
     setMessage("");
@@ -815,7 +844,7 @@ export default function AdminPage() {
       const json = await res.json();
       if (!res.ok) throw new Error(json.message || "재원 상태를 변경하지 못했습니다.");
       await loadOverview();
-      setEnrollmentFilter(nextActive ? "active" : "inactive");
+      setEnrollmentFilter(nextActive ? "active" : "withdrawn");
       setSelectedStudentId(student.id);
       setEditingStudentId(null);
       setActiveTab("students");
@@ -996,6 +1025,8 @@ export default function AdminPage() {
       method:"POST",headers:{"Content-Type":"application/json"},
       body:JSON.stringify({
         password,name:studentName,phone_last4:phoneLast4,
+        phone_number:fullPhoneNumber,
+        paid_amount_krw:newStudentPaidAmount.trim() ? Number(newStudentPaidAmount) : 0,
         lesson_credits:Number(lessonCredits||0),
         lesson_duration_minutes:Number(lessonDurationMinutes||90),
         pass_registered_at:passRegisteredAt,
@@ -1003,7 +1034,7 @@ export default function AdminPage() {
     });
     const json=await res.json();
     if(!res.ok){setMessage(json.message||"수강생을 등록하지 못했습니다.");return;}
-    setStudentName("");setPhoneLast4("");setLessonCredits("4");
+    setStudentName("");setPhoneLast4("");setFullPhoneNumber("");setNewStudentPaidAmount("");setLessonCredits("4");
     setLessonDurationMinutes("90");setPassRegisteredAt(defaultPassRegisteredAtForNewStudent());
     setShowNewStudentForm(false);
     await loadOverview();
@@ -1021,6 +1052,7 @@ export default function AdminPage() {
       // validity automatically, not the administrator's edit form.
       body:JSON.stringify({
         password,name:edit.name,phone_last4:edit.phone_last4,
+        phone_number:edit.phone_number,
         lesson_credits:Number(edit.lesson_credits||0),
         lesson_duration_minutes:Number(edit.lesson_duration_minutes||90),
         pass_registered_at:edit.pass_registered_at,
@@ -1035,12 +1067,42 @@ export default function AdminPage() {
     setMessage("수강생 정보를 수정했습니다.");
   }
 
+  async function saveRenewal() {
+    if(!selectedStudent)return;
+    const credits=Number(renewalCredits);
+    const amount=Number(renewalAmount);
+    if(!Number.isFinite(credits)||credits<=0 || !Number.isSafeInteger(amount) || amount<0){
+      setMessage("재등록 횟수와 실제 결제금액을 확인해 주세요.");return;
+    }
+    if(!window.confirm(`${selectedStudent.name} 수강생의 수강권 ${credits}회와 결제 ${amount.toLocaleString("ko-KR")}원을 재등록으로 기록할까요?`))return;
+    setRenewalSaving(true);setMessage("");
+    try {
+      const res=await fetch("/api/admin/registrations",{
+        method:"POST",headers:{"Content-Type":"application/json"},
+        body:JSON.stringify({
+          password,student_id:selectedStudent.id,
+          payment_date:renewalDate,registration_type:"renewal",
+          amount_krw:amount,credits_added:credits,memo:renewalMemo,
+        }),
+      });
+      const json=await res.json();
+      if(!res.ok)throw new Error(json.message||"재등록을 저장하지 못했습니다.");
+      setRenewalAmount("");setRenewalCredits("4");setRenewalMemo("");
+      await loadOverview();
+      setActiveTab("students");
+      setMessage("재등록과 수강권 충전이 완료되었습니다. 실제 결제금액이 매출에 반영됩니다.");
+    }catch(error){
+      setMessage(error instanceof Error?error.message:"재등록을 저장하지 못했습니다.");
+    }finally{setRenewalSaving(false);}
+  }
+
   function cancelStudentEdit(student: Student) {
     setStudentEdits((current) => ({
       ...current,
       [student.id]: {
         name: student.name,
         phone_last4: student.phone_last4,
+        phone_number: student.phone_number || "",
         memo: student.memo || "",
         lesson_credits: String(student.lesson_credits ?? 0),
         lesson_duration_minutes: String(student.lesson_duration_minutes ?? 90),
@@ -1788,6 +1850,7 @@ export default function AdminPage() {
       });
     }
     for (const klass of overview.classes || []) {
+      if (klass.is_deleted === true) continue;
       const applications = (overview.onedayBookings || []).filter(
         (booking) => (booking.class_id || booking.oneday_classes?.id) === klass.id
           && isActiveOneDayBooking(booking.status),
@@ -1888,11 +1951,7 @@ export default function AdminPage() {
             <input type="datetime-local" value={edit.start_at} onChange={(e) => updateOneDayClassEdit(c.id, "start_at", e.target.value)} />
             <label>수업 종료 일정</label>
             <input type="datetime-local" value={edit.end_at} onChange={(e) => updateOneDayClassEdit(c.id, "end_at", e.target.value)} />
-            <p className="small">정원 6명 고정 (동반자 포함)</p>
-            <label>정규수강생 추가 참석 비용</label>
-            <input type="number" min="0" value={edit.regular_price} onChange={(e) => updateOneDayClassEdit(c.id, "regular_price", e.target.value)} />
-            <label>일반 수강 비용</label>
-            <input type="number" min="0" value={edit.normal_price} onChange={(e) => updateOneDayClassEdit(c.id, "normal_price", e.target.value)} />
+            <p className="adminValidityHint">정규수강생 전용 · 동반자 포함 정원 6명</p>
             <label className="checkboxRow">
               <input type="checkbox" checked={edit.is_open} onChange={(e) => updateOneDayClassEdit(c.id, "is_open", e.target.checked)} />
               <span>수강생 원데이 신청 화면에 노출</span>
@@ -1906,7 +1965,7 @@ export default function AdminPage() {
           <div className="oneDayClassRow">
             <div className="oneDayClassMain">
               <div className="oneDayClassTopline">
-                <span className={`todayBadge ${classIsPast ? "block" : "oneday"}`}>{classIsPast ? "지난 수업" : "진행 예정"}</span>
+                <span className={`todayBadge ${classIsPast || c.is_deleted ? "block" : "oneday"}`}>{c.is_deleted ? "삭제된 수업 기록" : classIsPast ? "지난 수업" : "진행 예정"}</span>
                 <strong>{c.title}</strong>
               </div>
               <p className="small">{formatDateOnly(c.start_at)} {formatTime(c.start_at)} - {formatTime(c.end_at)}</p>
@@ -1917,17 +1976,17 @@ export default function AdminPage() {
                 <span>정원 6명</span>
                 <span>{c.is_open ? "예약 화면 노출" : "예약 화면 숨김"}</span>
               </div>
-              <p className="small">정규수강생 전용 · 신청 즉시 확정 · 정원 초과 시 대기</p>
+              <p className="small">정규수강생 전용 · 정원 6명 · 마감 시 대기 신청</p>
               {c.description && <p className="onedayCurriculumPreview" style={{whiteSpace:"pre-line"}}>{c.description}</p>}
             </div>
-            <div className="inlineActions oneDayClassActions">
+            {!c.is_deleted && <div className="inlineActions oneDayClassActions">
               <button type="button" className="secondary compact" onClick={() => startEditOneDayClass(c)}>수정</button>
               <button type="button" className="secondary compact" onClick={() =>
                 setImageManagerClassId(id=>id===c.id?"":c.id)}>
                 {imageManagerClassId===c.id?"사진 관리 닫기":"사진 관리"}
               </button>
               <button type="button" className="danger compact" onClick={() => deleteOnedayClass(c.id, c.title)}>삭제</button>
-            </div>
+            </div>}
           </div>
         )}
         {(isEditing || imageManagerClassId===c.id) && (
@@ -1985,6 +2044,11 @@ export default function AdminPage() {
           {message && <div className="adminFeedback" role="status">{message}</div>}
           {activeTab === "dashboard" && (
             <>
+              <section className="adminEnrollmentSnapshot" aria-label="현재 문장학교 수강생 현황">
+                <div><span>재원생</span><strong>{activeStudentCount}명</strong></div>
+                <div><span>휴원생</span><strong>{pausedStudentCount}명</strong></div>
+                <div><span>퇴원생</span><strong>{withdrawnStudentCount}명</strong></div>
+              </section>
               <section className="card adminHomeCalendarCard">
                 <div className="adminHomeTitle">
                   <div>
@@ -2085,6 +2149,13 @@ export default function AdminPage() {
                 </div>
               </section>
 
+              {overview && (
+                <MonthlyRegistrationReport
+                  students={overview.students} registrations={overview.registrations || []}
+                  onStudent={selectStudent}
+                />
+              )}
+
               <section className="card adminCompactAlertCard">
                 <div className="adminCompactAlertHeader">
                   <h2>수강권 0회 <span>{zeroCreditStudents.length}명</span></h2>
@@ -2169,9 +2240,15 @@ export default function AdminPage() {
                     <h2>새 수강생 등록</h2>
                     <label>이름</label>
                     <input value={studentName} onChange={e=>setStudentName(e.target.value)} placeholder="수강생 이름"/>
-                    <label>휴대폰 번호 뒤 4자리</label>
-                    <input value={phoneLast4} maxLength={4} inputMode="numeric"
-                      onChange={e=>setPhoneLast4(e.target.value)} placeholder="0000"/>
+                    <label>휴대폰 번호 전체</label>
+                    <input type="tel" inputMode="tel" autoComplete="tel" maxLength={13}
+                      value={fullPhoneNumber} placeholder="010-1234-5678"
+                      onChange={e=>{
+                        const digits=e.target.value.replace(/[^0-9]/g,"").slice(0,11);
+                        setFullPhoneNumber(digits);
+                        setPhoneLast4(digits.length>=10?digits.slice(-4):"");
+                      }}/>
+                    <p className="adminContactHint">예약 로그인에는 휴대폰 번호 끝 4자리가 사용됩니다. 번호는 관리자만 볼 수 있습니다.</p>
                     <div className="adminStudentFormPair">
                       <div><label>수강권 잔여 횟수</label>
                         <input type="number" min="0" step="0.5" value={lessonCredits}
@@ -2183,31 +2260,44 @@ export default function AdminPage() {
                     </div>
                     <label>수강권 등록일</label>
                     <input type="date" value={passRegisteredAt} onChange={e=>setPassRegisteredAt(e.target.value)}/>
+                    <label>신규 등록 수강료 (선택)</label>
+                    <input type="number" min="0" step="1000" inputMode="numeric"
+                      value={newStudentPaidAmount} onChange={e=>setNewStudentPaidAmount(e.target.value)}
+                      placeholder="실제 결제금액, 예: 260000"/>
+                    <p className="adminContactHint">금액을 입력하면 이달 신규 등록 매출에 기록됩니다. 미입력 시 매출 0원으로 간주하지 않고 미기록으로 남습니다.</p>
                     <p className="adminValidityHint">사용기간: 첫 수업일로부터 10주 이내</p>
                     <button type="button" className="adminFormSubmit" onClick={addStudent}>수강생 등록하기</button>
                   </div>
                 )}
 
                 <div className="adminEnrollmentTabs" role="tablist" aria-label="수강생 재원 상태">
-                  <button type="button" role="tab" aria-selected={enrollmentFilter === "active"}
-                    className={`adminEnrollmentTab ${enrollmentFilter === "active" ? "selected" : ""}`}
-                    onClick={() => switchEnrollmentFilter("active")}>
-                    재원생 <span>{activeStudentCount}</span>
-                  </button>
-                  <button type="button" role="tab" aria-selected={enrollmentFilter === "inactive"}
-                    className={`adminEnrollmentTab ${enrollmentFilter === "inactive" ? "selected" : ""}`}
-                    onClick={() => switchEnrollmentFilter("inactive")}>
-                    퇴원생 <span>{inactiveStudentCount}</span>
-                  </button>
+                  {([
+                    {key:"active",label:"재원",count:activeStudentCount},
+                    {key:"paused",label:"휴원",count:pausedStudentCount},
+                    {key:"withdrawn",label:"퇴원",count:withdrawnStudentCount},
+                  ] as const).map(item=>(
+                    <button key={item.key} type="button" role="tab"
+                      aria-selected={enrollmentFilter===item.key}
+                      className={`adminEnrollmentTab ${enrollmentFilter===item.key?"selected":""}`}
+                      onClick={()=>switchEnrollmentFilter(item.key)}>
+                      {item.label} <span>{item.count}</span>
+                    </button>
+                  ))}
                 </div>
-                <label className="adminRosterSearchLabel" htmlFor="adminStudentSearch">{enrollmentFilter === "active" ? "재원생" : "퇴원생"} 찾기 · 가나다순</label>
+                <p className="adminStatusRule">휴원: 마지막 수업·등록 활동 후 30일 · 퇴원: 수강권 0회가 된 뒤 7일 또는 직접 퇴원 처리</p>
+                <label className="adminRosterSearchLabel" htmlFor="adminStudentSearch">
+                  {enrollmentFilter==="active"?"재원생":enrollmentFilter==="paused"?"휴원생":"퇴원생"} 찾기 · 가나다순
+                </label>
                 <div className="adminRosterSearch">
                   <Search size={18} />
                   <input id="adminStudentSearch" value={studentSearch}
                     onChange={e=>setStudentSearch(e.target.value)}
                     placeholder="이름 또는 전화번호 뒤 4자리 검색" />
                 </div>
-                <div className="adminRosterCount">{enrollmentFilter === "active" ? "재원생" : "퇴원생"} {enrollmentFilter === "active" ? activeStudentCount : inactiveStudentCount}명 · 표시 {visibleStudents.length}명</div>
+                <div className="adminRosterCount">
+                  {enrollmentFilter==="active"?"재원생":enrollmentFilter==="paused"?"휴원생":"퇴원생"}
+                  {" "}{enrollmentFilter==="active"?activeStudentCount:enrollmentFilter==="paused"?pausedStudentCount:withdrawnStudentCount}명 · 표시 {visibleStudents.length}명
+                </div>
                 <div className="adminRosterNames" role="group" aria-label="가나다순 수강생 목록">
                   {visibleStudents.map(student => (
                     <button type="button" key={student.id}
@@ -2231,7 +2321,7 @@ export default function AdminPage() {
 
               {selectedStudent && [selectedStudent].map(s=>{
                 const edit=studentEdits[s.id] || {
-                  name:s.name,phone_last4:s.phone_last4,memo:s.memo||"",
+                  name:s.name,phone_last4:s.phone_last4,phone_number:s.phone_number||"",memo:s.memo||"",
                   lesson_credits:String(s.lesson_credits??0),
                   lesson_duration_minutes:String(s.lesson_duration_minutes??90),
                   pass_registered_at:s.pass_registered_at||"",
@@ -2246,7 +2336,7 @@ export default function AdminPage() {
                   <section key={s.id} className="card adminSelectedStudentCard">
                     <div className="adminSelectedStudentHeading">
                       <div><p className="adminEyebrow">선택한 수강생</p><h2>{s.name}</h2>
-                        <span>{s.phone_last4} · {s.is_active === false ? "퇴원생 · 예약 중지" : "재원생 · 예약 가능"}</span>
+                        <span>{s.phone_number || "전체 연락처 미등록"} · {studentStatus(s)==="active"?"재원생":studentStatus(s)==="paused"?"휴원생":"퇴원생"}</span>
                       </div>
                       {!isEditing && <button type="button" className="adminSmallAction"
                         onClick={()=>setEditingStudentId(s.id)}>정보 수정</button>}
@@ -2257,6 +2347,8 @@ export default function AdminPage() {
                         <div className="adminStudentInfoGrid">
                           <div><span>남은 수강권</span><strong>{s.lesson_credits ?? 0}회</strong></div>
                           <div><span>수업 유형</span><strong>{s.lesson_duration_minutes ?? 90}분</strong></div>
+                          <div className="wide"><span>전체 휴대폰 번호</span><strong>{s.phone_number || "미등록 · 정보 수정에서 등록"}</strong></div>
+                          <div className="wide"><span>마지막 완료 수업</span><strong>{s.last_attended_at?formatDateOnly(s.last_attended_at):"수업 기록 없음"}</strong></div>
                           <div className="wide"><span>수강권 등록일</span><strong>{s.pass_registered_at || "미등록"}</strong></div>
                           <div className="wide"><span>사용기간</span><strong>{passPolicySummary(s)}</strong></div>
                         </div>
@@ -2279,10 +2371,21 @@ export default function AdminPage() {
                         <label>이름</label>
                         <input value={edit.name} onChange={e=>setStudentEdits(current=>({
                           ...current,[s.id]:{...edit,name:e.target.value}}))}/>
-                        <label>휴대폰 번호 뒤 4자리</label>
+                        <label>휴대폰 번호 전체</label>
+                        <input type="tel" maxLength={13} inputMode="tel" value={edit.phone_number}
+                          placeholder="010-1234-5678"
+                          onChange={e=>{
+                            const digits=e.target.value.replace(/[^0-9]/g,"").slice(0,11);
+                            setStudentEdits(current=>({
+                              ...current,[s.id]:{...edit,phone_number:digits,
+                                phone_last4:digits.length>=10?digits.slice(-4):edit.phone_last4}
+                            }));
+                          }}/>
+                        <p className="adminContactHint">기존 번호를 모르면 비워 둘 수 있어요. 로그인 인증용 끝 4자리는 기존 값을 유지합니다.</p>
+                        <label>인증용 휴대폰 끝 4자리</label>
                         <input maxLength={4} inputMode="numeric" value={edit.phone_last4}
                           onChange={e=>setStudentEdits(current=>({
-                            ...current,[s.id]:{...edit,phone_last4:e.target.value}}))}/>
+                            ...current,[s.id]:{...edit,phone_last4:e.target.value.replace(/[^0-9]/g,"").slice(0,4)}}))}/>
                         <div className="adminStudentFormPair">
                           <div><label>남은 수강권</label>
                             <input type="number" min="0" step="0.5" value={edit.lesson_credits}
@@ -2309,6 +2412,34 @@ export default function AdminPage() {
                   </section>
                 );
               })}
+
+              {selectedStudent && (
+                <section className="card adminRenewalCard">
+                  <div className="adminRenewalHeading">
+                    <div><p className="adminEyebrow">정규수강생</p><h2>수강권 재등록</h2></div>
+                    <span>{selectedStudent.name}</span>
+                  </div>
+                  <p className="small">재등록 시 실제 결제금액과 충전 횟수를 함께 저장합니다. 월별 재등록·매출 보고서에 반영됩니다.</p>
+                  <div className="adminStudentFormPair">
+                    <div><label>재등록일</label><input type="date" value={renewalDate}
+                      onChange={e=>setRenewalDate(e.target.value)}/></div>
+                    <div><label>추가 수강권</label><input type="number" min="0.5" step="0.5"
+                      value={renewalCredits} onChange={e=>setRenewalCredits(e.target.value)}/></div>
+                  </div>
+                  <label>실제 결제금액 (원)</label>
+                  <input type="number" min="0" step="1000" inputMode="numeric"
+                    value={renewalAmount} onChange={e=>setRenewalAmount(e.target.value)}
+                    placeholder="예: 260000"/>
+                  <label>등록 메모 (선택)</label>
+                  <input value={renewalMemo} onChange={e=>setRenewalMemo(e.target.value)}
+                    placeholder="예: 90분 4회권 재등록"/>
+                  <button type="button" className="adminFormSubmit" disabled={renewalSaving || renewalAmount.trim()===""}
+                    onClick={()=>void saveRenewal()}>
+                    {renewalSaving?"저장 중...":"재등록 및 수강권 충전"}
+                  </button>
+                  <p className="adminContactHint">이미 관리자가 직접 추가한 수강권은 중복 충전하지 마세요. 과거 결제 내역은 금액을 확인한 후 별도로 기록해야 정확합니다.</p>
+                </section>
+              )}
 
               {selectedStudent && (
                 <section className="card adminJournalCard">
@@ -2751,64 +2882,52 @@ export default function AdminPage() {
 
           {activeTab === "oneday" && (
             <>
-              <section className="card">
-                <h2>원데이 클래스 추가</h2>
-                <p className="small">원데이 클래스 생성 후에도 아래 목록에서 제목, 커리큘럼, 일정, 비용, 정원, 노출 여부를 수정하거나 클래스를 삭제할 수 있습니다.</p>
-                <label>제목</label>
-                <input value={onedayTitle} onChange={(e) => setOnedayTitle(e.target.value)} placeholder="예: 자서전쓰기 원데이 클래스" />
-                <label>수업 소개 · 준비물 · 유의사항</label>
-                <p className="small">각 제목을 한 줄씩 적으면 예약 앱에서 자동으로 구분해 표시됩니다. 항목별 내용은 한 줄에 하나씩 입력해 주세요.</p>
-                <textarea value={onedayCurriculum} onChange={(e) => setOnedayCurriculum(e.target.value)} placeholder={"수업 소개\n책에 대해 이야기 나누기\n함께 작품 완성하기\n\n준비물\n책 1권\n\n유의사항\n표지 재질을 확인해 주세요."} rows={8} />
-                <label>수업 시작 일정</label>
-                <input type="datetime-local" value={onedayStartAt} onChange={(e) => setOnedayStartAt(e.target.value)} />
-                <label>수업 종료 일정</label>
-                <input type="datetime-local" value={onedayEndAt} onChange={(e) => setOnedayEndAt(e.target.value)} />
-                <p className="small">정원은 동반자를 포함해 6명으로 고정됩니다.</p>
-                <label>정규수강생 추가 참석 비용</label>
-                <input type="number" min="0" value={onedayRegularPrice} onChange={(e) => setOnedayRegularPrice(e.target.value)} placeholder="예: 10000" />
-                <label>일반 수강 비용</label>
-                <input type="number" min="0" value={onedayNormalPrice} onChange={(e) => setOnedayNormalPrice(e.target.value)} placeholder="예: 30000" />
-                <p className="small">정규수강생은 매월 원데이 1회 무료, 같은 달 2회차부터 정규수강생 추가 참석 비용이 적용됩니다.</p>
-                <button onClick={addOnedayClass}>원데이 클래스 추가</button>
+              <section className="card adminOneDayCreator">
+                <div className="adminOneDayCreatorHeading">
+                  <div><p className="adminEyebrow">정규수강생 전용</p><h2>원데이 클래스 관리</h2></div>
+                  <button type="button" onClick={()=>setShowOneDayCreator(v=>!v)}>
+                    {showOneDayCreator?"접기":"새 클래스 만들기"}
+                  </button>
+                </div>
+                <p className="small">신규 클래스는 필요한 때만 열고, 과거 수업과 신청자 명단은 아래 달력에서 찾아보세요.</p>
+                {showOneDayCreator && (
+                  <div className="adminOneDayCreatorForm">
+                    <label>클래스명</label>
+                    <input value={onedayTitle} onChange={e=>setOnedayTitle(e.target.value)}
+                      placeholder="예: 문장학교 월간 클래스 | 한 권을 수놓는 밤"/>
+                    <div className="adminStudentFormPair">
+                      <div><label>수업 시작</label>
+                        <input type="datetime-local" value={onedayStartAt} onChange={e=>setOnedayStartAt(e.target.value)}/></div>
+                      <div><label>수업 종료</label>
+                        <input type="datetime-local" value={onedayEndAt} onChange={e=>setOnedayEndAt(e.target.value)}/></div>
+                    </div>
+                    <label>수업 소개 · 준비물 · 유의사항</label>
+                    <p className="small">각 제목을 한 줄씩 구분해 적으면 수강생 화면에서 읽기 좋은 카드로 나뉩니다.</p>
+                    <textarea rows={9} value={onedayCurriculum}
+                      onChange={e=>setOnedayCurriculum(e.target.value)}
+                      placeholder={"수업 소개\\n책에 대해 이야기 나누기\\n책 표지 꾸미기\\n\\n준비물\\n좋아하는 책 1권\\n\\n유의사항\\n종이 표지가 있는 책을 준비해 주세요."}/>
+                    <p className="adminValidityHint">정규수강생 전용 · 동반자 포함 정원 6명 · 사진은 클래스를 만든 뒤 첨부할 수 있습니다.</p>
+                    <button type="button" className="adminFormSubmit" onClick={addOnedayClass}>클래스 등록하기</button>
+                  </div>
+                )}
               </section>
 
-              <section className="card onedayGroupedCard">
-                <div className="sectionHeaderRow">
-                  <div>
-                    <p className="eyebrow">원데이 관리</p>
-                    <h2>원데이 클래스 일정</h2>
-                    <p className="small">이번 주 진행 예정, 다가오는 수업, 지난 수업을 나누어 보여줍니다. 필요한 수업만 펼쳐 보듯 확인하면 됩니다.</p>
+              <OneDayClassCalendar classes={overview.classes}
+                renderClass={(c)=>(
+                  <div className="adminOneDayCalendarItemControls">
+                    <button type="button" onClick={()=>setSelectedOneDayClassId(c.id)}>
+                      {selectedOneDayClassId===c.id?"신청자 선택됨":"신청자 확인"}
+                    </button>
+                    {renderOneDayClassCard(c)}
                   </div>
-                </div>
-                {overview.classes.length === 0 && <p>등록된 원데이 클래스가 없습니다.</p>}
-                <div className="onedayGroupList">
-                  {oneDayClassScheduleGroups.map((group) => (
-                    <section className="onedayScheduleGroup" key={group.id}>
-                      <div className="onedayGroupHeader">
-                        <div>
-                          <h3>{group.title}</h3>
-                          <p className="small">{group.description}</p>
-                        </div>
-                        <span>{group.classes.length}개</span>
-                      </div>
-                      <div className="list compactList">
-                        {group.classes.length === 0 ? (
-                          <p className="emptyGroupText">{group.emptyText}</p>
-                        ) : (
-                          group.classes.map((c) => renderOneDayClassCard(c))
-                        )}
-                      </div>
-                    </section>
-                  ))}
-                </div>
-              </section>
+                )}/>
 
               <section className="card">
                 <h2>원데이 신청자 확인</h2>
-                <p className="small">전체 신청 내역을 한 번에 보거나, 수업을 선택해서 해당 클래스 신청자만 확인할 수 있습니다.</p>
+                <p className="small">달력에서 수업 날짜를 누르고 ‘신청자 확인’을 선택하면 해당 클래스의 신청 내역만 표시됩니다.</p>
                 <label>수업별 신청자 보기</label>
                 <select value={selectedOneDayClassId} onChange={(e) => setSelectedOneDayClassId(e.target.value)}>
-                  <option value="all">전체 원데이 신청 내역</option>
+                  <option value="">달력에서 클래스 선택</option>
                   {oneDayClassOptions.map((option) => (
                     <option value={option.id} key={option.id}>{oneDayClassLabel(option)}</option>
                   ))}
@@ -2832,66 +2951,25 @@ export default function AdminPage() {
                 <div className="list">
                   {overview.onedayBookings.length === 0 && <p>원데이 신청 내역이 없습니다.</p>}
                   {overview.onedayBookings.length > 0 && filteredOneDayBookings.length === 0 && <p>선택한 수업의 신청자가 없습니다.</p>}
-                  {monthlyOneDayBookings.map((group) => {
-                    const stats = getOneDayMonthStats(group.bookings);
-                    return (
-                    <div className="monthGroup" key={group.key}>
-                      <h3>{group.label}</h3>
-                      <p className="small">무료 혜택 사용 {stats.freeCount}건 / 추가 유료 신청 {stats.paidCount}건 / 활성 신청 {stats.activeCount}건</p>
-                      {stats.paidCount > 0 && <p className="paymentNotice">추가 수강료 입금 안내가 필요한 신청이 {stats.paidCount}건 있습니다.</p>}
-                      {stats.students.length > 0 && (
-                        <div className="benefitSummary">
-                          {stats.students.map((student) => (
-                            <span className="benefitPill" key={`${group.key}-${student.name}-${student.phoneLast4}`}>
-                              {student.name}({student.phoneLast4}) · 무료 {student.freeCount}회 · 추가 {student.paidCount}회
-                              {student.paidCount > 0 ? ` · 입금 안내 ${formatPrice(student.paidAmount)}` : ""}
-                            </span>
-                          ))}
-                        </div>
-                      )}
-                      <div className="list compactList">
-                        {group.bookings.map((b) => (
-                          <div className="item" key={b.id}>
-                            <strong>{b.student_name}</strong>
-                            <p className="small">클래스: {b.oneday_classes?.title || "-"}</p>
-                            {b.oneday_classes?.start_at && (
-                              <p className="small">일정: {formatDateOnly(b.oneday_classes.start_at)} {formatTime(b.oneday_classes.start_at)}{b.oneday_classes.end_at ? ` - ${formatTime(b.oneday_classes.end_at)}` : ""}</p>
-                            )}
-                            <p className="small">인원: {b.people_count || 1}명 / 상태: {onedayStatusLabel(b.status)}</p>
-                            <p className="small">적용 비용: {formatOneDayAmount(b.amount_due)}</p>
-                            <p className="small">월 무료 혜택: {Number(b.amount_due ?? 10000) === 0 ? "사용" : "추가 유료 신청"}</p>
-                            {Number(b.amount_due ?? 10000) > 0 && ["booked", "입금대기"].includes(String(b.status || "")) && (
-                              <p className="paymentNotice">추가 수강료 {formatOneDayAmount(b.amount_due)} 입금 안내 필요</p>
-                            )}
-                            <p className="small">연락처 뒷자리: {b.phone_last4 || "-"}</p>
-                            <div className="inlineActions smallActionRow">
-                              {["booked", "입금대기", "등록대기"].includes(String(b.status || "")) && (
-                                <button
-                                  className="compact"
-                                  onClick={() => updateOneDayBookingStatus(b.id, "등록완료", "등록 완료")}
-                                >
-                                  {Number(b.amount_due ?? 10000) === 0 ? "무료 신청 등록 완료" : "입금 확인 / 등록 완료"}
-                                </button>
-                              )}
-                              {["입금완료", "등록완료"].includes(String(b.status || "")) && (
-                                <button
-                                  className="secondary compact"
-                                  onClick={() => updateOneDayBookingStatus(
-                                    b.id,
-                                    Number(b.amount_due ?? 10000) === 0 ? "등록대기" : "입금대기",
-                                    Number(b.amount_due ?? 10000) === 0 ? "무료 등록 대기" : "입금 대기",
-                                  )}
-                                >
-                                  {Number(b.amount_due ?? 10000) === 0 ? "무료 등록 대기로 되돌리기" : "입금 대기로 되돌리기"}
-                                </button>
-                              )}
-                            </div>
-                          </div>
-                        ))}
+                  {!selectedOneDayClassId && <p className="adminOneDayEmpty">달력에서 클래스를 선택하면 신청자 내역이 표시됩니다.</p>}
+                  {selectedOneDayClassId && filteredOneDayBookings.length===0 &&
+                    <p className="adminOneDayEmpty">이 클래스에는 아직 신청자가 없습니다.</p>}
+                  {selectedOneDayClassId && filteredOneDayBookings.map((b) => (
+                    <article className="adminOneDayApplicant" key={b.id}>
+                      <div><strong>{b.student_name}</strong>
+                        <span>{b.people_count||1}명 · {onedayStatusLabel(b.status)}</span></div>
+                      <p>연락처 끝 4자리: {b.phone_last4||"-"}</p>
+                      <div className="adminOneDayApplicantActions">
+                        {["booked","입금대기","등록대기"].includes(String(b.status||"")) && (
+                          <button type="button" onClick={()=>updateOneDayBookingStatus(b.id,"등록완료","등록 완료")}>등록 완료 처리</button>
+                        )}
+                        {["입금완료","등록완료"].includes(String(b.status||"")) && (
+                          <button type="button" className="secondary"
+                            onClick={()=>updateOneDayBookingStatus(b.id,"등록대기","등록 대기")}>등록 대기로 되돌리기</button>
+                        )}
                       </div>
-                    </div>
-                    );
-                  })}
+                    </article>
+                  ))}
                 </div>
               </section>
             </>

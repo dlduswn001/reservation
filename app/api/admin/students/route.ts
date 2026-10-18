@@ -37,6 +37,9 @@ export async function POST(request: Request) {
     }
 
     const name = String(body.name || "").trim();
+    const phoneNumber = String(body.phone_number || "").replace(/[^0-9]/g, "");
+    const paidAmount = body.paid_amount_krw === undefined || body.paid_amount_krw === ""
+      ? 0 : Number(body.paid_amount_krw);
     const phoneLast4 = String(body.phone_last4 || "").trim();
     const memo = String(body.memo || "").trim();
     const lessonCredits = Math.max(0, Number(body.lesson_credits || 0));
@@ -46,40 +49,32 @@ export async function POST(request: Request) {
     if (passUpdate.error) {
       return NextResponse.json({ message: passUpdate.error }, { status: 400 });
     }
-    if (!name || !phoneLast4) {
-      return NextResponse.json({ message: "이름과 핸드폰번호 뒷자리 4자리를 입력해 주세요." }, { status: 400 });
+    if (!name || !/^\\d{4}$/.test(phoneLast4)) {
+      return NextResponse.json({ message: "이름과 휴대폰 번호 끝 4자리를 입력해 주세요." }, { status: 400 });
     }
-    if (!/^\d{4}$/.test(phoneLast4)) {
-      return NextResponse.json({ message: "핸드폰번호 뒷자리 4자리를 숫자로 입력해 주세요." }, { status: 400 });
+    if (phoneNumber && (!/^01[016789][0-9]{7,8}$/.test(phoneNumber) || !phoneNumber.endsWith(phoneLast4))) {
+      return NextResponse.json({ message: "전체 연락처와 끝 4자리가 일치하는지 확인해 주세요." }, { status: 400 });
     }
-
+    if (!Number.isSafeInteger(paidAmount) || paidAmount < 0 || !Number.isFinite(lessonCredits)) {
+      return NextResponse.json({ message: "수강료와 수강권 횟수를 확인해 주세요." }, { status: 400 });
+    }
     const supabase = getSupabaseAdmin();
-    const basePayload = {
-      name,
-      phone_last4: phoneLast4,
-      memo,
-      lesson_credits: lessonCredits,
-      lesson_duration_minutes: lessonDurationMinutes,
-      is_active: true,
-    };
-
-    let { error } = await supabase.from("students").insert({
-      ...basePayload,
-      ...(passUpdate.value || {}),
+    const { data, error } = await supabase.rpc("munjang_admin_create_student", {
+      p_name: name,
+      p_phone_last4: phoneLast4,
+      p_phone_number: phoneNumber || null,
+      p_initial_credits: lessonCredits,
+      p_duration: lessonDurationMinutes,
+      p_registered_at: passUpdate.value.pass_registered_at,
+      p_paid_amount: paidAmount,
     });
-
-    if (error && isMissingPassColumnError(error)) {
-      const fallback = await supabase.from("students").insert(basePayload);
-      error = fallback.error;
-    }
-
     if (error) {
-      if (error.message.includes("duplicate")) {
+      if (error.code === "23505" || error.message.toLowerCase().includes("duplicate")) {
         return NextResponse.json({ message: "이미 등록된 수강생입니다." }, { status: 409 });
       }
       throw error;
     }
-    return NextResponse.json({ ok: true });
+    return NextResponse.json({ ok: true, student_id: data });
   } catch (error) {
     return NextResponse.json({ message: getErrorMessage(error) }, { status: 500 });
   }
