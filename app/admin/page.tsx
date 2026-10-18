@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { House, CalendarDays, UsersRound, Settings2, ChevronLeft, ChevronRight } from "lucide-react";
+import { House, CalendarDays, UsersRound, Settings2, ChevronLeft, ChevronRight, NotebookPen, Send, Copy, Search, UserRoundPlus } from "lucide-react";
 import Link from "next/link";
 import { getRegularPassPolicyStatus, PASS_POLICY_START_DATE_KEY, todayDateKeyInKst, calculatePassExpirationDateKey } from "../../lib/passPolicy";
 
@@ -56,6 +56,53 @@ type LessonHistory = {
   created_at?: string;
   students?: { name?: string; phone_last4?: string } | null;
 };
+
+type LessonJournal = {
+  id: string;
+  student_id: string;
+  booking_id?: string | null;
+  lesson_date: string;
+  title: string;
+  lesson_summary: string;
+  feedback: string;
+  homework: string;
+  private_note: string;
+  created_at?: string;
+  updated_at?: string;
+};
+
+type JournalDraft = {
+  id: string;
+  booking_id: string;
+  lesson_date: string;
+  title: string;
+  lesson_summary: string;
+  feedback: string;
+  homework: string;
+  private_note: string;
+};
+
+const EMPTY_JOURNAL: JournalDraft = {
+  id: "", booking_id: "", lesson_date: "", title: "",
+  lesson_summary: "", feedback: "", homework: "", private_note: "",
+};
+
+function journalKakaoMessage(studentName: string, journal: JournalDraft | LessonJournal) {
+  const lines = [
+    "[문장학교 수업일지]",
+    `${studentName} 수강생님, 안녕하세요. 문장학교 연주쌤입니다. :)`,
+    "",
+    `📅 수업일: ${journal.lesson_date}`,
+    `✍🏻 수업 주제: ${journal.title}`,
+    "",
+    "■ 오늘의 수업",
+    journal.lesson_summary || "-",
+  ];
+  if (journal.feedback?.trim()) lines.push("", "■ 오늘의 피드백", journal.feedback.trim());
+  if (journal.homework?.trim()) lines.push("", "■ 다음 수업까지", journal.homework.trim());
+  lines.push("", "오늘도 함께 읽고 쓰느라 수고 많으셨습니다. 다음 수업에서 만나요! :)", "문장학교 연주쌤");
+  return lines.join("\n");
+}
 
 type BlockedTime = {
   id: string;
@@ -177,12 +224,12 @@ function defaultPassRegisteredAtForNewStudent() {
 
 function passPolicySummary(student: Student) {
   const status = getRegularPassPolicyStatus(student);
-  if (!status.applies) return "정책 적용 전";
-  if (!status.firstLessonAt) return `8월 1일 이후 수강권 · 첫 수업일 대기`;
+  if (!status.firstLessonAt) return "첫 수업일로부터 10주 이내";
+  if (!status.applies) return "기존 수강권 · 별도 적용";
   const leftText = typeof status.daysLeft === "number"
     ? status.daysLeft < 0 ? `${Math.abs(status.daysLeft)}일 지남` : `${status.daysLeft}일 남음`
     : "";
-  return `${status.label} · 사용기한 ${status.expiresAt || "-"}${leftText ? ` · ${leftText}` : ""}`;
+  return `${status.label} · ${status.expiresAt || "-"}${leftText ? ` · ${leftText}` : ""}`;
 }
 
 function nextOneWeekExtensionDate(currentExtensionUntil?: string | null, firstLessonAt?: string | null, savedExpiresAt?: string | null) {
@@ -514,6 +561,19 @@ export default function AdminPage() {
   const [generateWeeks, setGenerateWeeks] = useState("8");
   const [creditEdits, setCreditEdits] = useState<Record<string, string>>({});
   const [editingStudentId, setEditingStudentId] = useState<string | null>(null);
+  const [selectedStudentId, setSelectedStudentId] = useState("");
+  const [studentSearch, setStudentSearch] = useState("");
+  const [showNewStudentForm, setShowNewStudentForm] = useState(false);
+  const [showScheduleAdvanced, setShowScheduleAdvanced] = useState(false);
+  const [monthToOpen, setMonthToOpen] = useState(() => todaySeoulDateKey().slice(0,7));
+  const [monthlyOpening, setMonthlyOpening] = useState(false);
+  const [journals, setJournals] = useState<LessonJournal[]>([]);
+  const [journalDraft, setJournalDraft] = useState<JournalDraft>({...EMPTY_JOURNAL});
+  const [journalsLoading, setJournalsLoading] = useState(false);
+  const [journalSaving, setJournalSaving] = useState(false);
+  const [journalFeedback, setJournalFeedback] = useState("");
+  const [journalPreviewId, setJournalPreviewId] = useState("");
+
   const [studentEdits, setStudentEdits] = useState<Record<string, StudentEdit>>({});
   const [selectedHistoryStudentId, setSelectedHistoryStudentId] = useState("");
   const [historyTitle, setHistoryTitle] = useState("");
