@@ -2047,6 +2047,11 @@ export default function AdminPage() {
           {message && <div className="adminFeedback" role="status">{message}</div>}
           {activeTab === "dashboard" && (
             <>
+              <section className="adminEnrollmentSnapshot" aria-label="현재 문장학교 수강생 현황">
+                <div><span>재원생</span><strong>{activeStudentCount}명</strong></div>
+                <div><span>휴원생</span><strong>{pausedStudentCount}명</strong></div>
+                <div><span>퇴원생</span><strong>{withdrawnStudentCount}명</strong></div>
+              </section>
               <section className="card adminHomeCalendarCard">
                 <div className="adminHomeTitle">
                   <div>
@@ -2146,6 +2151,13 @@ export default function AdminPage() {
                   )}
                 </div>
               </section>
+
+              {overview && (
+                <MonthlyRegistrationReport
+                  students={overview.students} registrations={overview.registrations || []}
+                  onStudent={selectStudent}
+                />
+              )}
 
               <section className="card adminCompactAlertCard">
                 <div className="adminCompactAlertHeader">
@@ -2327,7 +2339,7 @@ export default function AdminPage() {
                   <section key={s.id} className="card adminSelectedStudentCard">
                     <div className="adminSelectedStudentHeading">
                       <div><p className="adminEyebrow">선택한 수강생</p><h2>{s.name}</h2>
-                        <span>{s.phone_number || "전체 연락처 미등록"} · {studentStatus(s)==="active"?"재원":"휴원"}{studentStatus(s)==="withdrawn"?"퇴원":""}</span>
+                        <span>{s.phone_number || "전체 연락처 미등록"} · {studentStatus(s)==="active"?"재원생":studentStatus(s)==="paused"?"휴원생":"퇴원생"}</span>
                       </div>
                       {!isEditing && <button type="button" className="adminSmallAction"
                         onClick={()=>setEditingStudentId(s.id)}>정보 수정</button>}
@@ -2403,6 +2415,34 @@ export default function AdminPage() {
                   </section>
                 );
               })}
+
+              {selectedStudent && (
+                <section className="card adminRenewalCard">
+                  <div className="adminRenewalHeading">
+                    <div><p className="adminEyebrow">정규수강생</p><h2>수강권 재등록</h2></div>
+                    <span>{selectedStudent.name}</span>
+                  </div>
+                  <p className="small">재등록 시 실제 결제금액과 충전 횟수를 함께 저장합니다. 월별 재등록·매출 보고서에 반영됩니다.</p>
+                  <div className="adminStudentFormPair">
+                    <div><label>재등록일</label><input type="date" value={renewalDate}
+                      onChange={e=>setRenewalDate(e.target.value)}/></div>
+                    <div><label>추가 수강권</label><input type="number" min="0.5" step="0.5"
+                      value={renewalCredits} onChange={e=>setRenewalCredits(e.target.value)}/></div>
+                  </div>
+                  <label>실제 결제금액 (원)</label>
+                  <input type="number" min="0" step="1000" inputMode="numeric"
+                    value={renewalAmount} onChange={e=>setRenewalAmount(e.target.value)}
+                    placeholder="예: 260000"/>
+                  <label>등록 메모 (선택)</label>
+                  <input value={renewalMemo} onChange={e=>setRenewalMemo(e.target.value)}
+                    placeholder="예: 90분 4회권 재등록"/>
+                  <button type="button" className="adminFormSubmit" disabled={renewalSaving || renewalAmount.trim()===""}
+                    onClick={()=>void saveRenewal()}>
+                    {renewalSaving?"저장 중...":"재등록 및 수강권 충전"}
+                  </button>
+                  <p className="adminContactHint">이미 관리자가 직접 추가한 수강권은 중복 충전하지 마세요. 과거 결제 내역은 금액을 확인한 후 별도로 기록해야 정확합니다.</p>
+                </section>
+              )}
 
               {selectedStudent && (
                 <section className="card adminJournalCard">
