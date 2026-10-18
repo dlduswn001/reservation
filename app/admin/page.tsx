@@ -158,6 +158,8 @@ type TodayScheduleItem = {
   title: string;
   subtitle: string;
   detail?: string;
+  student_id?: string | null;
+  booking_id?: string | null;
 };
 
 type DailyScheduleGroup = {
@@ -1699,6 +1701,8 @@ export default function AdminPage() {
       if (["cancelled", "late_cancelled"].includes(booking.status)) continue;
       add({
         id: `calendar-regular-${booking.id}`,
+        student_id: booking.student_id,
+        booking_id: booking.id,
         type: "regular",
         start_at: booking.start_at,
         end_at: booking.end_at,
