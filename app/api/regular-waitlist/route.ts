@@ -6,11 +6,19 @@ export async function GET(request: Request) {
     const studentId = new URL(request.url).searchParams.get("studentId");
     if (!studentId) return NextResponse.json({ waitlist: [] });
     const db = getSupabaseAdmin();
+    // Expire started classes before returning student queues, independent of cron timing.
+    const { error: expireError } = await db.rpc("munjang_expire_regular_waitlist");
+    if (expireError) throw expireError;
     const { data, error } = await db.from("regular_waitlist")
-      .select("id,slot_id,student_id,status,created_at,available_slots(start_at,end_at)")
+      .select("id,slot_id,student_id,status,created_at,preferred_lifestyle,available_slots(start_at,end_at)")
       .eq("student_id",studentId).eq("status","waiting").order("created_at",{ascending:true});
     if (error) throw error;
-    const ids = Array.from(new Set((data || []).map((w) => String(w.slot_id))));
+    const now = Date.now();
+    const activeWaitlist = (data || []).filter((w) => {
+      const range = w.available_slots as unknown as { start_at?: string } | null;
+      return range?.start_at && new Date(range.start_at).getTime() > now;
+    });
+    const ids = Array.from(new Set(activeWaitlist.map((w) => String(w.slot_id))));
     const positions = new Map<string, number>();
     if (ids.length) {
       const { data: queue, error: queueError } = await db.from("regular_waitlist")
@@ -25,7 +33,7 @@ export async function GET(request: Request) {
         positions.set(String(item.id),next);
       }
     }
-    return NextResponse.json({waitlist:(data || []).map(w=>({...w,position:positions.get(String(w.id))||1}))});
+    return NextResponse.json({waitlist:activeWaitlist.map(w=>({...w,position:positions.get(String(w.id))||1}))});
   } catch(error) {
     return NextResponse.json({message:error instanceof Error?error.message:"대기 내역을 불러오지 못했습니다."},{status:500});
   }

@@ -438,7 +438,70 @@ export async function GET(request: Request) {
       }
     }
 
-    const availableMonthCountMap = countByMonth(available);
+    // Weekend 12:00 supports TWO different class durations on ONE physical slot.
+    // Resolve the booking and waitlist state independently per option.
+    const isWeekendNoon = (startAt: string) => ["Sat", "Sun"].includes(slotWeekday(startAt))
+      && new Intl.DateTimeFormat("en-GB", {
+        timeZone: "Asia/Seoul",hour:"2-digit",minute:"2-digit",hourCycle:"h23",
+      }).format(new Date(startAt)) === "12:00";
+
+    type NoonModeStatus = "available" | "waitlist" | "closed";
+    const getNoonModeStatus = (slot: SlotRow, lifestyle: boolean): NoonModeStatus => {
+      if (!isAllowedLessonDateAndTime(slot) || slot.is_open === false
+        || new Date(slot.start_at).getTime() <= cutoffDate.getTime()) return "closed";
+
+      const duration = lifestyle ? 45 : lessonMinutes;
+      if (!isLessonWithinOperatingHours(slot.start_at, duration)) return "closed";
+      const endAt = lessonEndIso(slot.start_at, duration);
+      if (conflictsWithOneDayBlocks(slot.start_at, endAt, activeOnedayBlocks)) return "closed";
+      if (overlapsAnyTimeBlock(slot.start_at, endAt, activeBlockedTimes)) return "closed";
+      const occupied = activeBookings.some((booking) => (
+        (slot.id && booking.slot_id === slot.id)
+        || conflictsWithRegularBookings(slot.start_at, endAt, [{start_at:booking.start_at,end_at:booking.end_at}])
+      ));
+      return occupied ? "waitlist" : "available";
+    };
+
+    const noonRows = new Map<string, SlotRow>();
+    for (const slot of [...slots, ...closedSlots]) {
+      if (isWeekendNoon(slot.start_at) && !noonRows.has(slot.start_at)) {
+        noonRows.set(slot.start_at, slot);
+      }
+    }
+    const noonChoices = Array.from(noonRows.values()).map((slot) => {
+      const regularStatus = getNoonModeStatus(slot, false);
+      const lifestyleStatus = getNoonModeStatus(slot, true);
+      const canBook = regularStatus === "available" || lifestyleStatus === "available";
+      const canWait = regularStatus === "waitlist" || lifestyleStatus === "waitlist";
+      return {
+        id: slot.id,
+        start_at: slot.start_at,
+        end_at: lessonEndIso(slot.start_at, lessonMinutes),
+        lesson_minutes: lessonMinutes,
+        credit_cost: 1,
+        is_lifestyle: false,
+        is_dual_noon: true,
+        regular_option_status: regularStatus,
+        lifestyle_option_status: lifestyleStatus,
+        is_waitlist: !canBook && canWait,
+        is_closed: !canBook && !canWait,
+        rule_label: "정규수업 또는 1:1 서평생활·필사생활 중 선택",
+      };
+    });
+    const visibleAvailableChoices = [
+      ...available.filter((slot) => !isWeekendNoon(slot.start_at)),
+      ...noonChoices.filter((slot) => !slot.is_waitlist && !slot.is_closed),
+    ];
+    const visibleWaitingChoices = [
+      ...waitingSlots.filter((slot) => !isWeekendNoon(slot.start_at)),
+      ...noonChoices.filter((slot) => slot.is_waitlist),
+    ];
+    const visibleClosedChoices = [
+      ...closedSlots.filter((slot) => !isWeekendNoon(slot.start_at)),
+      ...noonChoices.filter((slot) => slot.is_closed),
+    ];
+
+    const availableMonthCountMap = countByMonth(visibleAvailableChoices);
     const availableMonths: AvailableMonth[] = monthListFromCountMap(availableMonthCountMap);
 
     const hasRequestedMonthSlots = Boolean(requestedMonthKey && availableMonthCountMap.has(requestedMonthKey));
@@ -471,15 +534,15 @@ export async function GET(request: Request) {
       searchRange.nextMonthKey,
     ]));
 
-    const visibleAvailable = available.filter((slot) => visibleMonthKeys.includes(kstMonthKeyFromIso(slot.start_at)));
+    const visibleAvailable = visibleAvailableChoices.filter((slot) => visibleMonthKeys.includes(kstMonthKeyFromIso(slot.start_at)));
     const visibleMonth = monthInfoFromKey(visibleMonthKey);
     const visibleRange = buildMonthRangeIso(visibleMonthKey);
 
     return NextResponse.json(
       {
         slots: visibleAvailable,
-        waitlist_slots: waitingSlots.filter((slot) => visibleMonthKeys.includes(kstMonthKeyFromIso(slot.start_at))),
-        closed_slots: closedSlots.filter((slot) => visibleMonthKeys.includes(kstMonthKeyFromIso(slot.start_at)))
+        waitlist_slots: visibleWaitingChoices.filter((slot) => visibleMonthKeys.includes(kstMonthKeyFromIso(slot.start_at))),
+        closed_slots: visibleClosedChoices.filter((slot) => visibleMonthKeys.includes(kstMonthKeyFromIso(slot.start_at)))
           .sort((a, b) => new Date(a.start_at).getTime() - new Date(b.start_at).getTime()),
         lesson_minutes: lessonMinutes,
         open_month: {
