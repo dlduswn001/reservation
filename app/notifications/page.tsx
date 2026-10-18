@@ -20,6 +20,11 @@ function decodeBase64Url(value:string) {
   const str=atob(base64.padEnd(Math.ceil(base64.length/4)*4,"="));
   return Uint8Array.from(str,character=>character.charCodeAt(0));
 }
+function sameKey(a: ArrayBuffer | null | undefined, b: Uint8Array) {
+  if(!a) return false;
+  const previous=new Uint8Array(a);
+  return previous.length===b.length && previous.every((byte,i)=>byte===b[i]);
+}
 function kstTime(value:string) {
   return new Intl.DateTimeFormat("ko-KR",{
     timeZone:"Asia/Seoul",month:"short",day:"numeric",hour:"2-digit",minute:"2-digit",
@@ -68,12 +73,31 @@ export default function NotificationPage() {
       if(enable){
         const permission=await Notification.requestPermission();
         if(permission!=="granted") throw Error("휴대폰 또는 브라우저 설정에서 알림을 허용해 주세요.");
+        // Always check the current server key, including when this device
+        // already has an older subscription. A stale VAPID key may silently
+        // leave notifications enabled but undeliverable.
+        const keyResult=await fetch("/api/notifications/push-key",{cache:"no-store"});
+        const keyJson=await keyResult.json();
+        if(!keyResult.ok) throw Error(keyJson.message||"알림 설정을 불러오지 못했습니다.");
+        const key=decodeBase64Url(String(keyJson.publicKey||""));
+        if(key.length!==65 || key[0]!==4)
+          throw Error("문장학교 알림 공개키 설정이 올바르지 않습니다. 관리자에게 문의해 주세요.");
+        if(subscription && !sameKey(subscription.options.applicationServerKey,key)){
+          // Unregister an old key on this device before subscribing with the
+          // current key; otherwise the push service will keep the old key.
+          const oldEndpoint=subscription.endpoint;
+          const unregistered=await subscription.unsubscribe();
+          if(!unregistered) throw Error("이전 알림 설정을 해제하지 못했습니다. 다시 시도해 주세요.");
+          await fetch("/api/notifications",{
+            method:"POST",headers:{"Content-Type":"application/json"},
+            body:JSON.stringify({action:"unsubscribe",studentId:login.id,name:login.name,
+              phoneLast4:login.phone_last4,endpoint:oldEndpoint}),
+          }).catch(()=>undefined);
+          subscription=null;
+        }
         if(!subscription){
-          const keyResult=await fetch("/api/notifications/push-key",{cache:"no-store"});
-          const json=await keyResult.json();
-          if(!keyResult.ok) throw Error(json.message||"알림 설정을 불러오지 못했습니다.");
           subscription=await registration.pushManager.subscribe({
-            userVisibleOnly:true,applicationServerKey:decodeBase64Url(json.publicKey),
+            userVisibleOnly:true,applicationServerKey:key,
           });
         }
         const res=await fetch("/api/notifications",{
