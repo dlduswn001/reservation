@@ -4,7 +4,7 @@ import { useMemo, useState } from "react";
 import { CalendarDays, ChevronLeft, ChevronRight } from "lucide-react";
 
 type ClassItem = {id:string;title:string;start_at:string;end_at:string;is_open:boolean};
-type Props = {classes:ClassItem[];renderClass:(item:ClassItem)=>React.ReactNode};
+type Props<T extends ClassItem> = {classes:T[];renderClass:(item:T)=>React.ReactNode};
 function dateKey(value:string){
   const parts=new Intl.DateTimeFormat("en-US",{
     timeZone:"Asia/Seoul",year:"numeric",month:"2-digit",day:"2-digit",
@@ -33,13 +33,13 @@ function hour(value:string){
     timeZone:"Asia/Seoul",hour:"numeric",minute:"2-digit",hour12:true,
   }).format(new Date(value));
 }
-export default function OneDayClassCalendar({classes,renderClass}:Props){
+export default function OneDayClassCalendar<T extends ClassItem>({classes,renderClass}:Props<T>){
   const today=dateKey(new Date().toISOString());
   const [month,setMonth]=useState(monthOf(today));
   const [selectedDay,setSelectedDay]=useState(today);
   const days=useMemo(()=>calendarDates(month),[month]);
   const byDay=useMemo(()=>{
-    const grouped=new Map<string,ClassItem[]>();
+    const grouped=new Map<string,T[]>();
     for(const item of classes){
       const day=dateKey(item.start_at);
       const group=grouped.get(day)||[];
