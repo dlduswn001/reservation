@@ -2015,3 +2015,48 @@ body { color: var(--text); }
   .adminMonthLegend { gap:6px; }
   .adminMonthFoot { font-size:10px; }
 }
+
+/* The separate unified schedule shares the same administrator mobile shell. */
+.adminUnifiedPage {
+  max-width: 500px;
+  min-height: 100dvh;
+  margin: 0 auto;
+  padding: 16px 14px calc(105px + env(safe-area-inset-bottom));
+  background: #fff;
+  overflow-x: clip;
+}
+.adminUnifiedPage .card {
+  background:#fff;
+  border:1px solid #ebebed;
+  box-shadow:none;
+  border-radius:18px;
+  padding:18px;
+  margin-bottom:14px;
+}
+.adminUnifiedPage .heroCard { border:0; padding:14px 7px; }
+.adminUnifiedPage .heroCard h1 { font-size:25px; }
+.adminUnifiedPage input,.adminUnifiedPage select,.adminUnifiedPage textarea {
+  border:1px solid #e7e5e8;
+  background:#fff;
+  border-radius:11px;
+}
+.adminUnifiedPage .summaryGrid { grid-template-columns: repeat(2,minmax(0,1fr)); }
+.adminUnifiedBottomNav {
+  position:fixed;left:50%;bottom:0;transform:translateX(-50%);
+  width:min(500px,100%);z-index:50;
+  display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:0;
+  background:rgba(255,255,255,.98);border-top:1px solid #eae8eb;
+  box-shadow:0 -5px 18px rgba(20,20,20,.035);
+  padding:8px 12px calc(8px + env(safe-area-inset-bottom));
+}
+.adminUnifiedBottomNav a {
+  display:flex;flex-direction:column;align-items:center;justify-content:center;gap:5px;
+  min-width:0;min-height:55px;margin:0;padding:6px 0;
+  background:transparent;color:#a3a0a6;font-size:11px;font-weight:750;
+}
+.adminUnifiedBottomNav a.active { color:#7a2638; }
+.adminUnifiedBottomNav a:focus-visible { outline:2px solid #7a2638; }
+@media (max-width:390px) {
+  .adminUnifiedPage { padding-left:10px;padding-right:10px; }
+  .adminUnifiedPage .card { padding:14px; }
+}
