@@ -7,6 +7,7 @@ import {
   getReservationLessonMinutes,
   getReservationCreditCost,
   isLifestyleLessonSlot,
+  isOfficialClassStartTime,
   EXTENDED_LESSON_MINUTES,
   conflictsWithOneDayBlocks,
   conflictsWithRegularBookings,
@@ -234,7 +235,7 @@ export async function GET(request: Request) {
           available_months: [],
           raw_months: [],
           pass_policy: studentPassStatus,
-          debug: { version: "v36", note: "120분 수강생은 앱 자동예약 대신 직접 조율 안내를 표시합니다." },
+          debug: { version: "v39", note: "120분 수강생은 앱 자동예약 대신 직접 조율 안내를 표시합니다." },
         },
         {
           headers: {
@@ -303,6 +304,8 @@ export async function GET(request: Request) {
     const protectedDates = new Set(["2026-10-19", "2026-10-20", "2026-10-26", "2026-10-27"]);
 
     const isAllowedLessonDateAndTime = (slot: SlotRow) => {
+      // Never expose legacy 30-minute weekend/weekday starts from old slot data.
+      if (!isOfficialClassStartTime(slot.start_at)) return false;
       const dateKey = slotDateKey(slot.start_at);
       const weekday = slotWeekday(slot.start_at);
       if (["Mon", "Tue"].includes(weekday) && !protectedDates.has(dateKey)) {
@@ -506,7 +509,7 @@ export async function GET(request: Request) {
         raw_months: rawMonths,
         pass_policy: studentPassStatus,
         debug: {
-          version: "v36",
+          version: "v39",
           raw_slot_count: slots.length,
           available_slot_count: available.length,
           returned_slot_count: visibleAvailable.length,
@@ -530,6 +533,6 @@ export async function GET(request: Request) {
       },
     );
   } catch (error) {
-    return NextResponse.json({ message: getErrorMessage(error), version: "v36" }, { status: 500 });
+    return NextResponse.json({ message: getErrorMessage(error), version: "v39" }, { status: 500 });
   }
 }
