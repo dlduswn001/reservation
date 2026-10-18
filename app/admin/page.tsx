@@ -1025,6 +1025,8 @@ export default function AdminPage() {
       method:"POST",headers:{"Content-Type":"application/json"},
       body:JSON.stringify({
         password,name:studentName,phone_last4:phoneLast4,
+        phone_number:fullPhoneNumber,
+        paid_amount_krw:newStudentPaidAmount.trim() ? Number(newStudentPaidAmount) : 0,
         lesson_credits:Number(lessonCredits||0),
         lesson_duration_minutes:Number(lessonDurationMinutes||90),
         pass_registered_at:passRegisteredAt,
@@ -1032,7 +1034,7 @@ export default function AdminPage() {
     });
     const json=await res.json();
     if(!res.ok){setMessage(json.message||"수강생을 등록하지 못했습니다.");return;}
-    setStudentName("");setPhoneLast4("");setLessonCredits("4");
+    setStudentName("");setPhoneLast4("");setFullPhoneNumber("");setNewStudentPaidAmount("");setLessonCredits("4");
     setLessonDurationMinutes("90");setPassRegisteredAt(defaultPassRegisteredAtForNewStudent());
     setShowNewStudentForm(false);
     await loadOverview();
@@ -1050,6 +1052,7 @@ export default function AdminPage() {
       // validity automatically, not the administrator's edit form.
       body:JSON.stringify({
         password,name:edit.name,phone_last4:edit.phone_last4,
+        phone_number:edit.phone_number,
         lesson_credits:Number(edit.lesson_credits||0),
         lesson_duration_minutes:Number(edit.lesson_duration_minutes||90),
         pass_registered_at:edit.pass_registered_at,
@@ -1064,12 +1067,42 @@ export default function AdminPage() {
     setMessage("수강생 정보를 수정했습니다.");
   }
 
+  async function saveRenewal() {
+    if(!selectedStudent)return;
+    const credits=Number(renewalCredits);
+    const amount=Number(renewalAmount);
+    if(!Number.isFinite(credits)||credits<=0 || !Number.isSafeInteger(amount) || amount<0){
+      setMessage("재등록 횟수와 실제 결제금액을 확인해 주세요.");return;
+    }
+    if(!window.confirm(`${selectedStudent.name} 수강생의 수강권 ${credits}회와 결제 ${amount.toLocaleString("ko-KR")}원을 재등록으로 기록할까요?`))return;
+    setRenewalSaving(true);setMessage("");
+    try {
+      const res=await fetch("/api/admin/registrations",{
+        method:"POST",headers:{"Content-Type":"application/json"},
+        body:JSON.stringify({
+          password,student_id:selectedStudent.id,
+          payment_date:renewalDate,registration_type:"renewal",
+          amount_krw:amount,credits_added:credits,memo:renewalMemo,
+        }),
+      });
+      const json=await res.json();
+      if(!res.ok)throw new Error(json.message||"재등록을 저장하지 못했습니다.");
+      setRenewalAmount("");setRenewalCredits("4");setRenewalMemo("");
+      await loadOverview();
+      setActiveTab("students");
+      setMessage("재등록과 수강권 충전이 완료되었습니다. 실제 결제금액이 매출에 반영됩니다.");
+    }catch(error){
+      setMessage(error instanceof Error?error.message:"재등록을 저장하지 못했습니다.");
+    }finally{setRenewalSaving(false);}
+  }
+
   function cancelStudentEdit(student: Student) {
     setStudentEdits((current) => ({
       ...current,
       [student.id]: {
         name: student.name,
         phone_last4: student.phone_last4,
+        phone_number: student.phone_number || "",
         memo: student.memo || "",
         lesson_credits: String(student.lesson_credits ?? 0),
         lesson_duration_minutes: String(student.lesson_duration_minutes ?? 90),
