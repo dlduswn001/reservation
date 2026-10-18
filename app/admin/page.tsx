@@ -2231,9 +2231,15 @@ export default function AdminPage() {
                     <h2>새 수강생 등록</h2>
                     <label>이름</label>
                     <input value={studentName} onChange={e=>setStudentName(e.target.value)} placeholder="수강생 이름"/>
-                    <label>휴대폰 번호 뒤 4자리</label>
-                    <input value={phoneLast4} maxLength={4} inputMode="numeric"
-                      onChange={e=>setPhoneLast4(e.target.value)} placeholder="0000"/>
+                    <label>휴대폰 번호 전체</label>
+                    <input type="tel" inputMode="tel" autoComplete="tel" maxLength={13}
+                      value={fullPhoneNumber} placeholder="010-1234-5678"
+                      onChange={e=>{
+                        const digits=e.target.value.replace(/[^0-9]/g,"").slice(0,11);
+                        setFullPhoneNumber(digits);
+                        setPhoneLast4(digits.length>=10?digits.slice(-4):"");
+                      }}/>
+                    <p className="adminContactHint">예약 로그인에는 휴대폰 번호 끝 4자리가 사용됩니다. 번호는 관리자만 볼 수 있습니다.</p>
                     <div className="adminStudentFormPair">
                       <div><label>수강권 잔여 횟수</label>
                         <input type="number" min="0" step="0.5" value={lessonCredits}
@@ -2245,31 +2251,44 @@ export default function AdminPage() {
                     </div>
                     <label>수강권 등록일</label>
                     <input type="date" value={passRegisteredAt} onChange={e=>setPassRegisteredAt(e.target.value)}/>
+                    <label>신규 등록 수강료 (선택)</label>
+                    <input type="number" min="0" step="1000" inputMode="numeric"
+                      value={newStudentPaidAmount} onChange={e=>setNewStudentPaidAmount(e.target.value)}
+                      placeholder="실제 결제금액, 예: 260000"/>
+                    <p className="adminContactHint">금액을 입력하면 이달 신규 등록 매출에 기록됩니다. 미입력 시 매출 0원으로 간주하지 않고 미기록으로 남습니다.</p>
                     <p className="adminValidityHint">사용기간: 첫 수업일로부터 10주 이내</p>
                     <button type="button" className="adminFormSubmit" onClick={addStudent}>수강생 등록하기</button>
                   </div>
                 )}
 
                 <div className="adminEnrollmentTabs" role="tablist" aria-label="수강생 재원 상태">
-                  <button type="button" role="tab" aria-selected={enrollmentFilter === "active"}
-                    className={`adminEnrollmentTab ${enrollmentFilter === "active" ? "selected" : ""}`}
-                    onClick={() => switchEnrollmentFilter("active")}>
-                    재원생 <span>{activeStudentCount}</span>
-                  </button>
-                  <button type="button" role="tab" aria-selected={enrollmentFilter === "inactive"}
-                    className={`adminEnrollmentTab ${enrollmentFilter === "inactive" ? "selected" : ""}`}
-                    onClick={() => switchEnrollmentFilter("inactive")}>
-                    퇴원생 <span>{inactiveStudentCount}</span>
-                  </button>
+                  {([
+                    {key:"active",label:"재원",count:activeStudentCount},
+                    {key:"paused",label:"휴원",count:pausedStudentCount},
+                    {key:"withdrawn",label:"퇴원",count:withdrawnStudentCount},
+                  ] as const).map(item=>(
+                    <button key={item.key} type="button" role="tab"
+                      aria-selected={enrollmentFilter===item.key}
+                      className={`adminEnrollmentTab ${enrollmentFilter===item.key?"selected":""}`}
+                      onClick={()=>switchEnrollmentFilter(item.key)}>
+                      {item.label} <span>{item.count}</span>
+                    </button>
+                  ))}
                 </div>
-                <label className="adminRosterSearchLabel" htmlFor="adminStudentSearch">{enrollmentFilter === "active" ? "재원생" : "퇴원생"} 찾기 · 가나다순</label>
+                <p className="adminStatusRule">휴원: 마지막 수업·등록 활동 후 30일 · 퇴원: 수강권 0회가 된 뒤 7일 또는 직접 퇴원 처리</p>
+                <label className="adminRosterSearchLabel" htmlFor="adminStudentSearch">
+                  {enrollmentFilter==="active"?"재원생":enrollmentFilter==="paused"?"휴원생":"퇴원생"} 찾기 · 가나다순
+                </label>
                 <div className="adminRosterSearch">
                   <Search size={18} />
                   <input id="adminStudentSearch" value={studentSearch}
                     onChange={e=>setStudentSearch(e.target.value)}
                     placeholder="이름 또는 전화번호 뒤 4자리 검색" />
                 </div>
-                <div className="adminRosterCount">{enrollmentFilter === "active" ? "재원생" : "퇴원생"} {enrollmentFilter === "active" ? activeStudentCount : inactiveStudentCount}명 · 표시 {visibleStudents.length}명</div>
+                <div className="adminRosterCount">
+                  {enrollmentFilter==="active"?"재원생":enrollmentFilter==="paused"?"휴원생":"퇴원생"}
+                  {" "}{enrollmentFilter==="active"?activeStudentCount:enrollmentFilter==="paused"?pausedStudentCount:withdrawnStudentCount}명 · 표시 {visibleStudents.length}명
+                </div>
                 <div className="adminRosterNames" role="group" aria-label="가나다순 수강생 목록">
                   {visibleStudents.map(student => (
                     <button type="button" key={student.id}
@@ -2293,7 +2312,7 @@ export default function AdminPage() {
 
               {selectedStudent && [selectedStudent].map(s=>{
                 const edit=studentEdits[s.id] || {
-                  name:s.name,phone_last4:s.phone_last4,memo:s.memo||"",
+                  name:s.name,phone_last4:s.phone_last4,phone_number:s.phone_number||"",memo:s.memo||"",
                   lesson_credits:String(s.lesson_credits??0),
                   lesson_duration_minutes:String(s.lesson_duration_minutes??90),
                   pass_registered_at:s.pass_registered_at||"",
@@ -2308,7 +2327,7 @@ export default function AdminPage() {
                   <section key={s.id} className="card adminSelectedStudentCard">
                     <div className="adminSelectedStudentHeading">
                       <div><p className="adminEyebrow">선택한 수강생</p><h2>{s.name}</h2>
-                        <span>{s.phone_last4} · {s.is_active === false ? "퇴원생 · 예약 중지" : "재원생 · 예약 가능"}</span>
+                        <span>{s.phone_number || "전체 연락처 미등록"} · {studentStatus(s)==="active"?"재원":"휴원"}{studentStatus(s)==="withdrawn"?"퇴원":""}</span>
                       </div>
                       {!isEditing && <button type="button" className="adminSmallAction"
                         onClick={()=>setEditingStudentId(s.id)}>정보 수정</button>}
@@ -2319,6 +2338,8 @@ export default function AdminPage() {
                         <div className="adminStudentInfoGrid">
                           <div><span>남은 수강권</span><strong>{s.lesson_credits ?? 0}회</strong></div>
                           <div><span>수업 유형</span><strong>{s.lesson_duration_minutes ?? 90}분</strong></div>
+                          <div className="wide"><span>전체 휴대폰 번호</span><strong>{s.phone_number || "미등록 · 정보 수정에서 등록"}</strong></div>
+                          <div className="wide"><span>마지막 완료 수업</span><strong>{s.last_attended_at?formatDateOnly(s.last_attended_at):"수업 기록 없음"}</strong></div>
                           <div className="wide"><span>수강권 등록일</span><strong>{s.pass_registered_at || "미등록"}</strong></div>
                           <div className="wide"><span>사용기간</span><strong>{passPolicySummary(s)}</strong></div>
                         </div>
@@ -2341,10 +2362,21 @@ export default function AdminPage() {
                         <label>이름</label>
                         <input value={edit.name} onChange={e=>setStudentEdits(current=>({
                           ...current,[s.id]:{...edit,name:e.target.value}}))}/>
-                        <label>휴대폰 번호 뒤 4자리</label>
+                        <label>휴대폰 번호 전체</label>
+                        <input type="tel" maxLength={13} inputMode="tel" value={edit.phone_number}
+                          placeholder="010-1234-5678"
+                          onChange={e=>{
+                            const digits=e.target.value.replace(/[^0-9]/g,"").slice(0,11);
+                            setStudentEdits(current=>({
+                              ...current,[s.id]:{...edit,phone_number:digits,
+                                phone_last4:digits.length>=10?digits.slice(-4):edit.phone_last4}
+                            }));
+                          }}/>
+                        <p className="adminContactHint">기존 번호를 모르면 비워 둘 수 있어요. 로그인 인증용 끝 4자리는 기존 값을 유지합니다.</p>
+                        <label>인증용 휴대폰 끝 4자리</label>
                         <input maxLength={4} inputMode="numeric" value={edit.phone_last4}
                           onChange={e=>setStudentEdits(current=>({
-                            ...current,[s.id]:{...edit,phone_last4:e.target.value}}))}/>
+                            ...current,[s.id]:{...edit,phone_last4:e.target.value.replace(/[^0-9]/g,"").slice(0,4)}}))}/>
                         <div className="adminStudentFormPair">
                           <div><label>남은 수강권</label>
                             <input type="number" min="0" step="0.5" value={edit.lesson_credits}
