@@ -775,6 +775,7 @@ export default function AdminPage() {
     setJournalPreviewId("");
     setJournalFeedback("");
     setActiveTab("students");
+    window.scrollTo({top:0,behavior:"smooth"});
   }
 
   useEffect(() => {
@@ -2021,140 +2022,72 @@ export default function AdminPage() {
                 </div>
               </section>
 
-              <section className="card zeroCreditCard">
-                <div className="sectionHeaderRow">
-                  <div>
-                    <p className="eyebrow">추가 등록 안내</p>
-                    <h2>수강권 0회 수강생</h2>
-                    <p className="small">남은 수강권이 0회인 수강생만 따로 모아 보여줍니다. 추가 등록 안내가 필요한 분들을 바로 확인할 수 있습니다.</p>
-                  </div>
-                  <button className="secondary compact" onClick={() => openTab("students")}>수강생 관리로 이동</button>
+              <section className="card adminCompactAlertCard">
+                <div className="adminCompactAlertHeader">
+                  <h2>수강권 0회 <span>{zeroCreditStudents.length}명</span></h2>
+                  <button className="adminTextLink" onClick={() => openTab("students")}>수강생관리</button>
                 </div>
-
-                {zeroCreditStudents.length === 0 ? (
-                  <div className="emptyToday zeroCreditEmpty">
-                    <strong>현재 수강권 0회 수강생이 없습니다.</strong>
-                    <p>수강권이 모두 소진된 수강생이 생기면 이곳에 자동으로 표시됩니다.</p>
-                  </div>
-                ) : (
-                  <div className="zeroCreditList">
-                    {zeroCreditStudents.map((student) => (
-                      <div className="zeroCreditItem" key={student.id}>
-                        <div>
-                          <strong>{student.name}</strong>
-                          <p className="small">{student.phone_last4} · 정규수업 유형 {student.lesson_duration_minutes ?? 90}분</p>
-                          <p className="small">{passPolicySummary(student)}</p>
-                          {student.memo && <p className="small">메모: {student.memo}</p>}
-                        </div>
-                        <span>0회</span>
-                      </div>
-                    ))}
-                  </div>
-                )}
+                {zeroCreditStudents.length === 0
+                  ? <p className="adminAlertEmpty">해당 수강생이 없습니다.</p>
+                  : <div className="adminAlertNames">
+                      {zeroCreditStudents.map(student => (
+                        <button key={student.id} className="adminAlertName" onClick={() => selectStudent(student.id)}>
+                          {student.name}
+                        </button>
+                      ))}
+                    </div>}
               </section>
 
-              <section className="card zeroCreditCard">
-                <div className="sectionHeaderRow">
-                  <div>
-                    <p className="eyebrow">수강권 사용기한</p>
-                    <h2>사용기한 임박/만료 수강생</h2>
-                    <p className="small">8월 1일 이후 결제·재등록 수강권 중 사용기한이 7일 이내로 남았거나 만료된 수강생입니다.</p>
-                  </div>
-                  <button className="secondary compact" onClick={() => openTab("students")}>수강생 관리로 이동</button>
+              <section className="card adminCompactAlertCard">
+                <div className="adminCompactAlertHeader">
+                  <h2>사용기간 임박·만료 <span>{passAlertStudents.length}명</span></h2>
+                  <button className="adminTextLink" onClick={() => openTab("students")}>수강생관리</button>
                 </div>
-                {passAlertStudents.length === 0 ? (
-                  <div className="emptyToday zeroCreditEmpty">
-                    <strong>사용기한 임박 또는 만료 수강생이 없습니다.</strong>
-                    <p>8월 1일 이후 등록한 수강권만 이 목록에 표시됩니다.</p>
-                  </div>
-                ) : (
-                  <div className="zeroCreditList">
-                    {passAlertStudents.map(({ student, status }) => (
-                      <div className="zeroCreditItem" key={student.id}>
-                        <div>
-                          <strong>{student.name}</strong>
-                          <p className="small">{student.phone_last4} · {status.label} · 사용기한 {status.expiresAt || "-"}</p>
-                          <p className="small">등록일 {status.registeredAt || "-"} / 첫 수업일 {status.firstLessonAt || "-"}</p>
-                        </div>
-                        <span>{typeof status.daysLeft === "number" ? (status.daysLeft < 0 ? `${Math.abs(status.daysLeft)}일 지남` : `${status.daysLeft}일 남음`) : "-"}</span>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </section>
-
-              <section className="card">
-                <h2>운영 요약</h2>
-                <div className="statsGrid">
-                  <div className="statBox"><span>정규 수강생</span><strong>{overview.students.length}명</strong></div>
-                  <div className="statBox"><span>수강권 0회</span><strong>{zeroCreditStudents.length}명</strong></div>
-                  <div className="statBox"><span>기한 임박/만료</span><strong>{passAlertStudents.length}명</strong></div>
-                  <div className="statBox"><span>예약 가능 시간</span><strong>{overview.slots.length}개</strong></div>
-                  <div className="statBox"><span>정규 예약</span><strong>{activeBookingsCount}건</strong></div>
-                  <div className="statBox"><span>원데이 신청</span><strong>{overview.onedayBookings.length}건</strong></div>
-                  <div className="statBox"><span>외부 차단</span><strong>{overview.blockedTimes?.length || 0}건</strong></div>
-                </div>
+                {passAlertStudents.length === 0
+                  ? <p className="adminAlertEmpty">해당 수강생이 없습니다.</p>
+                  : <div className="adminAlertNames">
+                      {passAlertStudents.map(({student,status}) => (
+                        <button key={student.id} className="adminAlertName" onClick={() => selectStudent(student.id)}>
+                          {student.name} <small>{typeof status.daysLeft === "number" ? (status.daysLeft<0 ? "만료" : `D-${status.daysLeft}`) : ""}</small>
+                        </button>
+                      ))}
+                    </div>}
               </section>
             </>
           )}
 
           {activeTab === "schedule" && (
-            <>
-              <section className="card">
-                <h2>스케줄</h2>
-                <p className="small">정규수업 예약, 원데이 클래스, 외부 차단, 예약 가능 시간을 한 곳에서 확인하고 관리합니다.</p>
-                <div className="statsGrid">
-                  <div className="statBox"><span>정규 예약</span><strong>{activeBookingsCount}건</strong></div>
-                  <div className="statBox"><span>예약 가능 시간</span><strong>{overview.slots.length}개</strong></div>
-                  <div className="statBox"><span>외부 차단</span><strong>{overview.blockedTimes?.length || 0}건</strong></div>
-                  <div className="statBox"><span>원데이 일정</span><strong>{overview.classes.length}개</strong></div>
-                </div>
-              </section>
-
-              <section className="card">
-                <h2>스케줄 관리 메뉴</h2>
-                <p className="small">평소에는 통합 스케줄을 먼저 확인하고, 필요한 작업만 아래 버튼으로 들어가면 됩니다.</p>
-                <div className="adminQuickGrid">
-                  <Link href="/admin/schedule" className="quickCard">
-                    <strong>통합 스케줄</strong>
-                    <span>정규수업·원데이·외부 차단을 한 화면에서 확인</span>
-                  </Link>
-                  <button className="quickCard" onClick={() => openTab("timetable")}>
-                    <strong>시간표 만들기</strong>
-                    <span>기본 시간표와 조율 슬롯 생성</span>
-                  </button>
-                  <button className="quickCard" onClick={() => openTab("slots")}>
-                    <strong>예약 가능 시간</strong>
-                    <span>수강생에게 열릴 수 있는 시간 확인·삭제</span>
-                  </button>
-                  <button className="quickCard" onClick={() => openTab("blocks")}>
+            <section className="card adminScheduleLanding">
+              <p className="adminEyebrow">관리자 일정관리</p>
+              <h1>일정관리</h1>
+              <p className="small">원하는 관리 메뉴를 선택해 주세요.</p>
+              <div className="adminSimpleMenu">
+                <button type="button" className="adminSimpleMenuItem" onClick={() => openTab("timetable")}>
+                  <span className="adminSimpleMenuIcon"><CalendarDays size={23}/></span>
+                  <span className="adminSimpleMenuLabel">
+                    <strong>월별 수업 열기</strong>
+                    <small>월간 시간표와 휴무일 관리</small>
+                  </span>
+                  <ChevronRight size={19}/>
+                </button>
+                <button type="button" className="adminSimpleMenuItem" onClick={() => openTab("blocks")}>
+                  <span className="adminSimpleMenuIcon"><Settings2 size={23}/></span>
+                  <span className="adminSimpleMenuLabel">
                     <strong>외부 차단</strong>
-                    <span>네이버 예약·상담·개인 일정 차단</span>
-                  </button>
-                  <button className="quickCard" onClick={() => openTab("bookings")}>
-                    <strong>정규 예약 달력</strong>
-                    <span>날짜별 정규수업 예약자 확인</span>
-                  </button>
-                  <button className="quickCard" onClick={() => openTab("oneday")}>
-                    <strong>원데이 클래스 관리</strong>
-                    <span>원데이 일정 만들기·수정·신청자 확인</span>
-                  </button>
-                </div>
-              </section>
-
-              <section className="card">
-                <h2>다가오는 정규수업</h2>
-                <div className="list">
-                  {upcomingBookings.length === 0 && <p>다가오는 정규수업 예약이 없습니다.</p>}
-                  {upcomingBookings.map((b) => (
-                    <div className="item" key={b.id}>
-                      <strong>{formatDateTime(b.start_at)} - {formatTime(b.end_at)}</strong>
-                      <p>{b.students?.name || "이름 없음"} / {b.students?.phone_last4 || "번호 없음"} / 상태: {STATUS_LABELS[b.status] || b.status}</p>
-                    </div>
-                  ))}
-                </div>
-              </section>
-            </>
+                    <small>체험수업·상담·외부 일정 관리</small>
+                  </span>
+                  <ChevronRight size={19}/>
+                </button>
+                <button type="button" className="adminSimpleMenuItem" onClick={() => openTab("oneday")}>
+                  <span className="adminSimpleMenuIcon"><NotebookPen size={23}/></span>
+                  <span className="adminSimpleMenuLabel">
+                    <strong>원데이 클래스</strong>
+                    <small>수업 개설·수정·신청자 확인</small>
+                  </span>
+                  <ChevronRight size={19}/>
+                </button>
+              </div>
+            </section>
           )}
 
           {activeTab === "students" && (
