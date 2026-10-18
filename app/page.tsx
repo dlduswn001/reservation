@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { CalendarDays, ChevronRight, PenLine, UserRound, BookOpenText } from "lucide-react";
+import { CalendarDays, ChevronRight, PenLine, UserRound, BookOpenText, Bell } from "lucide-react";
 import BottomNav from "./components/BottomNav";
 import PWAInstallPrompt from "./components/PWAInstallPrompt";
 import { bookingDisplayNameFromMemo } from "../lib/businessRules";
@@ -109,7 +109,10 @@ export default function Home() {
     <main className="container appContainer studioApp">
       <header className="studioHeader">
         <div className="studioWordmark">문장학교</div>
-        <Link href="/profile" className="studioIconLink" aria-label="마이페이지로 이동"><UserRound size={23} strokeWidth={1.8} /></Link>
+        <div style={{display:"flex",alignItems:"center",gap:12}}>
+          <Link href="/notifications" className="studioIconLink" aria-label="알림 설정과 알림 내역"><Bell size={23} strokeWidth={1.8}/></Link>
+          <Link href="/profile" className="studioIconLink" aria-label="마이페이지로 이동"><UserRound size={23} strokeWidth={1.8} /></Link>
+        </div>
       </header>
 
 

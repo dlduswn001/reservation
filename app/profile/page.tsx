@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import BottomNav from "../components/BottomNav";
+import { disconnectPushOnLogout } from "../../lib/pushClient";
 import { getRegularPassPolicyStatus } from "../../lib/passPolicy";
 
 type Student = { id: string; name: string; phone_last4: string; lesson_credits?: number; lesson_duration_minutes?: number; pass_registered_at?: string | null; pass_first_lesson_at?: string | null; pass_expires_at?: string | null; pass_extension_used?: boolean | null; pass_extension_until?: string | null; pass_extension_reason?: string | null };
@@ -122,6 +123,7 @@ export default function ProfilePage() {
   }, []);
 
   function logout() {
+    void disconnectPushOnLogout(student);
     clearStoredStudentLogin();
     setStudent(null);
     setName("");
