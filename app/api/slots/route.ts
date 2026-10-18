@@ -13,6 +13,9 @@ import {
   reservationCutoffDate,
   overlapsAnyTimeBlock,
   WEEKDAY_VISIBLE_TIMETABLE_START_TIMES,
+  WEEKEND_REGULAR_START_TIMES,
+  WEEKEND_REGULAR_START_TIMES_45,
+  WEEKEND_LIFESTYLE_START_TIMES,
 } from "../../../lib/businessRules";
 import { canBookWithRegularPassPolicy, getRegularPassPolicyStatus, type RegularPassPolicyStudent } from "../../../lib/passPolicy";
 import { getErrorMessage, isMissingPassColumnError } from "../../../lib/supabaseCompat";
@@ -243,7 +246,11 @@ export async function GET(request: Request) {
       );
     }
 
-    const slotLoad = await loadAvailableSlots(supabase, searchRange.rangeStartIso, searchRange.rangeEndIso);
+    // 당일 시작 3시간 전이 지나서 신청/대기가 모두 닫힌 시간도 '마감'으로 표시합니다.
+    // 전날 수업은 노출하지 않고 오늘 00:00 KST부터 읽습니다.
+    const todayParts = kstParts(new Date());
+    const todayStart = kstDateTimeToIso(todayParts.year, todayParts.month, todayParts.day);
+    const slotLoad = await loadAvailableSlots(supabase, todayStart, searchRange.rangeEndIso);
 
     // v22 핵심: 다음 달 시간표가 있는데 is_open 값 때문에 통째로 숨는 일을 막기 위해
     // 예약 가능 시간은 실제로 삭제된 행만 제외하고, 불러온 행 전체를 후보로 봅니다.
@@ -286,40 +293,39 @@ export async function GET(request: Request) {
     const activeOnedayBlocks = (onedayClasses || []).filter((klass: any) => klass.is_open !== false);
     const activeBlockedTimes = blockedTimes || [];
 
-    const isSlotAvailable = (slot: SlotRow) => {
-      // 월·화요일은 관리자가 열어 둔 DB 슬롯만 노출합니다.
-      // 수·목·금은 기존 is_open 처리 방식을 유지합니다.
-      const weekday = new Intl.DateTimeFormat("en-US", {
-        timeZone: "Asia/Seoul",
-        weekday: "short",
-      }).format(new Date(slot.start_at));
-      if (["Mon", "Tue"].includes(weekday)) {
-        // 10월에 관리자가 직접 개방한 네 날짜의 기존 표시 동작은 바꾸지 않습니다.
-        const dateKey = new Intl.DateTimeFormat("en-CA", {
-          timeZone: "Asia/Seoul", year: "numeric", month: "2-digit", day: "2-digit",
+    const slotDateKey = (startAt: string) => {
+      const parts = kstParts(new Date(startAt));
+      return `${parts.year}-${String(parts.month).padStart(2, "0")}-${String(parts.day).padStart(2, "0")}`;
+    };
+    const slotWeekday = (startAt: string) => new Intl.DateTimeFormat("en-US", {
+      timeZone: "Asia/Seoul", weekday: "short",
+    }).format(new Date(startAt));
+    const protectedDates = new Set(["2026-10-19", "2026-10-20", "2026-10-26", "2026-10-27"]);
+
+    const isAllowedLessonDateAndTime = (slot: SlotRow) => {
+      const dateKey = slotDateKey(slot.start_at);
+      const weekday = slotWeekday(slot.start_at);
+      if (["Mon", "Tue"].includes(weekday) && !protectedDates.has(dateKey)) {
+        const timeKey = new Intl.DateTimeFormat("en-GB", {
+          timeZone: "Asia/Seoul", hour: "2-digit", minute: "2-digit", hourCycle: "h23",
         }).format(new Date(slot.start_at));
-        const protectedDates = ["2026-10-19", "2026-10-20", "2026-10-26", "2026-10-27"];
-        if (protectedDates.includes(dateKey)) {
-          if (slot.is_open === false) return false;
-        } else {
-          const timeKey = new Intl.DateTimeFormat("en-GB", {
-            timeZone: "Asia/Seoul", hour: "2-digit", minute: "2-digit", hourCycle: "h23",
-          }).format(new Date(slot.start_at));
-          if (slot.is_open !== true || !explicitlyOpened.has(dateKey)
-            || !WEEKDAY_VISIBLE_TIMETABLE_START_TIMES.includes(timeKey)) return false;
+        if (!explicitlyOpened.has(dateKey) || !WEEKDAY_VISIBLE_TIMETABLE_START_TIMES.includes(timeKey)) {
+          return false;
         }
       }
+      const duration = getReservationLessonMinutes(slot.start_at, lessonMinutes);
+      if (!isLessonWithinOperatingHours(slot.start_at, duration)) return false;
+      if (studentPassPolicy && !canBookWithRegularPassPolicy(studentPassPolicy, slot.start_at).ok) return false;
+      return true;
+    };
+
+    const isSlotAvailable = (slot: SlotRow) => {
+      if (!isAllowedLessonDateAndTime(slot)) return false;
+      // 닫힌 슬롯과 예약 시작 3시간 전을 넘긴 시간은 예약과 대기 모두 불가능합니다.
+      if (slot.is_open === false || new Date(slot.start_at).getTime() <= cutoffDate.getTime()) return false;
 
       const slotLessonMinutes = getReservationLessonMinutes(slot.start_at, lessonMinutes);
-
-      // 월·화요일도 수요일과 같은 시작 시간만 표시합니다.
-      // 실제 DB에 등록된 시간만 조회하므로 미개방 날짜는 예약할 수 없습니다.
-      if (!isLessonWithinOperatingHours(slot.start_at, slotLessonMinutes)) {
-        return false;
-      }
-
       const candidateEndAt = lessonEndIso(slot.start_at, slotLessonMinutes);
-      if (studentPassPolicy && !canBookWithRegularPassPolicy(studentPassPolicy, slot.start_at).ok) return false;
       if (conflictsWithOneDayBlocks(slot.start_at, candidateEndAt, activeOnedayBlocks)) return false;
       if (overlapsAnyTimeBlock(slot.start_at, candidateEndAt, activeBlockedTimes)) return false;
 
@@ -375,6 +381,63 @@ export async function GET(request: Request) {
         };
       });
 
+    // 수업 운영일의 기존 시간표는 '예약하기 / 대기 신청 / 마감'으로 상태를 분리합니다.
+    // 월·화 정규 휴무일 및 관리자 미개방 날짜는 시간표 자체를 표시하지 않습니다.
+    const activeClassDateKeys = new Set(
+      slots.filter((slot) => slot.is_open === true && isAllowedLessonDateAndTime(slot))
+        .map((slot) => slotDateKey(slot.start_at)),
+    );
+    const closedSlots = slots
+      .filter((slot) => activeClassDateKeys.has(slotDateKey(slot.start_at))
+        && isAllowedLessonDateAndTime(slot) && !isSlotAvailable(slot))
+      .map((slot) => {
+        const duration = getReservationLessonMinutes(slot.start_at, lessonMinutes);
+        const lifestyle = isLifestyleLessonSlot(slot.start_at);
+        return {
+          id: slot.id,
+          start_at: slot.start_at,
+          end_at: lessonEndIso(slot.start_at, duration),
+          lesson_minutes: duration,
+          credit_cost: getReservationCreditCost(slot.start_at, lessonMinutes),
+          is_lifestyle: lifestyle,
+          is_closed: true,
+          rule_label: "해당 시간은 예약과 대기 신청이 마감되었습니다.",
+        };
+      });
+
+    // 기존 DB에 평일 공통 5개 시간 중 누락된 시간이 있으면 숨기는 대신 '마감'으로 표시합니다.
+    // 실제 available_slots 레코드를 생성하거나 예약 가능 상태로 변경하지 않습니다.
+    const seenStartTimes = new Set([
+      ...available.map((slot) => slot.start_at),
+      ...waitingSlots.map((slot) => slot.start_at),
+      ...closedSlots.map((slot) => slot.start_at),
+    ]);
+    for (const dateKey of activeClassDateKeys) {
+      const [year, month, day] = dateKey.split("-").map(Number);
+      const weekday = new Date(Date.UTC(year, month - 1, day)).getUTCDay();
+      const times = weekday === 0 || weekday === 6
+        ? [...(lessonMinutes === 45 ? WEEKEND_REGULAR_START_TIMES_45 : WEEKEND_REGULAR_START_TIMES), ...WEEKEND_LIFESTYLE_START_TIMES]
+        : WEEKDAY_VISIBLE_TIMETABLE_START_TIMES;
+      for (const time of times) {
+        const [hour, minute] = time.split(":").map(Number);
+        const startAt = kstDateTimeToIso(year, month, day, hour, minute);
+        if (seenStartTimes.has(startAt)) continue;
+        const duration = getReservationLessonMinutes(startAt, lessonMinutes);
+        const lifestyle = isLifestyleLessonSlot(startAt);
+        closedSlots.push({
+          id: `closed:${startAt}`,
+          start_at: startAt,
+          end_at: lessonEndIso(startAt, duration),
+          lesson_minutes: duration,
+          credit_cost: getReservationCreditCost(startAt, lessonMinutes),
+          is_lifestyle: lifestyle,
+          is_closed: true,
+          rule_label: "해당 시간은 예약과 대기 신청이 마감되었습니다.",
+        });
+        seenStartTimes.add(startAt);
+      }
+    }
+
     const availableMonthCountMap = countByMonth(available);
     const availableMonths: AvailableMonth[] = monthListFromCountMap(availableMonthCountMap);
 
@@ -416,6 +479,8 @@ export async function GET(request: Request) {
       {
         slots: visibleAvailable,
         waitlist_slots: waitingSlots.filter((slot) => visibleMonthKeys.includes(kstMonthKeyFromIso(slot.start_at))),
+        closed_slots: closedSlots.filter((slot) => visibleMonthKeys.includes(kstMonthKeyFromIso(slot.start_at)))
+          .sort((a, b) => new Date(a.start_at).getTime() - new Date(b.start_at).getTime()),
         lesson_minutes: lessonMinutes,
         open_month: {
           ...visibleMonth,
