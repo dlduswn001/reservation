@@ -17,24 +17,31 @@ function errorMessage(error: unknown) {
 }
 
 function buildPassUpdate(body: Record<string, unknown>) {
-  const passRegisteredAt = cleanDateKey(body.pass_registered_at);
-  const passFirstLessonAt = cleanDateKey(body.pass_first_lesson_at);
-  const passExtensionUntil = cleanDateKey(body.pass_extension_until);
-  const passExtensionReason = String(body.pass_extension_reason || "").trim();
-  const passExtensionUsed = Boolean(body.pass_extension_used || passExtensionUntil || passExtensionReason);
-  const passExpiresAt = passFirstLessonAt ? calculatePassExpirationDateKey(passFirstLessonAt) : cleanDateKey(body.pass_expires_at);
-
-  return {
-    error: null as string | null,
-    value: {
-      pass_registered_at: passRegisteredAt,
-      pass_first_lesson_at: passFirstLessonAt,
-      pass_expires_at: passExpiresAt,
-      pass_extension_used: passExtensionUsed,
-      pass_extension_until: passExtensionUntil,
-      pass_extension_reason: passExtensionReason || null,
-    },
-  };
+  // The simplified admin form intentionally does NOT supply first lesson,
+  // existing extension fields or private memo. Their stored values must
+  // survive credit and account edits. Students' first reservation sets
+  // pass_first_lesson_at in the booking API.
+  const value: Record<string, unknown> = {};
+  if ("pass_registered_at" in body) {
+    value.pass_registered_at = cleanDateKey(body.pass_registered_at);
+  }
+  if ("pass_first_lesson_at" in body) {
+    const firstLesson = cleanDateKey(body.pass_first_lesson_at);
+    value.pass_first_lesson_at = firstLesson;
+    value.pass_expires_at = firstLesson
+      ? calculatePassExpirationDateKey(firstLesson)
+      : null;
+  }
+  if ("pass_extension_until" in body) {
+    value.pass_extension_until = cleanDateKey(body.pass_extension_until);
+  }
+  if ("pass_extension_used" in body) {
+    value.pass_extension_used = Boolean(body.pass_extension_used);
+  }
+  if ("pass_extension_reason" in body) {
+    value.pass_extension_reason = String(body.pass_extension_reason || "").trim() || null;
+  }
+  return { error: null as string | null, value };
 }
 
 export async function PATCH(request: Request, context: { params: Promise<{ studentId: string }> }) {
@@ -67,7 +74,8 @@ export async function PATCH(request: Request, context: { params: Promise<{ stude
     const basePayload = {
       name,
       phone_last4: phoneLast4,
-      memo,
+      // Preserve the existing private memo if the new UI does not show it.
+      ...("memo" in body ? { memo } : {}),
       lesson_credits: Number(lessonCredits.toFixed(2)),
       lesson_duration_minutes: lessonDurationMinutes,
       is_active: isActive,
