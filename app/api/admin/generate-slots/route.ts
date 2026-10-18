@@ -39,6 +39,32 @@ export async function POST(request: Request) {
       });
     }
 
+    // Month-specific opening adds only MISSING official timetable starts.
+    // It never reopens intentionally closed rows, touches existing bookings,
+    // or opens regular Monday/Tuesday rest days.
+    if (body.open_month !== undefined) {
+      const target = String(body.open_month || "").trim();
+      if (!/^\d{4}-(0[1-9]|1[0-2])$/.test(target)) {
+        return NextResponse.json({ message: "열려는 연도와 월을 선택해 주세요." }, { status: 400 });
+      }
+      const monthStart = target + "-01";
+      const rows = buildTimetableSlots(monthStart, 6).filter((row) => {
+        const date = new Date(new Date(row.start_at).getTime() + 9 * 3600 * 1000);
+        return date.toISOString().slice(0,7) === target;
+      });
+      const supabase = getSupabaseAdmin();
+      const { data, error } = await supabase.from("available_slots")
+        .upsert(rows, { onConflict: "start_at", ignoreDuplicates: true })
+        .select("id");
+      if (error) throw error;
+      return NextResponse.json({
+        ok: true,
+        attempted: rows.length,
+        count: data?.length || 0,
+        message: `${target} 수업 시간이 준비되었습니다. 새로 열린 시간 ${data?.length || 0}개, 기존에 닫은 시간과 예약은 유지했습니다.`,
+      });
+    }
+
     const startDate = String(body.start_date || "");
     const weeks = Number(body.weeks || 8);
     if (!/^\d{4}-\d{2}-\d{2}$/.test(startDate)) {
