@@ -554,6 +554,8 @@ export default function AdminPage() {
   const [editingStudentId, setEditingStudentId] = useState<string | null>(null);
   const [selectedStudentId, setSelectedStudentId] = useState("");
   const [studentSearch, setStudentSearch] = useState("");
+  const [enrollmentFilter, setEnrollmentFilter] = useState<"active" | "inactive">("active");
+  const [enrollmentSaving, setEnrollmentSaving] = useState(false);
   const [showNewStudentForm, setShowNewStudentForm] = useState(false);
   const [showScheduleAdvanced, setShowScheduleAdvanced] = useState(false);
   const [monthToOpen, setMonthToOpen] = useState(() => todaySeoulDateKey().slice(0,7));
@@ -745,14 +747,20 @@ export default function AdminPage() {
     [overview?.students],
   );
 
+  const activeStudentCount = alphabeticalStudents.filter((student) => student.is_active !== false).length;
+  const inactiveStudentCount = alphabeticalStudents.filter((student) => student.is_active === false).length;
   const visibleStudents = useMemo(() => {
     const keyword = studentSearch.trim().toLocaleLowerCase("ko");
-    if (!keyword) return alphabeticalStudents;
-    return alphabeticalStudents.filter((student) =>
+    const inSelectedGroup = alphabeticalStudents.filter((student) =>
+      enrollmentFilter === "active" ? student.is_active !== false : student.is_active === false);
+    if (!keyword) return inSelectedGroup;
+    return inSelectedGroup.filter((student) =>
       student.name.toLocaleLowerCase("ko").includes(keyword) || student.phone_last4.includes(keyword));
-  }, [alphabeticalStudents,studentSearch]);
+  }, [alphabeticalStudents, studentSearch, enrollmentFilter]);
 
-  const selectedStudent = alphabeticalStudents.find((student) => student.id === selectedStudentId) || null;
+  const selectedStudent = alphabeticalStudents.find((student) =>
+    student.id === selectedStudentId &&
+    (enrollmentFilter === "active" ? student.is_active !== false : student.is_active === false)) || null;
   const selectedStudentBookings = (overview?.bookings || [])
     .filter((booking) => booking.student_id === selectedStudentId &&
       !["cancelled","late_cancelled"].includes(booking.status) &&
@@ -760,6 +768,8 @@ export default function AdminPage() {
     .sort((a,b) => new Date(b.start_at).getTime() - new Date(a.start_at).getTime());
 
   function selectStudent(studentId: string) {
+    const student = alphabeticalStudents.find((item) => item.id === studentId);
+    if (student) setEnrollmentFilter(student.is_active === false ? "inactive" : "active");
     setSelectedStudentId(studentId);
     setEditingStudentId(null);
     setJournalDraft({ ...EMPTY_JOURNAL, lesson_date: todaySeoulDateKey() });
@@ -767,6 +777,52 @@ export default function AdminPage() {
     setJournalFeedback("");
     setActiveTab("students");
     window.scrollTo({top:0,behavior:"smooth"});
+  }
+
+  function switchEnrollmentFilter(nextFilter: "active" | "inactive") {
+    if (nextFilter === enrollmentFilter) return;
+    setEnrollmentFilter(nextFilter);
+    setSelectedStudentId("");
+    setStudentSearch("");
+    setEditingStudentId(null);
+    setJournalFeedback("");
+    setJournalDraft({ ...EMPTY_JOURNAL });
+  }
+
+  async function updateEnrollmentStatus(student: Student, nextActive: boolean) {
+    const actionLabel = nextActive ? "재원생으로 전환" : "퇴원 처리";
+    const detail = nextActive
+      ? "다시 예약 앱을 이용할 수 있습니다."
+      : "예약 앱 사용이 중단되지만 수강권·수업 기록·수업일지는 보관됩니다.";
+    if (!window.confirm(`${student.name} 수강생을 ${actionLabel}할까요?\n${detail}`)) return;
+    setEnrollmentSaving(true);
+    setMessage("");
+    try {
+      const res = await fetch(`/api/admin/students/${student.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          password,
+          name: student.name,
+          phone_last4: student.phone_last4,
+          lesson_credits: Number(student.lesson_credits ?? 0),
+          lesson_duration_minutes: Number(student.lesson_duration_minutes ?? 90),
+          is_active: nextActive,
+        }),
+      });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.message || "재원 상태를 변경하지 못했습니다.");
+      await loadOverview();
+      setEnrollmentFilter(nextActive ? "active" : "inactive");
+      setSelectedStudentId(student.id);
+      setEditingStudentId(null);
+      setActiveTab("students");
+      setMessage(`${student.name} 수강생을 ${nextActive ? "재원생" : "퇴원생"}으로 변경했습니다. 기존 기록은 유지됩니다.`);
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : "재원 상태를 변경하지 못했습니다.");
+    } finally {
+      setEnrollmentSaving(false);
+    }
   }
 
   useEffect(() => {
