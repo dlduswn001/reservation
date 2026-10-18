@@ -80,7 +80,6 @@ export async function PATCH(request: Request, context: { params: Promise<{ stude
     const basePayload = {
       name,
       phone_last4: phoneLast4,
-      ...(phoneNumber !== undefined ? {phone_number: phoneNumber || null} : {}),
       // Preserve the existing private memo if the new UI does not show it.
       ...("memo" in body ? { memo } : {}),
       lesson_credits: Number(lessonCredits.toFixed(2)),
@@ -111,6 +110,14 @@ export async function PATCH(request: Request, context: { params: Promise<{ stude
       throw error;
     }
 
+    if (phoneNumber !== undefined) {
+      const change = phoneNumber
+        ? await supabase.from("student_private_contacts").upsert(
+            { student_id: studentId, phone_number: phoneNumber },
+            { onConflict: "student_id" })
+        : await supabase.from("student_private_contacts").delete().eq("student_id", studentId);
+      if (change.error) throw change.error;
+    }
     return NextResponse.json({ ok: true });
   } catch (error) {
     return NextResponse.json({ message: errorMessage(error) }, { status: 500 });
