@@ -3,6 +3,8 @@
 import { useEffect, useMemo, useState } from "react";
 import { House, CalendarDays, UsersRound, Settings2, ChevronLeft, ChevronRight, NotebookPen, Send, Copy, Search, UserRoundPlus } from "lucide-react";
 import OneDayImageManager from "./OneDayImageManager";
+import MonthlyRegistrationReport from "./MonthlyRegistrationReport";
+import OneDayClassCalendar from "./OneDayClassCalendar";
 import Link from "next/link";
 import { getRegularPassPolicyStatus, PASS_POLICY_START_DATE_KEY, todayDateKeyInKst } from "../../lib/passPolicy";
 
@@ -10,7 +12,12 @@ type Student = {
   id: string;
   name: string;
   phone_last4: string;
+  phone_number?: string | null;
   is_active: boolean;
+  enrollment_status?: "active" | "paused" | "withdrawn";
+  last_attended_at?: string | null;
+  credits_zero_since?: string | null;
+  created_at?: string;
   memo?: string;
   lesson_credits?: number;
   lesson_duration_minutes?: number;
@@ -25,6 +32,7 @@ type Student = {
 type StudentEdit = {
   name: string;
   phone_last4: string;
+  phone_number: string;
   memo: string;
   lesson_credits: string;
   lesson_duration_minutes: string;
@@ -140,8 +148,14 @@ type OneDayBooking = {
   oneday_classes?: { id?: string; title?: string; start_at?: string; end_at?: string } | null;
 };
 
+type StudentRegistration = {
+  id: string; student_id: string; payment_date: string;
+  registration_type: "new" | "renewal";
+  amount_krw: number; credits_added: number; memo?: string;
+};
 type Overview = {
   students: Student[];
+  registrations: StudentRegistration[];
   slots: any[];
   bookings: Booking[];
   classes: OneDayClass[];
@@ -541,6 +555,13 @@ export default function AdminPage() {
   });
   const [studentName, setStudentName] = useState("");
   const [phoneLast4, setPhoneLast4] = useState("");
+  const [fullPhoneNumber, setFullPhoneNumber] = useState("");
+  const [newStudentPaidAmount, setNewStudentPaidAmount] = useState("");
+  const [renewalAmount, setRenewalAmount] = useState("");
+  const [renewalCredits, setRenewalCredits] = useState("4");
+  const [renewalDate, setRenewalDate] = useState(todaySeoulDateKey);
+  const [renewalMemo, setRenewalMemo] = useState("");
+  const [renewalSaving, setRenewalSaving] = useState(false);
   const [lessonCredits, setLessonCredits] = useState("4");
   const [lessonDurationMinutes, setLessonDurationMinutes] = useState("90");
   const [passRegisteredAt, setPassRegisteredAt] = useState(defaultPassRegisteredAtForNewStudent);
@@ -555,7 +576,7 @@ export default function AdminPage() {
   const [editingStudentId, setEditingStudentId] = useState<string | null>(null);
   const [selectedStudentId, setSelectedStudentId] = useState("");
   const [studentSearch, setStudentSearch] = useState("");
-  const [enrollmentFilter, setEnrollmentFilter] = useState<"active" | "inactive">("active");
+  const [enrollmentFilter, setEnrollmentFilter] = useState<"active" | "paused" | "withdrawn">("active");
   const [enrollmentSaving, setEnrollmentSaving] = useState(false);
   const [showNewStudentForm, setShowNewStudentForm] = useState(false);
   const [showScheduleAdvanced, setShowScheduleAdvanced] = useState(false);
@@ -575,6 +596,7 @@ export default function AdminPage() {
   const [historyMemo, setHistoryMemo] = useState("");
   const [editingHistoryId, setEditingHistoryId] = useState<string | null>(null);
   const [onedayTitle, setOnedayTitle] = useState("");
+  const [showOneDayCreator, setShowOneDayCreator] = useState(false);
   const [onedayCurriculum, setOnedayCurriculum] = useState("");
   const [onedayStartAt, setOnedayStartAt] = useState("");
   const [onedayEndAt, setOnedayEndAt] = useState("");
@@ -716,6 +738,7 @@ export default function AdminPage() {
       nextStudentEdits[student.id] = {
         name: student.name || "",
         phone_last4: student.phone_last4 || "",
+        phone_number: student.phone_number || "",
         memo: student.memo || "",
         lesson_credits: String(student.lesson_credits ?? 0),
         lesson_duration_minutes: String(student.lesson_duration_minutes ?? 90),
