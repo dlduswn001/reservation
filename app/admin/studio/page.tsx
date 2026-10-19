@@ -2,6 +2,8 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
+import { dailyLessonRevenue, monthlyLessonRevenue } from "../../../lib/bookingRevenue";
+import type { LessonTuition } from "../../../lib/bookingRevenue";
 import { CalendarDays, ChartNoAxesCombined, ChevronLeft, ChevronRight, ExternalLink, NotebookPen, Plus, RefreshCw, Save, Trash2 } from "lucide-react";
 
 type Channel = "naver" | "place" | "instagram" | "brunch";
@@ -14,7 +16,8 @@ type Post = {
 type Draft = Pick<Post, "title" | "channel" | "format" | "status" | "planned_date" | "published_url" | "keywords" | "body" | "notes">;
 type Overview = {
   registrations: { amount_krw: number; payment_date: string }[];
-  bookings: { id: string; start_at: string; end_at: string; status: string; students?: { name?: string } | null }[];
+  bookingTuitions: LessonTuition[];
+  bookings: { id: string; start_at: string; end_at: string; status: string; memo?: string | null; students?: { name?: string } | null }[];
   classes: { id: string; start_at: string; end_at: string; title: string; is_deleted?: boolean }[];
   blockedTimes: { id: string; start_at: string; end_at: string; title: string }[];
 };
@@ -88,8 +91,14 @@ export default function StudioPage() {
     .reduce((sum,r)=>sum+Number(r.amount_krw||0),0);
   const todayRevenue = registrations.filter(r=>r.payment_date?.slice(0,10)===today)
     .reduce((sum,r)=>sum+Number(r.amount_krw||0),0);
+  const lessonRevenueRows = monthlyLessonRevenue(overview?.bookings || [], overview?.bookingTuitions || [], month);
+  const lessonMonthTotal = lessonRevenueRows.reduce((sum,row)=>sum+row.total,0);
+  const lessonMonthUnpriced = lessonRevenueRows.reduce((sum,row)=>sum+row.unpriced,0);
+  const todayLessonRevenue = dailyLessonRevenue(overview?.bookings || [], overview?.bookingTuitions || [], today);
   const hasMonthRevenueRecords = registrations.some(r=>r.payment_date?.slice(0,7)===month);
   const hasTodayRevenueRecords = registrations.some(r=>r.payment_date?.slice(0,10)===today);
+  // 신규/재등록 결제 장부는 수업 매출과 별개로만 표시합니다.
+
   const filtered = posts.filter(post=>selectedChannel==="all" || post.channel===selectedChannel)
     .sort((a,b)=>(b.planned_date||b.created_at).localeCompare(a.planned_date||a.created_at));
   const published = posts.filter(p=>p.status==="published" && (p.planned_date||p.created_at).slice(0,7)===month).length;
@@ -157,12 +166,23 @@ export default function StudioPage() {
         <button aria-label="다음 달" onClick={()=>shiftMonth(1)}><ChevronRight size={19}/></button>
       </div>
       <section className="stats">
-        <article className="stat"><div><ChartNoAxesCombined size={19}/> 월 매출</div><strong>{hasMonthRevenueRecords?money(monthRevenue):"미기록"}</strong><small>등록·재등록 결제 기록 기준</small></article>
-        <article className="stat"><div><ChartNoAxesCombined size={19}/> 오늘 매출</div><strong>{hasTodayRevenueRecords?money(todayRevenue):"미기록"}</strong><small>{today} 등록 결제 기준</small></article>
+        <article className="stat"><div><ChartNoAxesCombined size={19}/> 월 수업 매출</div><strong>{money(lessonMonthTotal)}</strong><small>수업일 기준 · 금액 미정 {lessonMonthUnpriced}건</small></article>
+        <article className="stat"><div><ChartNoAxesCombined size={19}/> 오늘 수업 매출</div><strong>{todayLessonRevenue.priced?money(todayLessonRevenue.total):todayLessonRevenue.bookings?"미정":"0원"}</strong><small>수업일 기준 · 금액 미정 {todayLessonRevenue.unpriced}건</small></article>
         <article className="stat"><div><CalendarDays size={19}/> 오늘의 정규수업</div><strong>{todayBookings.length}<em>건</em></strong><small>직접 등록한 예약 포함</small></article>
         <article className="stat"><div><NotebookPen size={19}/> 추가 일정</div><strong>{todayBlocks.length+todayOneDays.length}<em>건</em></strong><small>외부 일정·원데이 클래스</small></article>
       </section>
-      <p className="disclaimer">매출은 실제 입력된 신규·재등록 결제 장부를 기준으로 표시합니다. 예약별 입금 확인 금액은 중복 계산 방지를 위해 합산하지 않습니다. 기록되지 않은 현장 매출도 포함되지 않습니다. 결제 기록이 없는 날과 달은 0원이 아닌 미기록으로 표시합니다.</p>
+      <p className="disclaimer">상단 수업 매출은 수업 진행일에 귀속되는 예약 금액 합계입니다. 수강료를 아직 정하지 않은 수업은 제외됩니다. 실제 입금액은 아래에서 별도 확인하며 등록·재등록 결제와 중복 합산하지 않습니다.</p>
+      <p className="disclaimer">별도 등록·재등록 입금 장부: 선택한 달 {hasMonthRevenueRecords ? money(monthRevenue) : "미기록"} / 오늘 {hasTodayRevenueRecords ? money(todayRevenue) : "미기록"} (수업 매출에 중복 합산하지 않음)</p>
+      <section className="panel" aria-label="날짜별 수업 매출 내역">
+        <div className="sectionHead"><div><span className="eyebrow">DAILY REVENUE</span><h2>{yy}년 {mm}월 일별 수업 매출</h2></div></div>
+        {lessonRevenueRows.length===0 && <p className="empty">선택한 달의 정규수업 내역이 없습니다.</p>}
+        {lessonRevenueRows.map(row=><div className="scheduleRow" key={row.date}>
+          <strong style={{minWidth:105}}>{row.date.slice(5).replace("-","월 ")}일</strong>
+          <span>{row.priced?money(row.total):row.bookings?"금액 미정":"0원"}
+            <small>수업 {row.bookings}건 · 금액 미정 {row.unpriced}건 · 입금 확인 {money(row.confirmed)}</small>
+          </span>
+        </div>)}
+      </section>
       <div className="two">
         <section className="panel">
           <div className="sectionHead"><div><span className="eyebrow">LESSON SCHEDULE</span><h2>오늘의 수업</h2></div><Link className="textLink" href="/admin">예약 관리 <ChevronRight size={16}/></Link></div>
