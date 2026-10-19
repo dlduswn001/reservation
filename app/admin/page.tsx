@@ -2085,7 +2085,7 @@ export default function AdminPage() {
                   <strong style={{ color: "#702638", fontSize: 21 }}>{monthRevenueTotal.toLocaleString("ko-KR")}원</strong>
                 </div>
                 <p className="small">
-                  ${homeCalendarMonth.year}년 ${homeCalendarMonth.month}월 수업일 기준 · 금액 미정 {monthRevenueUnpriced}건.
+                  {homeCalendarMonth.year}년 {homeCalendarMonth.month}월 수업일 기준 · 금액 미정 {monthRevenueUnpriced}건.
                   수업 금액 합계이며 실제 입금액과 다를 수 있습니다.
                 </p>
               </section>
