@@ -4,7 +4,7 @@ import { getSupabaseAdmin } from "../../../../lib/supabaseAdmin";
 
 export const dynamic = "force-dynamic";
 
-const CHANNELS = ["naver", "brunch", "instagram", "threads"] as const;
+const CHANNELS = ["naver", "place", "instagram", "brunch"] as const;
 const FORMATS = ["post", "essay", "cardnews", "story", "notice"] as const;
 const STATUSES = ["idea", "draft", "ready", "published"] as const;
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
