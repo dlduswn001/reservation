@@ -26,3 +26,5 @@ jobs:
           node tests/admin-pwa.test.mjs
       - name: Build app
         run: npm run build
+      - name: Verify installed administrator launch route
+        run: node tests/admin-pwa-live-page.test.mjs

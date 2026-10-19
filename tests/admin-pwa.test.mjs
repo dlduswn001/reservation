@@ -7,7 +7,7 @@ const require = createRequire(import.meta.url);
 const ts = require("typescript");
 const routeSource = readFileSync(new URL("../app/admin/admin.webmanifest/route.ts", import.meta.url), "utf8");
 const layoutSource = readFileSync(new URL("../app/admin/layout.tsx", import.meta.url), "utf8");
-const originalManifest = readFileSync(new URL("../app/manifest.ts", import.meta.url), "utf8");
+const originalManifest = readFileSync(new URL("../app/manifest.webmanifest/route.ts", import.meta.url), "utf8");
 
 function transpile(source) {
   return ts.transpileModule(source, { compilerOptions: { module: ts.ModuleKind.CommonJS, jsx: ts.JsxEmit.ReactJSX } }).outputText;
@@ -40,6 +40,14 @@ assert.ok(result.body.icons.some(icon => icon.sizes === "512x512"));
 assert.ok(originalManifest.includes('start_url: "/"'));
 assert.ok(originalManifest.includes('scope: "/"'));
 assert.ok(originalManifest.includes('name: "문장학교"'));
+const publicContext = { exports: {}, require: manifestContext.require };
+vm.runInNewContext(transpile(originalManifest), publicContext);
+const studentManifest = publicContext.exports.GET();
+assert.equal(studentManifest.body.id, "/");
+assert.equal(studentManifest.body.start_url, "/");
+assert.equal(studentManifest.body.scope, "/");
+assert.equal(studentManifest.body.name, "문장학교");
+assert.equal(studentManifest.headers["Content-Type"], "application/manifest+json; charset=utf-8");
 
 const layoutContext = { exports: {}, require(name) {
   if (name === "react/jsx-runtime") return { jsx: () => ({}) };
