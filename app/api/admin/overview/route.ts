@@ -42,7 +42,7 @@ export async function POST(request: Request) {
         .order("created_at", { ascending: false });
     }
 
-    const [slots, bookings, classesResult, onedayBookings, lessonHistory, blockedTimes, statuses, registrations, privateContacts, bookingTuitions] = await Promise.all([
+    const [slots, bookings, classesResult, onedayBookings, lessonHistory, blockedTimes, statuses, registrations, privateContacts, bookingTuitions, blockedTimeTuitions] = await Promise.all([
       supabase.from("available_slots").select("id, start_at, end_at, is_open, created_at").order("start_at", { ascending: true }),
       supabase.from("regular_bookings").select("id, student_id, slot_id, start_at, end_at, status, memo, created_at, students(name, phone_last4)").order("start_at", { ascending: true }),
       classesQuery,
@@ -57,11 +57,20 @@ export async function POST(request: Request) {
         .select("student_id,phone_number"),
       supabase.from("booking_tuition")
         .select("booking_id,student_minutes,lesson_minutes,amount_krw,confirmed_at,memo,updated_at"),
+      supabase.from("blocked_time_tuition")
+        .select("block_id,amount_krw,confirmed_at,memo,updated_at"),
     ]);
 
     for (const result of [students, slots, bookings, onedayBookings, lessonHistory, blockedTimes, statuses, registrations, privateContacts, bookingTuitions]) {
       if (result.error) throw result.error;
     }
+
+    // Optional add-on table: keep existing reservation administration usable if
+    // the additive migration is not yet applied.
+    const missingBlockedTuitionTable = Boolean(blockedTimeTuitions.error) &&
+      (["42P01", "PGRST205", "PGRST116"].includes(String(blockedTimeTuitions.error?.code || ""))
+        || /blocked_time_tuition/.test(String(blockedTimeTuitions.error?.message || "")));
+    if (blockedTimeTuitions.error && !missingBlockedTuitionTable) throw blockedTimeTuitions.error;
 
     let classes: Record<string, unknown>[] = classesResult.data || [];
     if (classesResult.error) {
@@ -88,6 +97,7 @@ export async function POST(request: Request) {
       }),
       registrations: registrations.data || [],
       bookingTuitions: bookingTuitions.data || [],
+      blockedTimeTuitions: missingBlockedTuitionTable ? [] : (blockedTimeTuitions.data || []),
       slots: slots.data || [],
       bookings: bookings.data || [],
       classes,

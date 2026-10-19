@@ -3,6 +3,11 @@
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { dailyLessonRevenue, monthlyLessonRevenue } from "../../../lib/bookingRevenue";
+import { dailyManualLessonRevenue, monthlyManualLessonRevenue } from "../../../lib/blockedTimeRevenue";
+import type { BlockedTimeTuition } from "../../../lib/blockedTimeRevenue";
+import BookingTuitionField from "../BookingTuitionField";
+import BlockedTimeTuitionField from "../BlockedTimeTuitionField";
+import type { BookingTuition } from "../../../lib/bookingTuition";
 import type { LessonTuition } from "../../../lib/bookingRevenue";
 import { CalendarDays, ChartNoAxesCombined, ChevronLeft, ChevronRight, ExternalLink, NotebookPen, Plus, RefreshCw, Save, Trash2 } from "lucide-react";
 
@@ -17,6 +22,7 @@ type Draft = Pick<Post, "title" | "channel" | "format" | "status" | "planned_dat
 type Overview = {
   registrations: { amount_krw: number; payment_date: string }[];
   bookingTuitions: LessonTuition[];
+  blockedTimeTuitions: BlockedTimeTuition[];
   bookings: { id: string; start_at: string; end_at: string; status: string; memo?: string | null; students?: { name?: string } | null }[];
   classes: { id: string; start_at: string; end_at: string; title: string; is_deleted?: boolean }[];
   blockedTimes: { id: string; start_at: string; end_at: string; title: string }[];
@@ -48,6 +54,7 @@ export default function StudioPage() {
   const [busy,setBusy] = useState(false);
   const [message,setMessage] = useState("");
   const [month,setMonth] = useState(()=>dayKey(new Date().toISOString()).slice(0,7));
+  const [selectedDate,setSelectedDate] = useState(()=>dayKey(new Date().toISOString()));
   const [selectedChannel,setSelectedChannel] = useState<Channel|"all">("all");
   const [editing,setEditing] = useState<Post|null>(null);
   const [draft,setDraft] = useState<Draft>(newDraft);
@@ -86,15 +93,68 @@ export default function StudioPage() {
   ).sort((a,b)=>a.start_at.localeCompare(b.start_at)),[overview,today]);
   const todayBlocks = useMemo(()=> (overview?.blockedTimes || []).filter(b=>dayKey(b.start_at)===today),[overview,today]);
   const todayOneDays = useMemo(()=> (overview?.classes || []).filter(b=>dayKey(b.start_at)===today && !b.is_deleted),[overview,today]);
+  const selectedBookings = (overview?.bookings || []).filter(b =>
+    dayKey(b.start_at)===selectedDate && !["cancelled","late_cancelled"].includes(b.status));
+  const selectedBlocks = (overview?.blockedTimes || []).filter(b=>dayKey(b.start_at)===selectedDate);
+  const selectedOneDays = (overview?.classes || []).filter(b=>dayKey(b.start_at)===selectedDate && !b.is_deleted);
+  const selectedItems = [
+    ...selectedBookings.map(booking => ({ kind:"regular" as const, id:booking.id,
+      start_at:booking.start_at, end_at:booking.end_at, title:booking.students?.name || "정규수업", booking })),
+    ...selectedBlocks.map(block => ({ kind:"block" as const, id:block.id,
+      start_at:block.start_at, end_at:block.end_at, title:block.title, block })),
+    ...selectedOneDays.map(klass => ({ kind:"oneday" as const, id:klass.id,
+      start_at:klass.start_at, end_at:klass.end_at, title:klass.title })),
+  ].sort((a,b)=>a.start_at.localeCompare(b.start_at));
+  const bookingFeeById = new Map((overview?.bookingTuitions || []).map(fee=>[fee.booking_id,fee]));
+  const blockFeeById = new Map((overview?.blockedTimeTuitions || []).map(fee=>[fee.block_id,fee]));
+  function updateTuition(saved: BookingTuition) {
+    setOverview(current => {
+      if (!current) return current;
+      const fees=current.bookingTuitions || [];
+      const found=fees.some(f=>f.booking_id===saved.booking_id);
+      return {...current,bookingTuitions:found
+        ? fees.map(f=>f.booking_id===saved.booking_id?{...f,...saved}:f)
+        : [...fees,saved]};
+    });
+  }
+  function updateBlockedTuition(saved: BlockedTimeTuition) {
+    setOverview(current => {
+      if (!current) return current;
+      const fees=current.blockedTimeTuitions || [];
+      const found=fees.some(f=>f.block_id===saved.block_id);
+      return {...current,blockedTimeTuitions:found
+        ? fees.map(f=>f.block_id===saved.block_id?saved:f)
+        : [...fees,saved]};
+    });
+  }
   const registrations = overview?.registrations || [];
   const monthRevenue = registrations.filter(r=>r.payment_date?.slice(0,7)===month)
     .reduce((sum,r)=>sum+Number(r.amount_krw||0),0);
   const todayRevenue = registrations.filter(r=>r.payment_date?.slice(0,10)===today)
     .reduce((sum,r)=>sum+Number(r.amount_krw||0),0);
-  const lessonRevenueRows = monthlyLessonRevenue(overview?.bookings || [], overview?.bookingTuitions || [], month);
+  const regularRevenueRows = monthlyLessonRevenue(overview?.bookings || [], overview?.bookingTuitions || [], month);
+  const manualRevenueRows = monthlyManualLessonRevenue(overview?.blockedTimes || [], overview?.blockedTimeTuitions || [], month);
+  const lessonRevenueRows = Array.from(new Set([
+    ...regularRevenueRows.map(r=>r.date),
+    ...manualRevenueRows.map(r=>r.date),
+  ])).sort().map(date=>{
+    const regular=regularRevenueRows.find(r=>r.date===date);
+    const manual=manualRevenueRows.find(r=>r.date===date);
+    return {
+      date, bookings:(regular?.bookings || 0)+(manual?.entries || 0),
+      priced:(regular?.priced || 0)+(manual?.entries || 0),
+      unpriced:(regular?.unpriced || 0)+(manual?.unpriced || 0),
+      total:(regular?.total || 0)+(manual?.total || 0),
+      confirmed:(regular?.confirmed || 0)+(manual?.confirmed || 0),
+    };
+  });
   const lessonMonthTotal = lessonRevenueRows.reduce((sum,row)=>sum+row.total,0);
   const lessonMonthUnpriced = lessonRevenueRows.reduce((sum,row)=>sum+row.unpriced,0);
   const todayLessonRevenue = dailyLessonRevenue(overview?.bookings || [], overview?.bookingTuitions || [], today);
+  const todayManualRevenue = dailyManualLessonRevenue(overview?.blockedTimes || [], overview?.blockedTimeTuitions || [], today);
+  const todayCombinedRevenue = todayLessonRevenue.total+todayManualRevenue.total;
+  const todayCombinedPriced = todayLessonRevenue.priced+todayManualRevenue.entries;
+  const todayCombinedUnpriced = todayLessonRevenue.unpriced+todayManualRevenue.unpriced;
   const hasMonthRevenueRecords = registrations.some(r=>r.payment_date?.slice(0,7)===month);
   const hasTodayRevenueRecords = registrations.some(r=>r.payment_date?.slice(0,10)===today);
   // 신규/재등록 결제 장부는 수업 매출과 별개로만 표시합니다.
@@ -167,31 +227,44 @@ export default function StudioPage() {
       </div>
       <section className="stats">
         <article className="stat"><div><ChartNoAxesCombined size={19}/> 월 수업 매출</div><strong>{money(lessonMonthTotal)}</strong><small>수업일 기준 · 금액 미정 {lessonMonthUnpriced}건</small></article>
-        <article className="stat"><div><ChartNoAxesCombined size={19}/> 오늘 수업 매출</div><strong>{todayLessonRevenue.priced?money(todayLessonRevenue.total):todayLessonRevenue.bookings?"미정":"0원"}</strong><small>수업일 기준 · 금액 미정 {todayLessonRevenue.unpriced}건</small></article>
+        <article className="stat"><div><ChartNoAxesCombined size={19}/> 오늘 수업 매출</div><strong>{todayCombinedPriced?money(todayCombinedRevenue):todayLessonRevenue.bookings?"미정":"0원"}</strong><small>수업일 기준 · 금액 미정 {todayCombinedUnpriced}건</small></article>
         <article className="stat"><div><CalendarDays size={19}/> 오늘의 정규수업</div><strong>{todayBookings.length}<em>건</em></strong><small>직접 등록한 예약 포함</small></article>
         <article className="stat"><div><NotebookPen size={19}/> 추가 일정</div><strong>{todayBlocks.length+todayOneDays.length}<em>건</em></strong><small>외부 일정·원데이 클래스</small></article>
       </section>
-      <p className="disclaimer">상단 수업 매출은 수업 진행일에 귀속되는 예약 금액 합계입니다. 수강료를 아직 정하지 않은 수업은 제외됩니다. 실제 입금액은 아래에서 별도 확인하며 등록·재등록 결제와 중복 합산하지 않습니다.</p>
+      <p className="disclaimer">상단 수업 매출은 수업 진행일에 귀속되는 예약 금액 합계입니다. 수강료를 아직 정하지 않은 수업과 금액이 없는 외부 차단 일정은 제외됩니다. 실제 입금액은 아래에서 별도 확인하며 등록·재등록 결제와 중복 합산하지 않습니다.</p>
       <p className="disclaimer">별도 등록·재등록 입금 장부: 선택한 달 {hasMonthRevenueRecords ? money(monthRevenue) : "미기록"} / 오늘 {hasTodayRevenueRecords ? money(todayRevenue) : "미기록"} (수업 매출에 중복 합산하지 않음)</p>
       <section className="panel" aria-label="날짜별 수업 매출 내역">
         <div className="sectionHead"><div><span className="eyebrow">DAILY REVENUE</span><h2>{yy}년 {mm}월 일별 수업 매출</h2></div></div>
         {lessonRevenueRows.length===0 && <p className="empty">선택한 달의 정규수업 내역이 없습니다.</p>}
-        {lessonRevenueRows.map(row=><div className="scheduleRow" key={row.date}>
+        {lessonRevenueRows.map(row=><button type="button" className="scheduleRow revenueDay"
+          key={row.date} onClick={()=>setSelectedDate(row.date)} aria-pressed={selectedDate===row.date}>
           <strong style={{minWidth:105}}>{row.date.slice(5).replace("-","월 ")}일</strong>
           <span>{row.priced?money(row.total):row.bookings?"금액 미정":"0원"}
-            <small>수업 {row.bookings}건 · 금액 미정 {row.unpriced}건 · 입금 확인 {money(row.confirmed)}</small>
+            <small>수업 {row.bookings}건 · 금액 미정 {row.unpriced}건 · 입금 확인 {money(row.confirmed)} · 누르면 수강료 수정</small>
           </span>
-        </div>)}
+        </button>)}
       </section>
       <div className="two">
         <section className="panel">
-          <div className="sectionHead"><div><span className="eyebrow">LESSON SCHEDULE</span><h2>오늘의 수업</h2></div><Link className="textLink" href="/admin">예약 관리 <ChevronRight size={16}/></Link></div>
-          {todayBookings.length===0 && todayBlocks.length===0 && todayOneDays.length===0 && <p className="empty">오늘 등록된 일정이 없습니다.</p>}
-          {[...todayBookings.map(b=>({id:b.id,time:b.start_at,end:b.end_at,title:b.students?.name||"정규수업",kind:"정규수업"})),
-            ...todayBlocks.map(b=>({id:b.id,time:b.start_at,end:b.end_at,title:b.title,kind:"외부 일정"})),
-            ...todayOneDays.map(b=>({id:b.id,time:b.start_at,end:b.end_at,title:b.title,kind:"원데이"}))]
-            .sort((a,b)=>a.time.localeCompare(b.time)).map(b=><div className="scheduleRow" key={b.kind+b.id}>
-              <strong>{timeLabel(b.time)}</strong><span>{b.title}<small>{b.kind} · {timeLabel(b.end)} 종료</small></span></div>)}
+          <div className="sectionHead"><div><span className="eyebrow">LESSON SCHEDULE</span><h2>선택한 날짜의 수업</h2></div><Link className="textLink" href="/admin">예약 관리 <ChevronRight size={16}/></Link></div>
+          <div className="lessonDateControls">
+            <label htmlFor="studio-lesson-date">수업일 선택</label>
+            <input id="studio-lesson-date" type="date" value={selectedDate}
+              onChange={event=>setSelectedDate(event.target.value || today)} />
+            <button type="button" className="outline" onClick={()=>setSelectedDate(today)}>오늘</button>
+          </div>
+          {selectedItems.length===0 && <p className="empty">선택한 날짜에 등록된 수업이나 일정이 없습니다.</p>}
+          {selectedItems.map(item=><div className="scheduleRow lessonEntry" key={item.kind+item.id}>
+            <strong>{timeLabel(item.start_at)}</strong>
+            <div className="lessonEntryBody">
+              <span className="lessonName">{item.title}</span>
+              <small>{item.kind==="regular"?"정규수업":item.kind==="block"?"관리자 직접 등록 일정":"원데이 클래스"} · {timeLabel(item.end_at)} 종료</small>
+              {item.kind==="regular" && <BookingTuitionField booking={item.booking}
+                tuition={bookingFeeById.get(item.booking.id)} password={password} onSaved={updateTuition} />}
+              {item.kind==="block" && <BlockedTimeTuitionField blockId={item.block.id}
+                tuition={blockFeeById.get(item.block.id)} password={password} onSaved={updateBlockedTuition} />}
+            </div>
+          </div>)}
         </section>
         <section className="panel">
           <div className="sectionHead"><div><span className="eyebrow">CONTENT PULSE</span><h2>콘텐츠 현황</h2></div><button className="smallBtn" onClick={()=>edit()}><Plus size={16}/> 새 기록</button></div>
@@ -246,6 +319,9 @@ export default function StudioPage() {
       .stats{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px}.stat,.panel{background:white;border:1px solid #ebdfe2;border-radius:18px;box-shadow:0 6px 24px #541b2b08}.stat{padding:21px 16px}.stat>div{display:flex;align-items:center;gap:7px;font-size:13px;font-weight:700;color:#76515d}.stat strong{display:block;margin:17px 0 8px;font-size:26px;white-space:nowrap;letter-spacing:-1px;color:#632337}.stat strong em{font-style:normal;font-size:15px}.stat small{font-size:11px;color:#82777b}
       .disclaimer{font-size:12px;line-height:1.6;margin:12px 2px 22px;color:#82777b}.two{display:grid;grid-template-columns:1.2fr 1fr;gap:14px}.panel{padding:22px;margin:0 0 17px}.sectionHead{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:18px}.sectionHead h2{font-size:20px;margin:5px 0}.sectionHead p{font-size:13px;margin:0}
       .scheduleRow{display:flex;gap:15px;align-items:center;padding:12px 0;border-bottom:1px solid #f0e8e9}.scheduleRow>strong{color:#73283b;font-size:17px;min-width:55px}.scheduleRow span{font-weight:700;font-size:14px}.scheduleRow small{display:block;margin-top:4px;font-size:12px;font-weight:400;color:#888}
+      .lessonDateControls{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:12px}.lessonDateControls label{font-size:12px;margin:0;color:#7b5863}.lessonDateControls input{width:auto;min-width:152px;font-size:13px;padding:9px;border-radius:10px}.lessonDateControls button{margin:0;padding:9px 11px}
+      .revenueDay{display:flex;width:100%;padding:12px 3px;border:0;border-bottom:1px solid #f0e8e9;text-align:left;background:transparent;color:inherit;border-radius:0;margin:0;align-items:center}.revenueDay:hover{background:#faf1f4}.revenueDay[aria-pressed="true"]{background:#f9e8ee}.revenueDay span{color:#70293f;font-size:14px;font-weight:700}.revenueDay small{color:#80777b;font-size:12px;display:block;font-weight:400}
+      .lessonEntry{align-items:flex-start}.lessonEntryBody{flex:1;min-width:0}.lessonEntryBody>.lessonName{display:block;font-size:14px;font-weight:700}.lessonEntryBody>small{display:block;font-size:12px;color:#82777b;margin-top:4px}.lessonEntryBody input{max-width:100%}
       .contentTotals{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}.contentTotals>div{border-radius:13px;background:#f9f3f5;padding:18px 8px;text-align:center}.contentTotals strong{display:block;font-size:26px;color:#78273d}.contentTotals span{font-size:12px;color:#79636b}.empty{font-size:13px;padding:16px 0;color:#8b8080}
       .channelTabs{display:flex;flex-wrap:wrap;gap:7px;margin-bottom:18px}.channelTabs button{background:#f8f4f5;color:#6c5960;font-size:12px;padding:10px;margin:0;border:1px solid #e9dfe1;border-radius:99px}.channelTabs button.active{background:#762c40;color:white}
       .postGrid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}.post{text-align:left;display:block;margin:0;background:#fffcfc;border:1px solid #eee3e5;border-radius:13px;color:#322a2d;padding:16px}.post:hover{background:#f8edef}.postMeta{display:flex;justify-content:space-between;gap:8px;margin-bottom:9px;font-size:12px;color:#8b6070}.post .status{color:#762c40;font-weight:800}.post strong{display:block;font-size:15px;margin:6px 0}.post small{font-size:12px;color:#847a7e}.post p{font-size:12px;margin:9px 0 0}.channelLinks{display:flex;gap:16px;flex-wrap:wrap;margin-top:25px}.channelLinks a{font-size:12px;color:#74344a;display:flex;align-items:center;gap:3px}

@@ -6,6 +6,9 @@ import OneDayImageManager from "./OneDayImageManager";
 import MonthlyRegistrationReport from "./MonthlyRegistrationReport";
 import OneDayClassCalendar from "./OneDayClassCalendar";
 import BookingTuitionField from "./BookingTuitionField";
+import BlockedTimeTuitionField from "./BlockedTimeTuitionField";
+import { dailyManualLessonRevenue, monthlyManualLessonRevenue } from "../../lib/blockedTimeRevenue";
+import type { BlockedTimeTuition } from "../../lib/blockedTimeRevenue";
 import { dailyLessonRevenue, monthlyLessonRevenue, lessonFee } from "../../lib/bookingRevenue";
 import type { LessonTuition } from "../../lib/bookingRevenue";
 import Link from "next/link";
@@ -162,6 +165,7 @@ type Overview = {
   slots: any[];
   bookings: Booking[];
   bookingTuitions: LessonTuition[];
+  blockedTimeTuitions: BlockedTimeTuition[];
   classes: OneDayClass[];
   onedayBookings: OneDayBooking[];
   lessonHistory: LessonHistory[];
@@ -179,6 +183,7 @@ type TodayScheduleItem = {
   detail?: string;
   student_id?: string | null;
   booking_id?: string | null;
+  block_id?: string | null;
 };
 
 type DailyScheduleGroup = {
@@ -1845,6 +1850,7 @@ export default function AdminPage() {
     for (const block of overview.blockedTimes || []) {
       add({
         id: `calendar-block-${block.id}`,
+        block_id: block.id,
         type: "block",
         start_at: block.start_at,
         end_at: block.end_at,
@@ -1895,8 +1901,16 @@ export default function AdminPage() {
     () => monthlyLessonRevenue(overview?.bookings || [], overview?.bookingTuitions || [], homeMonthKey),
     [overview?.bookings, overview?.bookingTuitions, homeMonthKey],
   );
-  const monthRevenueTotal = monthRevenueRows.reduce((sum, row) => sum + row.total, 0);
-  const monthRevenueUnpriced = monthRevenueRows.reduce((sum, row) => sum + row.unpriced, 0);
+  const selectedManualRevenue = dailyManualLessonRevenue(
+    overview?.blockedTimes || [], overview?.blockedTimeTuitions || [], homeSelectedDate,
+  );
+  const monthManualRevenue = monthlyManualLessonRevenue(
+    overview?.blockedTimes || [], overview?.blockedTimeTuitions || [], homeMonthKey,
+  );
+  const monthRevenueTotal = monthRevenueRows.reduce((sum, row) => sum + row.total, 0)
+    + monthManualRevenue.reduce((sum, row) => sum + row.total, 0);
+  const monthRevenueUnpriced = monthRevenueRows.reduce((sum, row) => sum + row.unpriced, 0)
+    + monthManualRevenue.reduce((sum, row) => sum + row.unpriced, 0);
   function handleTuitionSaved(saved: { booking_id: string; amount_krw: number | null; confirmed_at: string | null; memo: string; updated_at: string }) {
     setOverview(current => {
       if (!current) return current;
@@ -1908,6 +1922,18 @@ export default function AdminPage() {
       };
     });
   }
+  function handleBlockedTuitionSaved(entry: BlockedTimeTuition) {
+    setOverview(current => {
+      if (!current) return current;
+      const fees = current.blockedTimeTuitions || [];
+      const found = fees.some(row => row.block_id === entry.block_id);
+      return {
+        ...current,
+        blockedTimeTuitions: found ? fees.map(row => row.block_id === entry.block_id ? entry : row) : [...fees, entry],
+      };
+    });
+  }
+  const blockedTuitionById = new Map((overview?.blockedTimeTuitions || []).map(row => [row.block_id, row]));
   const tuitionByBookingId = new Map((overview?.bookingTuitions || []).map(row => [row.booking_id, row]));
 
 
@@ -2081,12 +2107,12 @@ export default function AdminPage() {
               </section>
               <section className="card" aria-label="월별 수업 매출">
                 <div className="row" style={{ justifyContent: "space-between" }}>
-                  <div><p className="adminEyebrow">수업일 기준 매출</p><h2>이달 정규수업 합계</h2></div>
+                  <div><p className="adminEyebrow">수업일 기준 매출</p><h2>이달 수업 매출 합계</h2></div>
                   <strong style={{ color: "#702638", fontSize: 21 }}>{monthRevenueTotal.toLocaleString("ko-KR")}원</strong>
                 </div>
                 <p className="small">
                   {homeCalendarMonth.year}년 {homeCalendarMonth.month}월 수업일 기준 · 금액 미정 {monthRevenueUnpriced}건.
-                  수업 금액 합계이며 실제 입금액과 다를 수 있습니다.
+                  정규 예약과 금액을 입력한 직접 등록 수업 합계입니다. 실제 입금액과 다를 수 있습니다.
                 </p>
               </section>
               <section className="card adminHomeCalendarCard">
@@ -2154,13 +2180,15 @@ export default function AdminPage() {
                     <div className="row" style={{ justifyContent: "space-between" }}>
                       <strong>선택한 날짜 수업 매출 합계</strong>
                       <strong style={{ color: "#702638", fontSize: 20 }}>
-                        {selectedRevenue.priced ? selectedRevenue.total.toLocaleString("ko-KR") + "원" : selectedRevenue.bookings ? "금액 미정" : "0원"}
+                        {selectedRevenue.priced + selectedManualRevenue.entries
+                          ? (selectedRevenue.total + selectedManualRevenue.total).toLocaleString("ko-KR") + "원"
+                          : selectedRevenue.bookings ? "금액 미정" : "0원"}
                       </strong>
                     </div>
                     <p className="small" style={{ margin: "6px 0 0" }}>
-                      수업 {selectedRevenue.bookings}건 · 금액 확인 {selectedRevenue.priced}건
-                      {selectedRevenue.unpriced ? ` · 금액 미정 ${selectedRevenue.unpriced}건` : ""}
-                      {" · 입금 확인 " + selectedRevenue.confirmed.toLocaleString("ko-KR") + "원"}
+                      정규 {selectedRevenue.bookings}건 · 직접 입력 수업 {selectedManualRevenue.entries}건
+                      {" · 금액 미정 " + (selectedRevenue.unpriced + selectedManualRevenue.unpriced) + "건"}
+                      {" · 입금 확인 " + (selectedRevenue.confirmed + selectedManualRevenue.confirmed).toLocaleString("ko-KR") + "원"}
                     </p>
                   </div>
                   {homeSelectedItems.length === 0 ? (
@@ -2183,6 +2211,11 @@ export default function AdminPage() {
                               return booking ? <BookingTuitionField key={booking.id} booking={booking}
                                 tuition={tuitionByBookingId.get(booking.id)} password={password} onSaved={handleTuitionSaved} /> : null;
                             })()}
+                            {item.type === "block" && item.block_id && (
+                              <BlockedTimeTuitionField key={item.block_id} blockId={item.block_id}
+                                password={password} tuition={blockedTuitionById.get(item.block_id)}
+                                onSaved={handleBlockedTuitionSaved} />
+                            )}
                             {item.type === "regular" && item.student_id &&
                               new Date(item.end_at).getTime() <= Date.now() && (
                                 <button type="button" className="adminInlineJournalButton"
