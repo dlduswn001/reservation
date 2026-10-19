@@ -3,7 +3,7 @@
 import { useEffect, useId, useState } from "react";
 import { BookingTuition, validTuitionAmount } from "../../lib/bookingTuition";
 
-export default function BookingTuitionEditor({ bookingId, password, onSaved }: { bookingId: string; password: string; onSaved?: (tuition: BookingTuition) => void }) {
+export default function BookingTuitionEditor({ bookingId, password, onSaved, suggestedAmount = null }: { bookingId: string; password: string; onSaved?: (tuition: BookingTuition) => void; suggestedAmount?: number | null }) {
   const id = useId();
   const [saved, setSaved] = useState<BookingTuition | null>(null);
   const [amount, setAmount] = useState("");
@@ -15,7 +15,7 @@ export default function BookingTuitionEditor({ bookingId, password, onSaved }: {
 
   function populate(tuition: BookingTuition) {
     setSaved(tuition);
-    setAmount(tuition.amount_krw === null ? "" : String(tuition.amount_krw));
+    setAmount(tuition.amount_krw === null ? (suggestedAmount === null ? "" : String(suggestedAmount)) : String(tuition.amount_krw));
     setConfirmed(Boolean(tuition.confirmed_at));
     setMemo(tuition.memo || "");
   }
@@ -84,7 +84,7 @@ export default function BookingTuitionEditor({ bookingId, password, onSaved }: {
         <input id={`${id}-memo`} value={memo} maxLength={1000} onChange={event => setMemo(event.target.value)} placeholder="입금자명 등 (선택)" />
         <button type="button" onClick={save}>{busy ? "처리 중…" : "입금 기록 저장"}</button>
       </fieldset>
-      <p className="small">금액은 수정할 수 있습니다. 계좌이체·수강권 차감·등록 매출 합산은 하지 않습니다.</p>
+      <p className="small">수강료 수정은 수업별 매출에 반영됩니다. 기존 예약·수강권 차감과 신규 등록 매출 기록은 변경되지 않습니다.</p>
       {message && <p role="status" className="small">{message}</p>}
       {message && <button type="button" disabled={busy} onClick={() => {
         if (!saved || window.confirm("저장하지 않은 입력을 버리고 다시 불러올까요?")) setReload(value => value + 1);
