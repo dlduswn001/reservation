@@ -5,6 +5,7 @@ import { House, CalendarDays, UsersRound, Settings2, ChevronLeft, ChevronRight, 
 import OneDayImageManager from "./OneDayImageManager";
 import MonthlyRegistrationReport from "./MonthlyRegistrationReport";
 import OneDayClassCalendar from "./OneDayClassCalendar";
+import BookingTuitionEditor from "./BookingTuitionEditor";
 import Link from "next/link";
 import { getRegularPassPolicyStatus, PASS_POLICY_START_DATE_KEY, todayDateKeyInKst } from "../../lib/passPolicy";
 
@@ -2125,6 +2126,9 @@ export default function AdminPage() {
                             <strong>{item.title}</strong>
                             <p>{item.subtitle}</p>
                             {item.detail && <p className="adminLessonMemo">{item.detail}</p>}
+                            {item.type === "regular" && item.booking_id && (
+                              <BookingTuitionEditor key={item.booking_id} bookingId={item.booking_id} password={password} />
+                            )}
                             {item.type === "regular" && item.student_id &&
                               new Date(item.end_at).getTime() <= Date.now() && (
                                 <button type="button" className="adminInlineJournalButton"
@@ -2852,6 +2856,7 @@ export default function AdminPage() {
                       <strong>{formatTime(b.start_at)} - {formatTime(b.end_at)}</strong>
                       <p>{b.students?.name || "이름 없음"} / {b.students?.phone_last4 || "번호 없음"} / 상태: {STATUS_LABELS[b.status] || b.status}</p>
                       {b.memo && <p className="small">메모: {b.memo}</p>}
+                      <BookingTuitionEditor bookingId={b.id} password={password} />
                     </div>
                   ))}
                 </div>
