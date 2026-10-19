@@ -88,6 +88,8 @@ export default function StudioPage() {
     .reduce((sum,r)=>sum+Number(r.amount_krw||0),0);
   const todayRevenue = registrations.filter(r=>r.payment_date?.slice(0,10)===today)
     .reduce((sum,r)=>sum+Number(r.amount_krw||0),0);
+  const hasMonthRevenueRecords = registrations.some(r=>r.payment_date?.slice(0,7)===month);
+  const hasTodayRevenueRecords = registrations.some(r=>r.payment_date?.slice(0,10)===today);
   const filtered = posts.filter(post=>selectedChannel==="all" || post.channel===selectedChannel)
     .sort((a,b)=>(b.planned_date||b.created_at).localeCompare(a.planned_date||a.created_at));
   const published = posts.filter(p=>p.status==="published" && (p.planned_date||p.created_at).slice(0,7)===month).length;
@@ -155,12 +157,12 @@ export default function StudioPage() {
         <button aria-label="다음 달" onClick={()=>shiftMonth(1)}><ChevronRight size={19}/></button>
       </div>
       <section className="stats">
-        <article className="stat"><div><ChartNoAxesCombined size={19}/> 월 매출</div><strong>{money(monthRevenue)}</strong><small>등록·재등록 입금 기록 기준</small></article>
-        <article className="stat"><div><ChartNoAxesCombined size={19}/> 오늘 매출</div><strong>{money(todayRevenue)}</strong><small>{today} 등록 결제 기준</small></article>
+        <article className="stat"><div><ChartNoAxesCombined size={19}/> 월 매출</div><strong>{hasMonthRevenueRecords?money(monthRevenue):"미기록"}</strong><small>등록·재등록 결제 기록 기준</small></article>
+        <article className="stat"><div><ChartNoAxesCombined size={19}/> 오늘 매출</div><strong>{hasTodayRevenueRecords?money(todayRevenue):"미기록"}</strong><small>{today} 등록 결제 기준</small></article>
         <article className="stat"><div><CalendarDays size={19}/> 오늘의 정규수업</div><strong>{todayBookings.length}<em>건</em></strong><small>직접 등록한 예약 포함</small></article>
         <article className="stat"><div><NotebookPen size={19}/> 추가 일정</div><strong>{todayBlocks.length+todayOneDays.length}<em>건</em></strong><small>외부 일정·원데이 클래스</small></article>
       </section>
-      <p className="disclaimer">매출은 실제 입력된 신규·재등록 결제 장부를 기준으로 표시합니다. 예약별 입금 확인 금액은 중복 계산 방지를 위해 합산하지 않습니다. 기록되지 않은 현장 매출도 포함되지 않습니다.</p>
+      <p className="disclaimer">매출은 실제 입력된 신규·재등록 결제 장부를 기준으로 표시합니다. 예약별 입금 확인 금액은 중복 계산 방지를 위해 합산하지 않습니다. 기록되지 않은 현장 매출도 포함되지 않습니다. 결제 기록이 없는 날과 달은 0원이 아닌 미기록으로 표시합니다.</p>
       <div className="two">
         <section className="panel">
           <div className="sectionHead"><div><span className="eyebrow">LESSON SCHEDULE</span><h2>오늘의 수업</h2></div><Link className="textLink" href="/admin">예약 관리 <ChevronRight size={16}/></Link></div>
