@@ -2005,6 +2005,9 @@ export default function AdminPage() {
           <strong>관리자</strong>
         </div>
         <div className="adminHeaderActions">
+          <Link href="/admin/studio" className="adminPublicLink" aria-label="문장학교 운영 작업실로 이동">
+            운영 작업실
+          </Link>
           <Link href="/" className="adminPublicLink" aria-label="수강생 예약 앱으로 이동">
             수강생 화면
           </Link>
