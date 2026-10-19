@@ -3,7 +3,7 @@
 import { useEffect, useId, useState } from "react";
 import { BookingTuition, validTuitionAmount } from "../../lib/bookingTuition";
 
-export default function BookingTuitionEditor({ bookingId, password }: { bookingId: string; password: string }) {
+export default function BookingTuitionEditor({ bookingId, password, onSaved }: { bookingId: string; password: string; onSaved?: (tuition: BookingTuition) => void }) {
   const id = useId();
   const [saved, setSaved] = useState<BookingTuition | null>(null);
   const [amount, setAmount] = useState("");
@@ -61,6 +61,7 @@ export default function BookingTuitionEditor({ bookingId, password }: { bookingI
       const json = await response.json();
       if (!response.ok) throw new Error(json.message);
       populate(json.tuition);
+      onSaved?.(json.tuition);
       setMessage("입금 기록을 저장했습니다.");
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "저장하지 못했습니다. 입력 내용은 유지됩니다.");

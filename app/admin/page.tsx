@@ -5,7 +5,9 @@ import { House, CalendarDays, UsersRound, Settings2, ChevronLeft, ChevronRight, 
 import OneDayImageManager from "./OneDayImageManager";
 import MonthlyRegistrationReport from "./MonthlyRegistrationReport";
 import OneDayClassCalendar from "./OneDayClassCalendar";
-import BookingTuitionEditor from "./BookingTuitionEditor";
+import BookingTuitionField from "./BookingTuitionField";
+import { dailyLessonRevenue, monthlyLessonRevenue, lessonFee } from "../../lib/bookingRevenue";
+import type { LessonTuition } from "../../lib/bookingRevenue";
 import Link from "next/link";
 import { getRegularPassPolicyStatus, PASS_POLICY_START_DATE_KEY, todayDateKeyInKst } from "../../lib/passPolicy";
 
@@ -159,6 +161,7 @@ type Overview = {
   registrations: StudentRegistration[];
   slots: any[];
   bookings: Booking[];
+  bookingTuitions: LessonTuition[];
   classes: OneDayClass[];
   onedayBookings: OneDayBooking[];
   lessonHistory: LessonHistory[];
@@ -1884,6 +1887,29 @@ export default function AdminPage() {
     .filter(([day]) => day.startsWith(homeMonthKey))
     .reduce((total, [,items]) => total + items.length, 0);
   const homeSelectedItems = homeItemsByDay[homeSelectedDate] || [];
+  const selectedRevenue = useMemo(
+    () => dailyLessonRevenue(overview?.bookings || [], overview?.bookingTuitions || [], homeSelectedDate),
+    [overview?.bookings, overview?.bookingTuitions, homeSelectedDate],
+  );
+  const monthRevenueRows = useMemo(
+    () => monthlyLessonRevenue(overview?.bookings || [], overview?.bookingTuitions || [], homeMonthKey),
+    [overview?.bookings, overview?.bookingTuitions, homeMonthKey],
+  );
+  const monthRevenueTotal = monthRevenueRows.reduce((sum, row) => sum + row.total, 0);
+  const monthRevenueUnpriced = monthRevenueRows.reduce((sum, row) => sum + row.unpriced, 0);
+  function handleTuitionSaved(saved: { booking_id: string; amount_krw: number | null; confirmed_at: string | null; memo: string; updated_at: string }) {
+    setOverview(current => {
+      if (!current) return current;
+      const currentTuition = current.bookingTuitions || [];
+      const found = currentTuition.some(row => row.booking_id === saved.booking_id);
+      return { ...current, bookingTuitions: found
+        ? currentTuition.map(row => row.booking_id === saved.booking_id ? { ...row, ...saved } : row)
+        : [...currentTuition, saved],
+      };
+    });
+  }
+  const tuitionByBookingId = new Map((overview?.bookingTuitions || []).map(row => [row.booking_id, row]));
+
 
   function moveHomeMonth(direction: -1 | 1) {
     const target = new Date(Date.UTC(homeCalendarMonth.year, homeCalendarMonth.month - 1 + direction, 1));
@@ -2005,6 +2031,9 @@ export default function AdminPage() {
           <strong>관리자</strong>
         </div>
         <div className="adminHeaderActions">
+          <Link href="/admin/studio" className="adminPublicLink" aria-label="문장학교 운영 작업실로 이동">
+            운영 작업실
+          </Link>
           <Link href="/" className="adminPublicLink" aria-label="수강생 예약 앱으로 이동">
             수강생 화면
           </Link>
@@ -2049,6 +2078,16 @@ export default function AdminPage() {
                 <div><span>재원생</span><strong>{activeStudentCount}명</strong></div>
                 <div><span>휴원생</span><strong>{pausedStudentCount}명</strong></div>
                 <div><span>퇴원생</span><strong>{withdrawnStudentCount}명</strong></div>
+              </section>
+              <section className="card" aria-label="월별 수업 매출">
+                <div className="row" style={{ justifyContent: "space-between" }}>
+                  <div><p className="adminEyebrow">수업일 기준 매출</p><h2>이달 정규수업 합계</h2></div>
+                  <strong style={{ color: "#702638", fontSize: 21 }}>{monthRevenueTotal.toLocaleString("ko-KR")}원</strong>
+                </div>
+                <p className="small">
+                  {homeCalendarMonth.year}년 {homeCalendarMonth.month}월 수업일 기준 · 금액 미정 {monthRevenueUnpriced}건.
+                  수업 금액 합계이며 실제 입금액과 다를 수 있습니다.
+                </p>
               </section>
               <section className="card adminHomeCalendarCard">
                 <div className="adminHomeTitle">
@@ -2111,6 +2150,19 @@ export default function AdminPage() {
                       일정관리
                     </button>
                   </div>
+                  <div className="item" style={{ marginBottom: 13, background: "#fbf4f6" }}>
+                    <div className="row" style={{ justifyContent: "space-between" }}>
+                      <strong>선택한 날짜 수업 매출 합계</strong>
+                      <strong style={{ color: "#702638", fontSize: 20 }}>
+                        {selectedRevenue.priced ? selectedRevenue.total.toLocaleString("ko-KR") + "원" : selectedRevenue.bookings ? "금액 미정" : "0원"}
+                      </strong>
+                    </div>
+                    <p className="small" style={{ margin: "6px 0 0" }}>
+                      수업 {selectedRevenue.bookings}건 · 금액 확인 {selectedRevenue.priced}건
+                      {selectedRevenue.unpriced ? ` · 금액 미정 ${selectedRevenue.unpriced}건` : ""}
+                      {" · 입금 확인 " + selectedRevenue.confirmed.toLocaleString("ko-KR") + "원"}
+                    </p>
+                  </div>
                   {homeSelectedItems.length === 0 ? (
                     <div className="adminNoLessons">등록된 수업이나 일정이 없습니다.</div>
                   ) : (
@@ -2126,9 +2178,11 @@ export default function AdminPage() {
                             <strong>{item.title}</strong>
                             <p>{item.subtitle}</p>
                             {item.detail && <p className="adminLessonMemo">{item.detail}</p>}
-                            {item.type === "regular" && item.booking_id && (
-                              <BookingTuitionEditor key={item.booking_id} bookingId={item.booking_id} password={password} />
-                            )}
+                            {item.type === "regular" && item.booking_id && (() => {
+                              const booking = (overview?.bookings || []).find(b => b.id === item.booking_id);
+                              return booking ? <BookingTuitionField key={booking.id} booking={booking}
+                                tuition={tuitionByBookingId.get(booking.id)} password={password} onSaved={handleTuitionSaved} /> : null;
+                            })()}
                             {item.type === "regular" && item.student_id &&
                               new Date(item.end_at).getTime() <= Date.now() && (
                                 <button type="button" className="adminInlineJournalButton"
@@ -2856,7 +2910,7 @@ export default function AdminPage() {
                       <strong>{formatTime(b.start_at)} - {formatTime(b.end_at)}</strong>
                       <p>{b.students?.name || "이름 없음"} / {b.students?.phone_last4 || "번호 없음"} / 상태: {STATUS_LABELS[b.status] || b.status}</p>
                       {b.memo && <p className="small">메모: {b.memo}</p>}
-                      <BookingTuitionEditor bookingId={b.id} password={password} />
+                      <BookingTuitionField booking={b} tuition={tuitionByBookingId.get(b.id)} password={password} onSaved={handleTuitionSaved} />
                     </div>
                   ))}
                 </div>

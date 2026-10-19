@@ -115,7 +115,7 @@ export async function POST(request: Request) {
     }
 
     const slotId = await maybeFindSlotId(supabase, startAt);
-    const bookingMemo = memo || `관리자 직접 예약 / ${lessonMinutes}분 수업 / 수강권 ${deductCredit ? "1회 차감" : "차감 없음"}`;
+    const bookingMemo = `관리자 직접 예약 / ${lessonMinutes}분 수업 / 수강권 ${deductCredit ? "1회 차감" : "차감 없음"}${memo ? " / " + memo : ""}`;
 
     const { error: insertError } = await supabase.from("regular_bookings").insert({
       student_id: studentId,
