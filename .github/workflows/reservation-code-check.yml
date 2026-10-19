@@ -23,5 +23,6 @@ jobs:
           node tests/booking-tuition.test.mjs
           node tests/booking-revenue.test.mjs
           node tests/manual-block-revenue.test.mjs
+          node tests/admin-pwa.test.mjs
       - name: Build app
         run: npm run build
