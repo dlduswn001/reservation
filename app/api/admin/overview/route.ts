@@ -61,9 +61,16 @@ export async function POST(request: Request) {
         .select("block_id,amount_krw,confirmed_at,memo,updated_at"),
     ]);
 
-    for (const result of [students, slots, bookings, onedayBookings, lessonHistory, blockedTimes, statuses, registrations, privateContacts, bookingTuitions, blockedTimeTuitions]) {
+    for (const result of [students, slots, bookings, onedayBookings, lessonHistory, blockedTimes, statuses, registrations, privateContacts, bookingTuitions]) {
       if (result.error) throw result.error;
     }
+
+    // Optional add-on table: keep existing reservation administration usable if
+    // the additive migration is not yet applied.
+    const missingBlockedTuitionTable = Boolean(blockedTimeTuitions.error) &&
+      (["42P01", "PGRST205", "PGRST116"].includes(String(blockedTimeTuitions.error?.code || ""))
+        || /blocked_time_tuition/.test(String(blockedTimeTuitions.error?.message || "")));
+    if (blockedTimeTuitions.error && !missingBlockedTuitionTable) throw blockedTimeTuitions.error;
 
     let classes: Record<string, unknown>[] = classesResult.data || [];
     if (classesResult.error) {
@@ -90,7 +97,7 @@ export async function POST(request: Request) {
       }),
       registrations: registrations.data || [],
       bookingTuitions: bookingTuitions.data || [],
-      blockedTimeTuitions: blockedTimeTuitions.data || [],
+      blockedTimeTuitions: missingBlockedTuitionTable ? [] : (blockedTimeTuitions.data || []),
       slots: slots.data || [],
       bookings: bookings.data || [],
       classes,
