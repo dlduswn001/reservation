@@ -49,7 +49,7 @@ export async function POST(request: Request) {
     if (passUpdate.error) {
       return NextResponse.json({ message: passUpdate.error }, { status: 400 });
     }
-    if (!name || !/^\\d{4}$/.test(phoneLast4)) {
+    if (!name || !/^[0-9]{4}$/.test(phoneLast4)) {
       return NextResponse.json({ message: "이름과 휴대폰 번호 끝 4자리를 입력해 주세요." }, { status: 400 });
     }
     if (phoneNumber && (!/^01[016789][0-9]{7,8}$/.test(phoneNumber) || !phoneNumber.endsWith(phoneLast4))) {
