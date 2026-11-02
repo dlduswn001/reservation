@@ -3,6 +3,7 @@ import { getSupabaseAdmin } from "../../../lib/supabaseAdmin";
 import {
   isAtLeastThreeHoursBefore,
   isLessonWithinOperatingHours,
+  isExtendedLessonSlot,
   lessonEndIso,
   normalizeLessonDurationMinutes,
   EXTENDED_LESSON_MINUTES,
@@ -170,6 +171,11 @@ export async function POST(request: Request) {
       return NextResponse.json({
         message: `수강권 사용기한이 만료되어 예약할 수 없습니다. 사용기한: ${passPolicyCheck.status.expiresAt || "-"}. 문장학교로 문의해 주세요.`,
       }, { status: 400 });
+    }
+
+    // The 120-minute opt-in is *regular class only*; never admit lifestyle starts.
+    if (isExtendedSelfBooking && !isExtendedLessonSlot(slot.start_at)) {
+      return NextResponse.json({ message: "120분 수업은 수~금 14·17·19시, 토·일 10·13·14시 40분에만 예약할 수 있습니다." }, { status: 400 });
     }
 
     // There are no shared regular/lifestyle class start times.
