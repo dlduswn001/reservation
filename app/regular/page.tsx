@@ -549,7 +549,7 @@ export default function RegularPage() {
   }
 
   const studentLessonMinutes = Number(student?.lesson_duration_minutes ?? 90);
-  const isExtended120Student = studentLessonMinutes === 120 && student?.extended_self_booking_enabled === true;
+  const isExtended120Student = studentLessonMinutes === 120 && (student?.extended_self_booking_enabled === true || extendedAutoBookable);
   const isDirectScheduleStudent = studentLessonMinutes === 120 && !extendedAutoBookable;
   const lifestyleCreditText = studentLessonMinutes === 45 ? "수강권 1회" : "수강권 0.5회";
 
