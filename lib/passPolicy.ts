@@ -1,4 +1,4 @@
-export const PASS_POLICY_START_DATE_KEY = "2026-08-01";
+export const PASS_POLICY_START_DATE_KEY = "2026-07-01";
 export const PASS_VALID_DAYS = 70; // 10주
 export const PASS_EXTENSION_DAYS = 7; // 관리자 1주 단위 연장 참고값
 
