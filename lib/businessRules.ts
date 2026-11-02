@@ -397,6 +397,24 @@ export function conflictsWithRegularBookings(
   ));
 }
 
+/** The individually enabled 120-minute class is exempt from the 30-minute break rule.
+ * Actual overlapping lesson time is always blocked. All other lesson pairs retain normal breaks.
+ */
+export const CONTINUOUS_120_BOOKING_TAG = "[연속 120분 수업]";
+
+export function conflictsWithRegularBookingsAllowingContinuous(
+  candidateStartAt: string,
+  candidateEndAt: string,
+  bookings: Array<TimeBlock & { memo?: string | null }> = [],
+  candidateIsContinuous = false,
+) {
+  return bookings.some((booking) => (
+    candidateIsContinuous || booking.memo?.includes(CONTINUOUS_120_BOOKING_TAG)
+      ? overlaps(candidateStartAt, candidateEndAt, booking.start_at, booking.end_at)
+      : regularBookingConflict(candidateStartAt, candidateEndAt, booking.start_at, booking.end_at)
+  ));
+}
+
 export function conflictsWithOneDayBlocks(
   candidateStartAt: string,
   candidateEndAt: string,
