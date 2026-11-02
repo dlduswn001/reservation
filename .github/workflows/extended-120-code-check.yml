@@ -5,7 +5,8 @@ on:
     paths:
       - "app/api/book/route.ts"
       - "app/api/slots/route.ts"
-      - "app/extended/page.tsx"
+      - "app/regular/page.tsx"
+      - "app/api/admin/regular-bookings/create/route.ts"
       - "lib/businessRules.ts"
       - "tests/extended-120-booking.test.mjs"
       - "supabase/migrations/20261102_extended_120_self_booking.sql"
