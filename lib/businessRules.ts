@@ -157,6 +157,19 @@ export function isExtendedLessonSlot(startAt: string) {
   return false;
 }
 
+/** A 120-minute opt-in learner must never see lifestyle or non-120-minute rows.
+ * Works for open, waitlisted and synthesized closed slots.
+ */
+export function isExtended120VisibleSlot(slot: {
+  start_at: string;
+  lesson_minutes?: number | null;
+  is_lifestyle?: boolean | null;
+}): boolean {
+  return Number(slot.lesson_minutes) === EXTENDED_LESSON_MINUTES
+    && slot.is_lifestyle !== true
+    && isExtendedLessonSlot(slot.start_at);
+}
+
 export function isRegularLessonSlotForStudent(startAt: string, lessonMinutes: unknown = DEFAULT_LESSON_MINUTES) {
   if (!isOctoberTimetableDate(startAt)) return false;
   const normalized = normalizeLessonDurationMinutes(lessonMinutes);

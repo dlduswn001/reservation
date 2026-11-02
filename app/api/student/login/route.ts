@@ -4,6 +4,7 @@ import { getErrorMessage, isMissingPassColumnError } from "../../../../lib/supab
 
 const STUDENT_BASE_SELECT = "id, name, phone_last4, lesson_credits, lesson_duration_minutes";
 const STUDENT_PASS_SELECT = `${STUDENT_BASE_SELECT}, pass_registered_at, pass_first_lesson_at, pass_expires_at, pass_extension_used, pass_extension_until, pass_extension_reason`;
+const STUDENT_EXTENDED_SELECT = `${STUDENT_PASS_SELECT}, extended_self_booking_enabled`;
 
 export async function POST(request: Request) {
   try {
@@ -18,11 +19,22 @@ export async function POST(request: Request) {
     const supabase = getSupabaseAdmin();
     let result = await supabase
       .from("students")
-      .select(STUDENT_PASS_SELECT)
+      .select(STUDENT_EXTENDED_SELECT)
       .eq("name", name)
       .eq("phone_last4", phoneLast4)
       .eq("is_active", true)
       .maybeSingle();
+
+    // Keep student login compatible with older deployments before the additive column exists.
+    if (result.error && String(result.error.message || "").includes("extended_self_booking_enabled")) {
+      result = await supabase
+        .from("students")
+        .select(STUDENT_PASS_SELECT)
+        .eq("name", name)
+        .eq("phone_last4", phoneLast4)
+        .eq("is_active", true)
+        .maybeSingle();
+    }
 
     // v15에서 수강권 사용기한 칼럼이 추가되었습니다. Supabase SQL을 아직 실행하지 않은 경우에도
     // 기존 로그인은 막히지 않도록 기본 수강생 정보만으로 한 번 더 조회합니다.
