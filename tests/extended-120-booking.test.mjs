@@ -36,6 +36,23 @@ assert.equal(rules.isExtendedLessonSlot(iso("2026-11-04","15:40")),false);
 assert.equal(rules.isExtendedLessonSlot(iso("2026-11-04","20:40")),false);
 assert.equal(rules.isExtendedLessonSlot(iso("2026-11-07","12:00")),false);
 assert.equal(rules.isExtendedLessonSlot(iso("2026-11-07","16:30")),false);
+const testSlot = (date,time,minutes,is_lifestyle=false) => ({
+  start_at:iso(date,time),lesson_minutes:minutes,is_lifestyle
+});
+assert.equal(rules.isExtended120VisibleSlot(testSlot("2026-11-04","14:00",120)),true);
+assert.equal(rules.isExtended120VisibleSlot(testSlot("2026-11-04","17:00",120)),true);
+assert.equal(rules.isExtended120VisibleSlot(testSlot("2026-11-07","14:40",120)),true);
+assert.equal(rules.isExtended120VisibleSlot(testSlot("2026-11-04","15:40",45,true)),false,
+  "45-minute lifestyle time must be hidden, even if it arrives marked closed");
+assert.equal(rules.isExtended120VisibleSlot(testSlot("2026-11-07","12:00",45,true)),false);
+assert.equal(rules.isExtended120VisibleSlot(testSlot("2026-11-07","16:30",45,true)),false);
+assert.equal(rules.isExtended120VisibleSlot(testSlot("2026-11-04","14:00",45)),false,
+  "even a valid 120-minute start must not show a 45-minute row");
+assert.equal(rules.isExtended120VisibleSlot(testSlot("2026-11-07","13:00",120,true)),false,
+  "any lifestyle-labelled row must be excluded");
+assert.equal(rules.isExtended120VisibleSlot(testSlot("2026-11-04","20:40",120)),false);
+assert.equal(rules.isExtended120VisibleSlot(testSlot("2026-11-03","14:00",120)),false);
+
 
 const saturday="2026-11-07";
 const one = iso(saturday,"13:00");
@@ -93,6 +110,11 @@ assert.match(bookingRoute,/conflictsWithRegularBookingsAllowingContinuous\(slot\
 assert.match(bookingRoute,/CONTINUOUS_120_BOOKING_TAG/);
 assert.match(slotsRoute,/conflictsWithRegularBookingsAllowingContinuous\(slot\.start_at, end, \[booking\], extendedSelfBookingAllowed\)/);
 const regularPage=source("../app/regular/page.tsx");
+assert.match(regularPage,/isExtended120VisibleSlot\(slot\)/);
+assert.doesNotMatch(regularPage,/<p style=\{styles\.helperText\}>표시되지 않는 일정은 예약 마감된 일정입니다\.<\/p>/);
+assert.doesNotMatch(regularPage,/120분 정규수업 · 수~금 오후 2시\/5시\/7시/);
+assert.match(slotsRoute,/extendedSelfBookingAllowed\s*\? \(weekday === 0 \|\| weekday === 6 \? EXTENDED_WEEKEND_START_TIMES : EXTENDED_WEEKDAY_START_TIMES\)/);
+
 assert.match(regularPage,/extendedAutoBookable/);
 assert.match(regularPage,/const isDirectScheduleStudent = studentLessonMinutes === 120 && !extendedAutoBookable/);
 
