@@ -50,11 +50,16 @@ export async function POST(request: Request) {
 
     let studentResult: any = await supabase
       .from("students")
-      .select("id, lesson_credits, lesson_duration_minutes, pass_registered_at, pass_first_lesson_at, pass_expires_at, pass_extension_until, manual_enrollment_status")
+      .select("id, lesson_credits, lesson_duration_minutes, pass_registered_at, pass_first_lesson_at, pass_expires_at, pass_extension_until, manual_enrollment_status, extended_self_booking_enabled")
       .eq("id", studentId)
       .eq("is_active", true)
       .single();
 
+    if (studentResult.error && String(studentResult.error.message || "").includes("extended_self_booking_enabled")) {
+      studentResult = await supabase.from("students")
+        .select("id, lesson_credits, lesson_duration_minutes, pass_registered_at, pass_first_lesson_at, pass_expires_at, pass_extension_until, manual_enrollment_status")
+        .eq("id", studentId).eq("is_active", true).single();
+    }
     if (studentResult.error && String(studentResult.error.message || "").includes("manual_enrollment_status")) {
       // Preview/rolling deployments must remain usable until the additive migration is applied.
       studentResult = await supabase.from("students")
@@ -83,8 +88,16 @@ export async function POST(request: Request) {
     }
 
     const requestedLessonMinutes = normalizeLessonDurationMinutes(student.lesson_duration_minutes);
-    if (requestedLessonMinutes === EXTENDED_LESSON_MINUTES) {
+    const isExtendedSelfBooking = requestedLessonMinutes === EXTENDED_LESSON_MINUTES
+      && student.extended_self_booking_enabled === true;
+    if (requestedLessonMinutes === EXTENDED_LESSON_MINUTES && !isExtendedSelfBooking) {
       return NextResponse.json({ message: "120분 수업은 문장학교 카카오톡 채널로 직접 일정을 조율해 주세요." }, { status: 400 });
+    }
+
+    // Dedicated 120-minute lessons always require an administrator-opened real slot.
+    // Never let an auto-adjustment or arbitrary time bypass the approved timetable.
+    if (isExtendedSelfBooking && (slotId.startsWith("auto:") || slotId.startsWith("closed:"))) {
+      return NextResponse.json({ message: "120분 수업은 정해진 예약 시간을 선택해 주세요." }, { status: 400 });
     }
 
     const autoStartAt = parseAutoAdjustmentSlotId(slotId);
@@ -240,7 +253,7 @@ export async function POST(request: Request) {
       memo: `수강생 직접 예약 / ${(isLifestyle ? lifestyleClassName : "정규수업")} / ${rule.policyLabel} / ${autoStartAt ? "자동 조율 슬롯 / " : ""}${rule.label} / 수강권 ${creditCost}회 차감${isLifestyle ? ` / 선택: ${lifestyleClassName}` : ""}`,
     });
     if (error) {
-      if (error.message.includes("duplicate")) {
+      if (error.message.includes("duplicate") || error.code === "23P01" || error.code === "23505") {
         return NextResponse.json({ message: "이미 다른 수강생이 예약한 시간입니다." }, { status: 409 });
       }
       throw error;
