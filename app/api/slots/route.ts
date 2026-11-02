@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { getSupabaseAdmin } from "../../../lib/supabaseAdmin";
 import {
   isLessonWithinOperatingHours,
+  isExtendedLessonSlot,
   lessonEndIso,
   normalizeLessonDurationMinutes,
   getReservationLessonMinutes,
@@ -312,6 +313,7 @@ export async function GET(request: Request) {
     const protectedDates = new Set(["2026-10-19", "2026-10-20", "2026-10-26", "2026-10-27"]);
 
     const isAllowedLessonDateAndTime = (slot: SlotRow) => {
+      if (extendedSelfBookingAllowed && !isExtendedLessonSlot(slot.start_at)) return false;
       const dateKey = slotDateKey(slot.start_at);
       const weekday = slotWeekday(slot.start_at);
       if (["Mon", "Tue"].includes(weekday) && !protectedDates.has(dateKey)) {
