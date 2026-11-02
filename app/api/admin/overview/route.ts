@@ -32,9 +32,15 @@ export async function POST(request: Request) {
 
     let students: any = await supabase
       .from("students")
-      .select("id, name, phone_last4, is_active, credits_zero_since, last_credit_refill_at, memo, lesson_credits, lesson_duration_minutes, pass_registered_at, pass_first_lesson_at, pass_expires_at, pass_extension_used, pass_extension_until, pass_extension_reason, created_at")
+      .select("id, name, phone_last4, is_active, manual_enrollment_status, credits_zero_since, last_credit_refill_at, memo, lesson_credits, lesson_duration_minutes, pass_registered_at, pass_first_lesson_at, pass_expires_at, pass_extension_used, pass_extension_until, pass_extension_reason, created_at")
       .order("created_at", { ascending: false });
 
+    if (students.error && String(students.error.message || "").includes("manual_enrollment_status")) {
+      // Remain functional on preview builds before the additive migration is installed.
+      students = await supabase.from("students")
+        .select("id, name, phone_last4, is_active, credits_zero_since, last_credit_refill_at, memo, lesson_credits, lesson_duration_minutes, pass_registered_at, pass_first_lesson_at, pass_expires_at, pass_extension_used, pass_extension_until, pass_extension_reason, created_at")
+        .order("created_at", { ascending: false });
+    }
     if (students.error && isMissingPassColumnError(students.error)) {
       students = await supabase
         .from("students")
@@ -90,7 +96,7 @@ export async function POST(request: Request) {
         return {
           ...student,
           phone_number: (privateContacts.data || []).find((row:{student_id:string})=>row.student_id===student.id)?.phone_number || null,
-          enrollment_status: status?.enrollment_status || (student.is_active === false ? "withdrawn" : "active"),
+          enrollment_status: student.manual_enrollment_status || status?.enrollment_status || (student.is_active === false ? "withdrawn" : "active"),
           last_attended_at: status?.last_attended_at || null,
           credits_zero_since: status?.credits_zero_since || student.credits_zero_since || null,
         };
