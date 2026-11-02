@@ -63,9 +63,11 @@ assert.equal(rules.conflictsWithRegularBookings(iso(saturday,"14:40"),end(iso(sa
 const bookingRoute=source("../app/api/book/route.ts");
 const slotsRoute=source("../app/api/slots/route.ts");
 assert.match(bookingRoute,/student\.extended_self_booking_enabled === true/);
+assert.match(bookingRoute,/isExtendedSelfBooking && !isExtendedLessonSlot\(slot\.start_at\)/);
 assert.match(bookingRoute,/isLessonWithinOperatingHours\(slot\.start_at, slotLessonMinutes\)/);
 assert.match(bookingRoute,/alreadyTaken/);
 assert.match(slotsRoute,/student\.extended_self_booking_enabled === true/);
+assert.match(slotsRoute,/extendedSelfBookingAllowed && !isExtendedLessonSlot\(slot\.start_at\)/);
 assert.match(slotsRoute,/extendedSelfBookingAllowed && isRegularOccupied\(slot\)/);
 assert.match(slotsRoute,/!extendedSelfBookingAllowed && isSlotAvailable\(slot\) && isRegularOccupied\(slot\)/);
 assert.match(slotsRoute,/slot\.is_open === false/);
