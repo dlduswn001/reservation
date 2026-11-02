@@ -10,7 +10,7 @@ import {
   isLifestyleLessonSlot,
   EXTENDED_LESSON_MINUTES,
   conflictsWithOneDayBlocks,
-  conflictsWithRegularBookings,
+  conflictsWithRegularBookingsAllowingContinuous,
   reservationCutoffDate,
   overlapsAnyTimeBlock,
   WEEKDAY_VISIBLE_TIMETABLE_START_TIMES,
@@ -271,7 +271,7 @@ export async function GET(request: Request) {
 
     const { data: bookings, error: bookingsError } = await supabase
       .from("regular_bookings")
-      .select("id, slot_id, start_at, end_at, status")
+      .select("id, slot_id, start_at, end_at, status, memo")
       .in("status", ["booked", "change_request", "cancel_request"])
       .gte("end_at", cutoff)
       .lte("start_at", searchRange.rangeEndIso);
@@ -347,7 +347,7 @@ export async function GET(request: Request) {
       const end = lessonEndIso(slot.start_at, duration);
       return activeBookings.some((booking) => (
         (slot.id && booking.slot_id === slot.id)
-        || conflictsWithRegularBookings(slot.start_at, end, [{ start_at: booking.start_at, end_at: booking.end_at }])
+        || conflictsWithRegularBookingsAllowingContinuous(slot.start_at, end, [booking], extendedSelfBookingAllowed)
       ));
     };
 
@@ -361,7 +361,7 @@ export async function GET(request: Request) {
           start_at: slot.start_at,
           end_at: lessonEndIso(slot.start_at, slotLessonMinutes),
           lesson_minutes: slotLessonMinutes,
-          break_minutes: isLifestyle ? 0 : 30,
+          break_minutes: isLifestyle || extendedSelfBookingAllowed ? 0 : 30,
           credit_cost: getReservationCreditCost(slot.start_at, lessonMinutes),
           is_lifestyle: isLifestyle,
           rule_label: isLifestyle
