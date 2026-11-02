@@ -4,7 +4,8 @@ import { getSupabaseAdmin } from "../../../../../lib/supabaseAdmin";
 import {
   addMinutesToIso,
   normalizeLessonDurationMinutes,
-  conflictsWithRegularBookings,
+  conflictsWithRegularBookingsAllowingContinuous,
+  CONTINUOUS_120_BOOKING_TAG,
   overlapsAnyTimeBlock,
 } from "../../../../../lib/businessRules";
 import {
@@ -61,12 +62,17 @@ export async function POST(request: Request) {
     const endAt = addMinutesToIso(startAt, lessonMinutes);
     const supabase = getSupabaseAdmin();
 
-    let studentResult = await supabase
+    let studentResult: any = await supabase
       .from("students")
-      .select("id, name, lesson_credits, lesson_duration_minutes, pass_registered_at, pass_first_lesson_at, pass_expires_at, pass_extension_until")
+      .select("id, name, lesson_credits, lesson_duration_minutes, pass_registered_at, pass_first_lesson_at, pass_expires_at, pass_extension_until, extended_self_booking_enabled")
       .eq("id", studentId)
       .maybeSingle();
 
+    if (studentResult.error && String(studentResult.error.message || "").includes("extended_self_booking_enabled")) {
+      studentResult = await supabase.from("students")
+        .select("id, name, lesson_credits, lesson_duration_minutes, pass_registered_at, pass_first_lesson_at, pass_expires_at, pass_extension_until")
+        .eq("id", studentId).maybeSingle();
+    }
     if (studentResult.error && isMissingPassColumnError(studentResult.error)) {
       studentResult = await supabase
         .from("students")
@@ -81,6 +87,9 @@ export async function POST(request: Request) {
     }
 
     const student = studentResult.data as any;
+    const candidateIsContinuous = lessonMinutes === 120
+      && Number(student.lesson_duration_minutes) === 120
+      && student.extended_self_booking_enabled === true;
     const currentCredits = Number(student.lesson_credits || 0);
     if (deductCredit && currentCredits < 1) {
       return NextResponse.json({ message: "잔여 수강권이 부족합니다." }, { status: 400 });
@@ -89,7 +98,7 @@ export async function POST(request: Request) {
     const [regularBookings, blockedTimes, onedayClasses] = await Promise.all([
       supabase
         .from("regular_bookings")
-        .select("id, start_at, end_at, status")
+        .select("id, start_at, end_at, status, memo")
         .in("status", ACTIVE_REGULAR_STATUSES),
       supabase
         .from("blocked_times")
@@ -104,7 +113,7 @@ export async function POST(request: Request) {
       if (result.error) throw result.error;
     }
 
-    if (conflictsWithRegularBookings(startAt, endAt, (regularBookings.data || []) as any[])) {
+    if (conflictsWithRegularBookingsAllowingContinuous(startAt, endAt, (regularBookings.data || []) as any[], candidateIsContinuous)) {
       return NextResponse.json({ message: "이미 겹치는 정규수업 예약이 있습니다." }, { status: 409 });
     }
     if (overlapsAnyTimeBlock(startAt, endAt, (blockedTimes.data || []) as any[])) {
@@ -115,7 +124,7 @@ export async function POST(request: Request) {
     }
 
     const slotId = await maybeFindSlotId(supabase, startAt);
-    const bookingMemo = `관리자 직접 예약 / ${lessonMinutes}분 수업 / 수강권 ${deductCredit ? "1회 차감" : "차감 없음"}${memo ? " / " + memo : ""}`;
+    const bookingMemo = `관리자 직접 예약 / ${lessonMinutes}분 수업 / 수강권 ${deductCredit ? "1회 차감" : "차감 없음"}${memo ? " / " + memo : ""}${candidateIsContinuous ? ` / ${CONTINUOUS_120_BOOKING_TAG}` : ""}`;
 
     const { error: insertError } = await supabase.from("regular_bookings").insert({
       student_id: studentId,
