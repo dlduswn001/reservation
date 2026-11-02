@@ -221,6 +221,7 @@ export default function RegularPage() {
   const [phoneLast4, setPhoneLast4] = useState("");
   const [rememberLogin, setRememberLogin] = useState(true);
   const [student, setStudent] = useState<Student | null>(null);
+  const [extendedAutoBookable, setExtendedAutoBookable] = useState(false);
   const [slots, setSlots] = useState<Slot[]>([]);
   const [waitlist, setWaitlist] = useState<WaitEntry[]>([]);
   const [bookings, setBookings] = useState<Booking[]>([]);
@@ -259,6 +260,7 @@ export default function RegularPage() {
       return;
     }
 
+    setExtendedAutoBookable(false);
     setStudent(json.student);
     setName(json.student.name);
     setPhoneLast4(json.student.phone_last4);
@@ -287,6 +289,8 @@ export default function RegularPage() {
       .then(async (slotRes) => {
         const slotJson = await slotRes.json();
         if (!slotRes.ok) throw new Error(slotJson.message || "예약 가능한 시간을 불러오지 못했습니다.");
+        // A 120-minute student uses the same calendar when the server grants self-booking.
+        setExtendedAutoBookable(Number(lessonMinutes) === 120 && slotJson.requires_direct_scheduling !== true);
         // One timeline row per real start instant, even if an older API response
         // mixes "+00:00" DB dates with ".000Z" generated closed entries.
         const byStart = new Map<number, Slot>();
@@ -525,6 +529,7 @@ export default function RegularPage() {
     void disconnectPushOnLogout(student);
     clearStoredStudentLogin();
     setStudent(null);
+    setExtendedAutoBookable(false);
     setName("");
     setPhoneLast4("");
     setSlots([]);
@@ -535,7 +540,7 @@ export default function RegularPage() {
   }
 
   const studentLessonMinutes = Number(student?.lesson_duration_minutes ?? 90);
-  const isDirectScheduleStudent = studentLessonMinutes === 120;
+  const isDirectScheduleStudent = studentLessonMinutes === 120 && !extendedAutoBookable;
   const lifestyleCreditText = studentLessonMinutes === 45 ? "수강권 1회" : "수강권 0.5회";
 
   async function cancel(bookingId: string) {
@@ -699,6 +704,7 @@ export default function RegularPage() {
             <div style={styles.reservationHeader}>
               <div>
                 <h2 style={styles.reservationTitle}>예약 가능한 날짜</h2>
+                {extendedAutoBookable && <p style={styles.helperText}>120분 정규수업 · 수~금 오후 2시/5시/7시 · 토·일 오전 10시/오후 1시/2시 40분. 월·화는 휴무이며 수업 시간이 겹칠 때만 마감됩니다.</p>}
                 <p style={styles.helperText}>표시되지 않는 일정은 예약 마감된 일정입니다.</p>
               </div>
               <button

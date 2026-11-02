@@ -1,0 +1,26 @@
+name: Extended 120-minute booking check
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - "app/api/book/route.ts"
+      - "app/api/slots/route.ts"
+      - "app/regular/page.tsx"
+      - "app/api/admin/regular-bookings/create/route.ts"
+      - "lib/businessRules.ts"
+      - "tests/extended-120-booking.test.mjs"
+      - "supabase/migrations/20261102_extended_120_self_booking.sql"
+      - ".github/workflows/extended-120-code-check.yml"
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - run: npm install --no-audit --no-fund
+      - run: node tests/extended-120-booking.test.mjs
+      - run: npx tsc --noEmit --pretty false
+      - run: npm run build

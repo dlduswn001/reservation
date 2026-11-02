@@ -81,6 +81,9 @@ export const WEEKDAY_VISIBLE_TIMETABLE_START_TIMES = Array.from(new Set([
   ...WEEKDAY_REGULAR_START_TIMES,
   ...WEEKDAY_LIFESTYLE_START_TIMES,
 ]));
+// 관리자 승인받은 120분 수강생에게만 노출하는 시작 시간.
+export const EXTENDED_WEEKDAY_START_TIMES = ["14:00", "17:00", "19:00"];
+export const EXTENDED_WEEKEND_START_TIMES = ["10:00", "13:00", "14:40"];
 export const WEEKEND_REGULAR_START_TIMES = ["10:00", "13:00", "14:40"];
 // 주말 45분 정규수업도 정규수업 칸에서만 예약해 생활수업과 시간 충돌을 방지합니다.
 export const WEEKEND_REGULAR_START_TIMES_45 = [...WEEKEND_REGULAR_START_TIMES];
@@ -144,13 +147,23 @@ export function isRegularLessonSlot(startAt: string) {
   return false;
 }
 
+/** 수요일~금요일 및 토·일요일에만 사용 가능한 120분 예약 시간. 월·화는 예외 개방하지 않습니다. */
+export function isExtendedLessonSlot(startAt: string) {
+  if (!isOctoberTimetableDate(startAt)) return false;
+  const { weekday, hour, minute } = kstDateTimeParts(startAt);
+  const time = minutesToTime(hour * 60 + minute);
+  if (["Wed", "Thu", "Fri"].includes(weekday)) return EXTENDED_WEEKDAY_START_TIMES.includes(time);
+  if (["Sat", "Sun"].includes(weekday)) return EXTENDED_WEEKEND_START_TIMES.includes(time);
+  return false;
+}
+
 export function isRegularLessonSlotForStudent(startAt: string, lessonMinutes: unknown = DEFAULT_LESSON_MINUTES) {
   if (!isOctoberTimetableDate(startAt)) return false;
   const normalized = normalizeLessonDurationMinutes(lessonMinutes);
   const { weekday, hour, minute } = kstDateTimeParts(startAt);
   const time = minutesToTime(hour * 60 + minute);
 
-  if (normalized === EXTENDED_LESSON_MINUTES) return false;
+  if (normalized === EXTENDED_LESSON_MINUTES) return isExtendedLessonSlot(startAt);
 
   if (["Sat", "Sun"].includes(weekday)) {
     return (normalized === SHORT_LESSON_MINUTES
@@ -384,6 +397,24 @@ export function conflictsWithRegularBookings(
   ));
 }
 
+/** The individually enabled 120-minute class is exempt from the 30-minute break rule.
+ * Actual overlapping lesson time is always blocked. All other lesson pairs retain normal breaks.
+ */
+export const CONTINUOUS_120_BOOKING_TAG = "[연속 120분 수업]";
+
+export function conflictsWithRegularBookingsAllowingContinuous(
+  candidateStartAt: string,
+  candidateEndAt: string,
+  bookings: Array<TimeBlock & { memo?: string | null }> = [],
+  candidateIsContinuous = false,
+) {
+  return bookings.some((booking) => (
+    candidateIsContinuous || booking.memo?.includes(CONTINUOUS_120_BOOKING_TAG)
+      ? overlaps(candidateStartAt, candidateEndAt, booking.start_at, booking.end_at)
+      : regularBookingConflict(candidateStartAt, candidateEndAt, booking.start_at, booking.end_at)
+  ));
+}
+
 export function conflictsWithOneDayBlocks(
   candidateStartAt: string,
   candidateEndAt: string,
@@ -471,6 +502,10 @@ export function isLessonWithinOperatingHours(startAt: string, lessonMinutes: unk
   const { weekday, hour, minute } = kstDateTimeParts(startAt);
 
   if (isOctoberTimetableDate(startAt)) {
+    // 120분 수업에는 생활수업 전용 시간(주말 12:00, 16:30 등)을 절대로 허용하지 않습니다.
+    if (normalizeLessonDurationMinutes(lessonMinutes) === EXTENDED_LESSON_MINUTES) {
+      return isExtendedLessonSlot(startAt);
+    }
     return isRegularLessonSlotForStudent(startAt, lessonMinutes) || isLifestyleLessonSlot(startAt);
   }
 
