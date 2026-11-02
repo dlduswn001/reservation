@@ -132,8 +132,12 @@ export async function POST(request: Request) {
       const update: Record<string, unknown> = {
         lesson_credits: Math.max(0, Number((currentCredits - 1).toFixed(2))),
       };
-      if (shouldApplyRegularPassPolicy(student) && !student.pass_first_lesson_at) {
-        const firstLessonDateKey = dateKeyInKst(new Date(startAt));
+      const firstLessonDateKey = dateKeyInKst(new Date(startAt));
+      if (shouldApplyRegularPassPolicy(student)
+          && firstLessonDateKey >= String(student.pass_registered_at || "")
+          && (!student.pass_first_lesson_at
+            || student.pass_first_lesson_at < student.pass_registered_at
+            || firstLessonDateKey < student.pass_first_lesson_at)) {
         update.pass_first_lesson_at = firstLessonDateKey;
         update.pass_expires_at = calculatePassExpirationDateKey(firstLessonDateKey);
       }

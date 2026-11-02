@@ -21,6 +21,7 @@ type Student = {
   phone_number?: string | null;
   is_active: boolean;
   enrollment_status?: "active" | "paused" | "withdrawn";
+  manual_enrollment_status?: "active" | "paused" | "withdrawn" | null;
   last_attended_at?: string | null;
   credits_zero_since?: string | null;
   created_at?: string;
@@ -250,12 +251,12 @@ function defaultPassRegisteredAtForNewStudent() {
 
 function passPolicySummary(student: Student) {
   const status = getRegularPassPolicyStatus(student);
-  if (!status.firstLessonAt) return "첫 수업일로부터 10주 이내";
-  if (!status.applies) return "기존 수강권 · 별도 적용";
+  if (!status.applies) return "2026년 7월 이전 기존 수강권 · 별도 적용";
+  if (!status.firstLessonAt) return "첫 수업일 대기 · 첫 예약 수업일부터 10주";
   const leftText = typeof status.daysLeft === "number"
     ? status.daysLeft < 0 ? `${Math.abs(status.daysLeft)}일 지남` : `${status.daysLeft}일 남음`
     : "";
-  return `${status.label} · ${status.expiresAt || "-"}${leftText ? ` · ${leftText}` : ""}`;
+  return `첫 수업 ${status.firstLessonAt} · 만료 ${status.expiresAt || "-"} (10주)${leftText ? ` · ${leftText}` : ""}${status.extensionUntil ? " · 연장 반영" : ""}`;
 }
 
 function addMinutesToLocalDateTime(value: string, minutes: number) {
@@ -829,35 +830,35 @@ export default function AdminPage() {
     setJournalDraft({ ...EMPTY_JOURNAL });
   }
 
-  async function updateEnrollmentStatus(student: Student, nextActive: boolean) {
-    const actionLabel = nextActive ? "재원생으로 전환" : "퇴원 처리";
-    const detail = nextActive
-      ? "수강권이 남고 최근 수업이 있으면 재원으로 분류됩니다. 휴원·자동퇴원 기준은 계속 적용됩니다."
-      : "퇴원 목록으로 이동하지만 기존 수강권·수업 기록·수업일지는 모두 유지됩니다.";
-    if (!window.confirm(`${student.name} 수강생을 ${actionLabel}할까요?\n${detail}`)) return;
+  async function updateEnrollmentStatus(
+    student: Student,
+    nextStatus: "active" | "paused" | "withdrawn" | "auto",
+  ) {
+    const names = {active:"재원",paused:"휴원",withdrawn:"퇴원",auto:"자동 분류"} as const;
+    const description = nextStatus === "paused"
+      ? "휴원 중에는 수강생 직접 예약을 할 수 없습니다. 기존 예약과 수강권은 유지됩니다."
+      : nextStatus === "withdrawn"
+        ? "퇴원 시 앱에서 로그인할 수 없습니다. 수강권과 과거 수업 기록은 유지됩니다."
+        : nextStatus === "active"
+          ? "관리자 지정 재원 상태를 유지합니다. 예약에는 수강권이 필요합니다."
+          : "직접 지정 상태를 해제하고 기존 자동 분류 기준으로 돌아갑니다.";
+    if (!window.confirm(`${student.name} 수강생을 ${names[nextStatus]} 상태로 변경할까요?\n${description}`)) return;
     setEnrollmentSaving(true);
     setMessage("");
     try {
-      const res = await fetch(`/api/admin/students/${student.id}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          password,
-          name: student.name,
-          phone_last4: student.phone_last4,
-          lesson_credits: Number(student.lesson_credits ?? 0),
-          lesson_duration_minutes: Number(student.lesson_duration_minutes ?? 90),
-          is_active: nextActive,
-        }),
+      const res = await fetch("/api/admin/students/status", {
+        method: "POST",
+        headers: {"Content-Type":"application/json"},
+        body: JSON.stringify({ password, student_id:student.id, status:nextStatus }),
       });
       const json = await res.json();
       if (!res.ok) throw new Error(json.message || "재원 상태를 변경하지 못했습니다.");
       await loadOverview();
-      setEnrollmentFilter(nextActive ? "active" : "withdrawn");
-      setSelectedStudentId(student.id);
+      setEnrollmentFilter(nextStatus === "auto" ? "active" : nextStatus);
+      setSelectedStudentId(nextStatus === "auto" ? "" : student.id);
       setEditingStudentId(null);
       setActiveTab("students");
-      setMessage(`${student.name} 수강생을 ${nextActive ? "재원생" : "퇴원생"}으로 변경했습니다. 기존 기록은 유지됩니다.`);
+      setMessage(`${student.name} 수강생을 ${names[nextStatus]} 상태로 설정했습니다. 기존 수강 기록은 유지됩니다.`);
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "재원 상태를 변경하지 못했습니다.");
     } finally {
@@ -2447,14 +2448,27 @@ export default function AdminPage() {
                           기존 수강 기록 확인 <ChevronRight size={18}/>
                         </button>
                         <div className="adminEnrollmentActions">
-                          <button type="button" className={`adminEnrollmentMove ${s.is_active === false ? "reactivate" : "deactivate"}`}
-                            disabled={enrollmentSaving}
-                            onClick={() => void updateEnrollmentStatus(s, s.is_active === false)}>
-                            {enrollmentSaving ? "변경 중..." : s.is_active === false ? "재원생으로 다시 등록" : "퇴원생으로 이동"}
-                          </button>
-                          <p className="small">{s.is_active === false
-                            ? "재원생으로 전환하면 기존 계정으로 다시 예약할 수 있습니다."
-                            : "퇴원 처리해도 수강권과 수업 기록은 삭제되지 않습니다."}</p>
+                          <strong>재원 상태 직접 관리</strong>
+                          <p className="small">현재 {s.enrollment_status === "paused" ? "휴원" : s.enrollment_status === "withdrawn" ? "퇴원" : "재원"} · {s.manual_enrollment_status ? "관리자 직접 지정" : "자동 분류"}</p>
+                          <div style={{display:"flex",gap:8,flexWrap:"wrap",alignItems:"center"}}>
+                            {([
+                              {status:"active",label:"재원으로 지정"},
+                              {status:"paused",label:"휴원으로 지정"},
+                              {status:"withdrawn",label:"퇴원으로 지정"},
+                            ] as const).map(option => (
+                              <button type="button" key={option.status}
+                                className={`adminEnrollmentMove ${option.status === "withdrawn" ? "deactivate" : "reactivate"}`}
+                                style={{flex:"0 1 auto"}}
+                                disabled={enrollmentSaving || s.manual_enrollment_status === option.status}
+                                onClick={() => void updateEnrollmentStatus(s, option.status)}>
+                                {option.label}
+                              </button>
+                            ))}
+                            <button type="button" className="secondary"
+                              disabled={enrollmentSaving || !s.manual_enrollment_status}
+                              onClick={() => void updateEnrollmentStatus(s, "auto")}>자동 분류로 변경</button>
+                          </div>
+                          <p className="small">휴원: 새 예약 제한 · 퇴원: 로그인 제한 · 기존 수업 및 수강권 기록 보존</p>
                         </div>
                       </>
                     ) : (
@@ -2510,7 +2524,7 @@ export default function AdminPage() {
                     <div><p className="adminEyebrow">정규수강생</p><h2>수강권 재등록</h2></div>
                     <span>{selectedStudent.name}</span>
                   </div>
-                  <p className="small">재등록 시 실제 결제금액과 충전 횟수를 함께 저장합니다. 월별 재등록·매출 보고서에 반영됩니다.</p>
+                  <p className="small">재등록 시 새 수강권의 사용기간이 다시 시작됩니다. 재등록 후 첫 예약 수업일로부터 10주이며, 이미 예약한 수업이 있다면 가장 이른 수업일부터 계산합니다. 결제금액과 충전 횟수는 월별 매출에 기록됩니다.</p>
                   <div className="adminStudentFormPair">
                     <div><label>재등록일</label><input type="date" value={renewalDate}
                       onChange={e=>setRenewalDate(e.target.value)}/></div>

@@ -21,6 +21,7 @@ jobs:
       - name: Verify tuition calculations and manual entries
         run: |
           node tests/student-registration-validation.test.mjs
+          node tests/renewal-pass-manual-status.test.mjs
           node tests/booking-tuition.test.mjs
           node tests/booking-revenue.test.mjs
           node tests/manual-block-revenue.test.mjs
