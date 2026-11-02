@@ -13,7 +13,8 @@ import {
   reservationKindLabel,
   normalizeLifestyleClassName,
   conflictsWithOneDayBlocks,
-  conflictsWithRegularBookings,
+  conflictsWithRegularBookingsAllowingContinuous,
+  CONTINUOUS_120_BOOKING_TAG,
   regularLessonRule,
   overlapsAnyTimeBlock,
   WEEKDAY_VISIBLE_TIMETABLE_START_TIMES,
@@ -225,12 +226,12 @@ export async function POST(request: Request) {
 
     const { data: existingBookings, error: existingError } = await supabase
       .from("regular_bookings")
-      .select("id, slot_id, start_at, end_at, status")
+      .select("id, slot_id, start_at, end_at, status, memo")
       .in("status", ["booked", "change_request", "cancel_request"]);
     if (existingError) throw existingError;
 
     const alreadyTaken = (existingBookings || []).some((booking) => (
-      booking.slot_id === slot.id || conflictsWithRegularBookings(slot.start_at, candidateEndAt, [{ start_at: booking.start_at, end_at: booking.end_at }])
+      booking.slot_id === slot.id || conflictsWithRegularBookingsAllowingContinuous(slot.start_at, candidateEndAt, [booking], isExtendedSelfBooking)
     ));
     if (alreadyTaken) {
       return NextResponse.json({ message: "이미 다른 수강생이 예약한 시간입니다." }, { status: 409 });
@@ -256,7 +257,7 @@ export async function POST(request: Request) {
       start_at: slot.start_at,
       end_at: candidateEndAt,
       status: "booked",
-      memo: `수강생 직접 예약 / ${(isLifestyle ? lifestyleClassName : "정규수업")} / ${rule.policyLabel} / ${autoStartAt ? "자동 조율 슬롯 / " : ""}${rule.label} / 수강권 ${creditCost}회 차감${isLifestyle ? ` / 선택: ${lifestyleClassName}` : ""}`,
+      memo: `수강생 직접 예약 / ${(isLifestyle ? lifestyleClassName : "정규수업")} / ${rule.policyLabel} / ${autoStartAt ? "자동 조율 슬롯 / " : ""}${rule.label} / 수강권 ${creditCost}회 차감${isLifestyle ? ` / 선택: ${lifestyleClassName}` : ""}${isExtendedSelfBooking ? ` / ${CONTINUOUS_120_BOOKING_TAG}` : ""}`,
     });
     if (error) {
       if (error.message.includes("duplicate") || error.code === "23P01" || error.code === "23505") {
