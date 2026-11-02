@@ -194,16 +194,22 @@ export async function GET(request: Request) {
       Number.isFinite(requestedLessonMinutes) && requestedLessonMinutes > 0 ? requestedLessonMinutes : null,
     );
 
+    let extendedSelfBookingAllowed = false;
     let studentPassPolicy: RegularPassPolicyStudent | null = null;
     let studentPassStatus: ReturnType<typeof getRegularPassPolicyStatus> | null = null;
 
     if (studentId) {
-      let studentResult = await supabase
+      let studentResult: any = await supabase
         .from("students")
-        .select("lesson_duration_minutes, pass_registered_at, pass_first_lesson_at, pass_expires_at, pass_extension_until")
+        .select("lesson_duration_minutes, pass_registered_at, pass_first_lesson_at, pass_expires_at, pass_extension_until, extended_self_booking_enabled")
         .eq("id", studentId)
         .maybeSingle();
 
+      if (studentResult.error && String(studentResult.error.message || "").includes("extended_self_booking_enabled")) {
+        studentResult = await supabase.from("students")
+          .select("lesson_duration_minutes, pass_registered_at, pass_first_lesson_at, pass_expires_at, pass_extension_until")
+          .eq("id", studentId).maybeSingle();
+      }
       if (studentResult.error && isMissingPassColumnError(studentResult.error)) {
         studentResult = await supabase
           .from("students")
@@ -214,8 +220,11 @@ export async function GET(request: Request) {
 
       if (studentResult.error) throw studentResult.error;
       const student = studentResult.data;
-      if (!requestedLessonMinutes) {
-        lessonMinutes = normalizeLessonDurationMinutes(student?.lesson_duration_minutes);
+      // The registered lesson type is authoritative; a query parameter cannot grant a different timetable.
+      if (student) {
+        lessonMinutes = normalizeLessonDurationMinutes(student.lesson_duration_minutes);
+        extendedSelfBookingAllowed = lessonMinutes === EXTENDED_LESSON_MINUTES
+          && student.extended_self_booking_enabled === true;
       }
       if (student && "pass_registered_at" in student) {
         studentPassPolicy = student;
@@ -223,7 +232,7 @@ export async function GET(request: Request) {
       }
     }
 
-    if (lessonMinutes === EXTENDED_LESSON_MINUTES) {
+    if (lessonMinutes === EXTENDED_LESSON_MINUTES && !extendedSelfBookingAllowed) {
       return NextResponse.json(
         {
           slots: [],
@@ -363,7 +372,7 @@ export async function GET(request: Request) {
     // 예약이 찬 정규수업 시간은 신청 대신 대기 버튼을 표시합니다.
     // 운영 시간·월화 개방·수강권 이용기간·원데이/외부 일정 조건은 기존 예약과 동일하게 적용합니다.
     const waitingSlots = slots
-      .filter((slot) => isSlotAvailable(slot) && isRegularOccupied(slot))
+      .filter((slot) => !extendedSelfBookingAllowed && isSlotAvailable(slot) && isRegularOccupied(slot))
       .map((slot) => {
         const duration = getReservationLessonMinutes(slot.start_at, lessonMinutes);
         const lifestyle = isLifestyleLessonSlot(slot.start_at);
@@ -389,7 +398,8 @@ export async function GET(request: Request) {
     );
     const closedSlots = slots
       .filter((slot) => activeClassDateKeys.has(slotDateKey(slot.start_at))
-        && isAllowedLessonDateAndTime(slot) && !isSlotAvailable(slot))
+        && isAllowedLessonDateAndTime(slot)
+        && (!isSlotAvailable(slot) || (extendedSelfBookingAllowed && isRegularOccupied(slot))))
       .map((slot) => {
         const duration = getReservationLessonMinutes(slot.start_at, lessonMinutes);
         const lifestyle = isLifestyleLessonSlot(slot.start_at);
@@ -506,7 +516,7 @@ export async function GET(request: Request) {
         raw_months: rawMonths,
         pass_policy: studentPassStatus,
         debug: {
-          version: "v36",
+          version: "v38",
           raw_slot_count: slots.length,
           available_slot_count: available.length,
           returned_slot_count: visibleAvailable.length,
