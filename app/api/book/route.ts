@@ -48,13 +48,19 @@ export async function POST(request: Request) {
 
     const supabase = getSupabaseAdmin();
 
-    let studentResult = await supabase
+    let studentResult: any = await supabase
       .from("students")
-      .select("id, lesson_credits, lesson_duration_minutes, pass_registered_at, pass_first_lesson_at, pass_expires_at, pass_extension_until")
+      .select("id, lesson_credits, lesson_duration_minutes, pass_registered_at, pass_first_lesson_at, pass_expires_at, pass_extension_until, manual_enrollment_status")
       .eq("id", studentId)
       .eq("is_active", true)
       .single();
 
+    if (studentResult.error && String(studentResult.error.message || "").includes("manual_enrollment_status")) {
+      // Preview/rolling deployments must remain usable until the additive migration is applied.
+      studentResult = await supabase.from("students")
+        .select("id, lesson_credits, lesson_duration_minutes, pass_registered_at, pass_first_lesson_at, pass_expires_at, pass_extension_until")
+        .eq("id", studentId).eq("is_active", true).single();
+    }
     if (studentResult.error && isMissingPassColumnError(studentResult.error)) {
       studentResult = await supabase
         .from("students")
@@ -66,6 +72,10 @@ export async function POST(request: Request) {
 
     if (studentResult.error) throw studentResult.error;
     const student = studentResult.data;
+    if (student.manual_enrollment_status === "paused" || student.manual_enrollment_status === "withdrawn") {
+      return NextResponse.json({ message: "휴원 또는 퇴원으로 지정된 수강생은 직접 예약할 수 없습니다. 문장학교로 문의해 주세요." }, { status: 403 });
+    }
+
 
     const currentCredits = Number(student.lesson_credits || 0);
     if (currentCredits <= 0) {
@@ -238,8 +248,13 @@ export async function POST(request: Request) {
 
     const nextCredits = Math.max(0, Number((currentCredits - creditCost).toFixed(2)));
     const studentUpdate: Record<string, unknown> = { lesson_credits: nextCredits };
-    if (shouldApplyRegularPassPolicy(student) && !student.pass_first_lesson_at) {
-      const firstLessonDateKey = dateKeyInKst(new Date(slot.start_at));
+    const firstLessonDateKey = dateKeyInKst(new Date(slot.start_at));
+    if (shouldApplyRegularPassPolicy(student)
+        && firstLessonDateKey >= String(student.pass_registered_at || "")
+        && (!student.pass_first_lesson_at
+          || student.pass_first_lesson_at < student.pass_registered_at
+          || firstLessonDateKey < student.pass_first_lesson_at)) {
+      // If an earlier class is booked later, advance the new pass's first lesson and ten-week deadline.
       studentUpdate.pass_first_lesson_at = firstLessonDateKey;
       studentUpdate.pass_expires_at = calculatePassExpirationDateKey(firstLessonDateKey);
     }
