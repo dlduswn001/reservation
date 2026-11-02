@@ -14,6 +14,8 @@ import {
   reservationCutoffDate,
   overlapsAnyTimeBlock,
   WEEKDAY_VISIBLE_TIMETABLE_START_TIMES,
+  EXTENDED_WEEKDAY_START_TIMES,
+  EXTENDED_WEEKEND_START_TIMES,
   WEEKEND_REGULAR_START_TIMES,
   WEEKEND_REGULAR_START_TIMES_45,
   WEEKEND_LIFESTYLE_START_TIMES,
@@ -430,12 +432,17 @@ export async function GET(request: Request) {
     for (const dateKey of activeClassDateKeys) {
       const [year, month, day] = dateKey.split("-").map(Number);
       const weekday = new Date(Date.UTC(year, month - 1, day)).getUTCDay();
-      const times = weekday === 0 || weekday === 6
-        ? [...(lessonMinutes === 45 ? WEEKEND_REGULAR_START_TIMES_45 : WEEKEND_REGULAR_START_TIMES), ...WEEKEND_LIFESTYLE_START_TIMES]
-        : WEEKDAY_VISIBLE_TIMETABLE_START_TIMES;
+      // The opt-in 120-minute learner only sees their own six start-time choices.
+      // In particular, never synthesize closed 45-minute lifestyle rows.
+      const times = extendedSelfBookingAllowed
+        ? (weekday === 0 || weekday === 6 ? EXTENDED_WEEKEND_START_TIMES : EXTENDED_WEEKDAY_START_TIMES)
+        : weekday === 0 || weekday === 6
+          ? [...(lessonMinutes === 45 ? WEEKEND_REGULAR_START_TIMES_45 : WEEKEND_REGULAR_START_TIMES), ...WEEKEND_LIFESTYLE_START_TIMES]
+          : WEEKDAY_VISIBLE_TIMETABLE_START_TIMES;
       for (const time of times) {
         const [hour, minute] = time.split(":").map(Number);
         const startAt = kstDateTimeToIso(year, month, day, hour, minute);
+        if (extendedSelfBookingAllowed && !isExtendedLessonSlot(startAt)) continue;
         if (seenStartTimes.has(startInstant(startAt))) continue;
         const duration = getReservationLessonMinutes(startAt, lessonMinutes);
         const lifestyle = isLifestyleLessonSlot(startAt);
