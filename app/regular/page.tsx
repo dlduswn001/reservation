@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import type { CSSProperties } from "react";
 import BottomNav from "../components/BottomNav";
 import { disconnectPushOnLogout } from "../../lib/pushClient";
-import { isExtendedLessonSlot } from "../../lib/businessRules";
+import { isExtended120VisibleSlot } from "../../lib/businessRules";
 
 type Student = {
   id: string;
@@ -306,7 +306,7 @@ export default function RegularPage() {
           // Defensive UI filter: reject any 45-minute, lifestyle or unscheduled rows
           // even if an older cached/server response still contains them.
           if (isExtended120Calendar &&
-              (Number(slot.lesson_minutes) !== 120 || slot.is_lifestyle === true || !isExtendedLessonSlot(slot.start_at))) {
+              !isExtended120VisibleSlot(slot)) {
             continue;
           }
           const start = new Date(slot.start_at).getTime();
@@ -723,8 +723,6 @@ export default function RegularPage() {
             <div style={styles.reservationHeader}>
               <div>
                 <h2 style={styles.reservationTitle}>예약 가능한 날짜</h2>
-                {extendedAutoBookable && <p style={styles.helperText}>120분 정규수업 · 수~금 오후 2시/5시/7시 · 토·일 오전 10시/오후 1시/2시 40분. 월·화는 휴무이며 수업 시간이 겹칠 때만 마감됩니다.</p>}
-                <p style={styles.helperText}>표시되지 않는 일정은 예약 마감된 일정입니다.</p>
               </div>
               <button
                 className="secondary compact"
