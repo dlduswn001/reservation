@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import type { CSSProperties } from "react";
 import BottomNav from "../components/BottomNav";
 import { disconnectPushOnLogout } from "../../lib/pushClient";
+import { isExtendedLessonSlot } from "../../lib/businessRules";
 
 type Student = {
   id: string;
@@ -11,6 +12,7 @@ type Student = {
   phone_last4: string;
   lesson_credits?: number;
   lesson_duration_minutes?: number;
+  extended_self_booking_enabled?: boolean;
   pass_registered_at?: string | null;
   pass_first_lesson_at?: string | null;
   pass_expires_at?: string | null;
@@ -64,7 +66,7 @@ type OpenMonth = {
 };
 
 const STUDENT_LOGIN_STORAGE_KEY = "munjangStudentLogin";
-const SLOT_CACHE_STORAGE_KEY = "munjangRegularSlotCacheV37";
+const SLOT_CACHE_STORAGE_KEY = "munjangRegularSlotCacheV38";
 
 const STATUS_LABELS: Record<string, string> = {
   booked: "예약 완료",
@@ -282,7 +284,7 @@ export default function RegularPage() {
     const slotParams = new URLSearchParams({
       studentId,
       lessonMinutes: String(lessonMinutes),
-      v: "36",
+      v: "38",
       _: String(Date.now()),
     });
     const slotRequest = fetch(`/api/slots?${slotParams.toString()}`, { cache: "no-store" })
@@ -290,7 +292,8 @@ export default function RegularPage() {
         const slotJson = await slotRes.json();
         if (!slotRes.ok) throw new Error(slotJson.message || "예약 가능한 시간을 불러오지 못했습니다.");
         // A 120-minute student uses the same calendar when the server grants self-booking.
-        setExtendedAutoBookable(Number(lessonMinutes) === 120 && slotJson.requires_direct_scheduling !== true);
+        const isExtended120Calendar = Number(lessonMinutes) === 120 && slotJson.requires_direct_scheduling !== true;
+        setExtendedAutoBookable(isExtended120Calendar);
         // One timeline row per real start instant, even if an older API response
         // mixes "+00:00" DB dates with ".000Z" generated closed entries.
         const byStart = new Map<number, Slot>();
@@ -300,6 +303,12 @@ export default function RegularPage() {
           ...(slotJson.waitlist_slots || []),
           ...(slotJson.closed_slots || []),
         ] as Slot[]) {
+          // Defensive UI filter: reject any 45-minute, lifestyle or unscheduled rows
+          // even if an older cached/server response still contains them.
+          if (isExtended120Calendar &&
+              (Number(slot.lesson_minutes) !== 120 || slot.is_lifestyle === true || !isExtendedLessonSlot(slot.start_at))) {
+            continue;
+          }
           const start = new Date(slot.start_at).getTime();
           if (!Number.isFinite(start)) continue;
           const previous = byStart.get(start);
@@ -540,6 +549,7 @@ export default function RegularPage() {
   }
 
   const studentLessonMinutes = Number(student?.lesson_duration_minutes ?? 90);
+  const isExtended120Student = studentLessonMinutes === 120 && student?.extended_self_booking_enabled === true;
   const isDirectScheduleStudent = studentLessonMinutes === 120 && !extendedAutoBookable;
   const lifestyleCreditText = studentLessonMinutes === 45 ? "수강권 1회" : "수강권 0.5회";
 
@@ -606,15 +616,24 @@ export default function RegularPage() {
                   <span className="noticeIcon">기간</span>
                   <p><strong>4회 정규수강권</strong>은 첫 수업일로부터 <strong>10주 동안</strong> 사용할 수 있습니다.</p>
                 </div>
+                {!isExtended120Student && (
                 <div className="noticeItem">
                   <span className="noticeIcon">생활</span>
                   <p><strong>1:1 서평생활</strong>과 <strong>1:1 필사생활</strong>은 45분 수업입니다. 45분 수강권은 <strong>1회</strong>, 90분 수강권은 <strong>0.5회</strong>가 차감됩니다.</p>
                 </div>
+                )}
               </div>
+              {isExtended120Student ? (
+                <p className="small" style={{marginTop: 12, marginBottom: 0}}>
+                  120분 정규수업만 예약할 수 있습니다. 예약 가능한 시간은 <strong>예약하기</strong>,
+                  이미 예약되었거나 겹치는 시간은 <strong>마감</strong>으로 표시됩니다.
+                </p>
+              ) : (
               <p className="small" style={{marginTop: 12, marginBottom: 0}}>
                 예약 가능한 수업은 <strong>예약하기</strong>, 이미 예약된 수업은 <strong>대기 신청</strong>,
                 예약과 대기 신청이 모두 불가능한 시간은 <strong>마감</strong>으로 표시됩니다.
               </p>
+              )}
             </div>
           </div>
         )}
