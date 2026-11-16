@@ -1,7 +1,7 @@
 "use client";
 
 import BookingTuitionEditor from "./BookingTuitionEditor";
-import { bookingOrigin, lessonFee } from "../../lib/bookingRevenue";
+import { bookingOrigin, isPrepaidPassBooking, lessonFee } from "../../lib/bookingRevenue";
 import type { LessonBooking, LessonTuition } from "../../lib/bookingRevenue";
 import type { BookingTuition } from "../../lib/bookingTuition";
 
@@ -14,7 +14,7 @@ type Props = {
 
 /** A prepaid pass has already been paid. Only manager-entered classes need a payment editor. */
 export default function BookingTuitionField({ booking, tuition, password, onSaved }: Props) {
-  if (bookingOrigin(booking) === "admin") {
+  if (bookingOrigin(booking) === "admin" && !isPrepaidPassBooking(booking)) {
     return <BookingTuitionEditor bookingId={booking.id} password={password} onSaved={onSaved} />;
   }
   const amount = lessonFee(booking, tuition);
