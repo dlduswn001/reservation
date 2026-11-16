@@ -431,17 +431,18 @@ export function conflictsWithRegularBookingsAllowingContinuous(
 export function conflictsWithOneDayBlocks(
   candidateStartAt: string,
   candidateEndAt: string,
-  blocks: TimeBlock[] = [],
-  prepMinutes = ONEDAY_PREP_MINUTES
+  blocks: Array<TimeBlock & {class_kind?:string|null}> = [],
+  prepMinutes = ONEDAY_PREP_MINUTES,
+  continuous120 = false,
 ) {
   return blocks.some((block) => {
+    // Freewriting occupies the whole 12:00-14:00 interval, but a specially
+    // authorized 120-minute lesson may hand over exactly at noon.
     if (overlaps(candidateStartAt, candidateEndAt, block.start_at, block.end_at)) return true;
-
-    // 정규수업이 원데이 클래스보다 먼저 끝나는 경우, 원데이 시작 전 최소 준비 시간을 확보합니다.
+    const actualPrep = continuous120 && block.class_kind === "freewriting" ? 0 : prepMinutes;
     if (new Date(candidateEndAt).getTime() <= new Date(block.start_at).getTime()) {
-      return minutesBetweenIso(candidateEndAt, block.start_at) < prepMinutes;
+      return minutesBetweenIso(candidateEndAt, block.start_at) < actualPrep;
     }
-
     return false;
   });
 }
