@@ -2,14 +2,13 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { House, Ticket, CalendarDays, ClipboardList, UserRound } from "lucide-react";
+import { House, Ticket, CalendarDays, ClipboardList } from "lucide-react";
 
 const navItems = [
   { href: "/", label: "홈", Icon: House, match: (path: string) => path === "/" },
   { href: "/passes", label: "수강권", Icon: Ticket, match: (path: string) => path.startsWith("/passes") },
   { href: "/book", label: "수업예약", Icon: CalendarDays, match: (path: string) => path.startsWith("/book") || path.startsWith("/regular") || path.startsWith("/oneday") },
   { href: "/history", label: "이용내역", Icon: ClipboardList, match: (path: string) => path.startsWith("/history") },
-  { href: "/profile", label: "마이페이지", Icon: UserRound, match: (path: string) => path.startsWith("/profile") },
 ];
 
 export default function BottomNav() {
