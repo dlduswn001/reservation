@@ -37,8 +37,12 @@ const late=asIso(day,"17:30");
 const lifestyle=asIso(day,"16:30");
 const lifestyleEnd=rules.lessonEndIso(lifestyle,45);
 assert.equal(rules.conflictsWithRegularBookingsAllowingContinuous(late,rules.lessonEndIso(late,90),
+ [{start_at:lifestyle,end_at:lifestyleEnd}],false),false,
+ "16:30-17:15 lifestyle booking may be followed by 17:30 regular lesson (15-minute gap).");
+assert.equal(rules.conflictsWithRegularBookingsAllowingContinuous(asIso(day,"17:00"),
+ rules.lessonEndIso(asIso(day,"17:00"),90),
  [{start_at:lifestyle,end_at:lifestyleEnd}],false),true,
- "The usual break policy still protects 16:30 lifestyle appointments.");
+ "An actually overlapping lesson must still be blocked.");
 const club={start_at:asIso(day,"12:00"),end_at:asIso(day,"14:00"),class_kind:"freewriting"};
 assert.equal(rules.conflictsWithOneDayBlocks(late,rules.lessonEndIso(late,90),[club]),false);
 const page=src("../app/regular/page.tsx");
