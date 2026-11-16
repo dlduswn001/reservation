@@ -281,7 +281,7 @@ export async function GET(request: Request) {
 
     const { data: onedayClasses, error: onedayError } = await supabase
       .from("oneday_classes")
-      .select("id, start_at, end_at, is_open")
+      .select("id, start_at, end_at, is_open, class_kind")
       .gte("end_at", cutoff)
       .lte("start_at", searchRange.rangeEndIso);
     if (onedayError) throw onedayError;
@@ -304,6 +304,10 @@ export async function GET(request: Request) {
     const activeBookings = bookings || [];
     const activeOnedayBlocks = (onedayClasses || []).filter((klass: any) => klass.is_open !== false);
     const activeBlockedTimes = blockedTimes || [];
+    const freewritingBlocks = activeOnedayBlocks.filter((c:any)=>c.class_kind==="freewriting");
+    const overlapsFreewritingSession = (startAt:string, lessonDuration:number) =>
+      overlapsAnyTimeBlock(startAt, lessonEndIso(startAt,lessonDuration), freewritingBlocks);
+
 
     const slotDateKey = (startAt: string) => {
       const parts = kstParts(new Date(startAt));
@@ -339,7 +343,7 @@ export async function GET(request: Request) {
 
       const slotLessonMinutes = getReservationLessonMinutes(slot.start_at, lessonMinutes);
       const candidateEndAt = lessonEndIso(slot.start_at, slotLessonMinutes);
-      if (conflictsWithOneDayBlocks(slot.start_at, candidateEndAt, activeOnedayBlocks)) return false;
+      if (conflictsWithOneDayBlocks(slot.start_at, candidateEndAt, activeOnedayBlocks, undefined, extendedSelfBookingAllowed)) return false;
       if (overlapsAnyTimeBlock(slot.start_at, candidateEndAt, activeBlockedTimes)) return false;
 
       return true;
@@ -403,6 +407,7 @@ export async function GET(request: Request) {
     const closedSlots = slots
       .filter((slot) => activeClassDateKeys.has(slotDateKey(slot.start_at))
         && isAllowedLessonDateAndTime(slot)
+        && !overlapsFreewritingSession(slot.start_at,getReservationLessonMinutes(slot.start_at,lessonMinutes))
         && (!isSlotAvailable(slot) || (extendedSelfBookingAllowed && isRegularOccupied(slot))))
       .map((slot) => {
         const duration = getReservationLessonMinutes(slot.start_at, lessonMinutes);
@@ -445,6 +450,9 @@ export async function GET(request: Request) {
         if (extendedSelfBookingAllowed && !isExtendedLessonSlot(startAt)) continue;
         if (seenStartTimes.has(startInstant(startAt))) continue;
         const duration = getReservationLessonMinutes(startAt, lessonMinutes);
+        // The club itself is shown below the regular calendar; do not invent a
+        // duplicate 12:00/13:00 regular "closed" entry on club Saturdays.
+        if (overlapsFreewritingSession(startAt,duration)) continue;
         const lifestyle = isLifestyleLessonSlot(startAt);
         closedSlots.push({
           id: `closed:${startAt}`,

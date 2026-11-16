@@ -2058,6 +2058,9 @@ export default function AdminPage() {
           <strong>관리자</strong>
         </div>
         <div className="adminHeaderActions">
+          <Link href="/admin/notices" className="adminPublicLink" aria-label="문장학교 공지사항 관리">
+            공지 관리
+          </Link>
           <Link href="/admin/studio" className="adminPublicLink" aria-label="문장학교 운영 작업실로 이동">
             운영 작업실
           </Link>
