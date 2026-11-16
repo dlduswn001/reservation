@@ -68,7 +68,7 @@ const context={
  }
 };
 const js=ts.transpileModule(src,{compilerOptions:{module:ts.ModuleKind.CommonJS}}).outputText;
-vm.runInNewContext(js + "\\nexports.__checkId = value => UUID.test(value);",context);
+vm.runInNewContext(js + "\nexports.__checkId = value => UUID.test(value);",context);
 const get=()=>context.exports.GET();
 const post=body=>context.exports.POST(new Request("http://localhost/api/freewriting",{
  method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(body)
