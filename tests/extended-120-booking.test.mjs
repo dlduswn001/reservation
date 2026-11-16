@@ -119,7 +119,8 @@ assert.match(regularPage,/extendedAutoBookable/);
 assert.match(regularPage,/const isDirectScheduleStudent = studentLessonMinutes === 120 && !extendedAutoBookable/);
 
 assert.match(slotsRoute,/student\.extended_self_booking_enabled === true/);
-assert.match(slotsRoute,/extendedSelfBookingAllowed && !isExtendedLessonSlot\(slot\.start_at\)/);
+assert.match(slotsRoute,/extendedSelfBookingAllowed &&/);
+assert.match(slotsRoute,/!\["Sat","Sun"\]\.includes\(slotWeekday\(slot\.start_at\)\)/);
 assert.match(slotsRoute,/extendedSelfBookingAllowed && isRegularOccupied\(slot\)/);
 assert.match(slotsRoute,/!extendedSelfBookingAllowed && isSlotAvailable\(slot\) && isRegularOccupied\(slot\)/);
 assert.match(slotsRoute,/slot\.is_open === false/);
