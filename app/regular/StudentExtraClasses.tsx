@@ -15,7 +15,7 @@ export default function StudentExtraClasses({student,onChanged}:{student:Student
  const [error,setError]=useState("");
  const refresh=useCallback(async()=>{
   const [a,b,c]=await Promise.all([
-   fetch("/api/freewriting?studentId="+encodeURIComponent(student.id),{cache:"no-store"}),
+   fetch("/api/freewriting",{cache:"no-store"}),
    fetch("/api/oneday",{cache:"no-store"}),
    fetch("/api/student/history?studentId="+encodeURIComponent(student.id),{cache:"no-store"})
   ]);
@@ -26,6 +26,7 @@ export default function StudentExtraClasses({student,onChanged}:{student:Student
  useEffect(()=>{let active=true;setLoading(true);refresh().catch(e=>{if(active)setError(String(e.message||e));}).finally(()=>{if(active)setLoading(false);});return()=>{active=false;};},[refresh]);
  const isClubStudent=[45,90].includes(Number(student.lesson_duration_minutes));
  const cost=Number(student.lesson_duration_minutes)===45?1:0.5;
+ const myFreeBooking=(id:string)=>history.find(b=>b.class_id===id&&b.status==="등록완료")?.id||null;
  async function send(action:"book"|"cancel"|"oneday"|"oneday-cancel",id:string){
   if(busy)return;
   const message=action==="book"?"프리 라이팅 클럽 수강권 "+cost+"회를 차감하고 신청하시겠습니까?"
@@ -62,7 +63,7 @@ export default function StudentExtraClasses({student,onChanged}:{student:Student
    {free.map(c=><div key={c.id} style={card}>
     <strong>{time(c.start_at)}~14:00</strong>
     <p className="small" style={{margin:"7px 0"}}>신청 {c.booked_count}/{c.capacity}명</p>
-    {c.my_booking?<button type="button" style={button} disabled={busy||new Date(c.start_at).getTime()<=Date.now()+10800000} onClick={()=>void send("cancel",c.my_booking!)}>신청 취소 · 수강권 환급</button>
+    {myFreeBooking(c.id)?<button type="button" style={button} disabled={busy||new Date(c.start_at).getTime()<=Date.now()+10800000} onClick={()=>void send("cancel",myFreeBooking(c.id)!)}>신청 취소 · 수강권 환급</button>
     :<button type="button" style={button} disabled={busy||c.booked_count>=c.capacity||Number(student.lesson_credits)<cost||new Date(c.start_at).getTime()<=Date.now()+10800000} onClick={()=>void send("book",c.id)}>{c.booked_count>=c.capacity?"정원 마감":"클럽 신청하기"}</button>}
    </div>)}
   </section>}
