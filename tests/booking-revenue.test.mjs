@@ -39,6 +39,7 @@ assert.equal(day.priced,3);
 assert.equal(day.unpriced,0);
 assert.equal(day.total,297500);
 assert.equal(day.confirmed,32500);
-assert.equal(revenue.dailyLessonRevenue([b1],[tuitionRow("1",120,120)],"2026-10-19").unpriced,1);
+assert.equal(revenue.dailyLessonRevenue([b1],[tuitionRow("1",120,120)],"2026-10-19").unpriced,0);
+assert.equal(revenue.dailyLessonRevenue([b1],[tuitionRow("1",120,120)],"2026-10-19").total,80000);
 assert.equal(revenue.monthlyLessonRevenue([b1,b2,b3,b4],rows,"2026-10").length,1);
 console.log("Daily booking fee accounting tests passed");
