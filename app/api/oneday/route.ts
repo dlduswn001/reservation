@@ -36,6 +36,7 @@ export async function GET() {
       .from("oneday_classes")
       .select("id, title, start_at, end_at, capacity, regular_price, normal_price, description, is_open")
       .eq("is_open", true)
+      .eq("class_kind", "oneday")
       .gte("start_at", nowIso)
       .order("start_at", { ascending: true });
     if (classError) throw classError;
@@ -120,10 +121,15 @@ export async function POST(request: Request) {
     const studentName = String(body.student_name || "").trim();
     const last4 = String(body.phone_last4 || "").trim();
     const count = Number(body.people_count);
-    if (!classId || !studentName || !/^\\d{4}$/.test(last4) || ![1, 2].includes(count)) {
+    if (!classId || !studentName || !/^[0-9]{4}$/.test(last4) || ![1, 2].includes(count)) {
       return NextResponse.json({ message: "신청 정보를 확인해 주세요." }, { status: 400 });
     }
     const supabase = getSupabaseAdmin();
+    // Old one-day registration cannot bypass the credit-based freewriting RPC.
+    const { data: klass, error: classError } = await supabase.from("oneday_classes")
+      .select("class_kind").eq("id",classId).maybeSingle();
+    if(classError)throw classError;
+    if(!klass || klass.class_kind!=="oneday")return NextResponse.json({message:"이 수업은 정규수업 예약에서 신청해 주세요."},{status:400});
     const { data, error } = await supabase.rpc("munjang_oneday_join_waitlist", {
       p_class_id: classId, p_student_name: studentName,
       p_phone_last4: last4, p_people_count: count,
