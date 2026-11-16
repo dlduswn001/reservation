@@ -58,6 +58,8 @@ assert.match(studentUI,/extra_capacity:c\.capacity/);
 const calendarPage=read("../app/regular/page.tsx");
 assert.match(calendarPage,/useStudentExtraClasses/);
 assert.match(calendarPage,/클럽 신청하기/);
+assert.ok(calendarPage.includes('slot.extra_kind === "freewriting" ? "120분"'), "Freewriting duration badge should say 120분");
+
 assert.match(calendarPage,/생활·클럽/,"Lifestyle and club credits must be a single notice");
 assert.ok(calendarPage.includes("slot.extra_count ?? 0") && calendarPage.includes("slot.extra_capacity ?? 5"),
   "Each club card must display the exact 0/5 capacity");
@@ -70,6 +72,12 @@ const menu=read("../app/book/page.tsx");
 const home=read("../app/page.tsx");
 assert.doesNotMatch(menu,/href="\/oneday"/);
 assert.doesNotMatch(home,/href="\/oneday"/);
+assert.match(home,/pinnedNoticeTitle/,"Home should show the pinned notice headline");
+assert.match(home,/upcoming\[0\]/,"Home should show only the nearest upcoming lesson");
+assert.match(home,/gridTemplateColumns:"28px 96px minmax\(0,1fr\) 17px"/,"Home should use one line for each major item");
+const bottomNav=read("../app/components/BottomNav.tsx");
+assert.doesNotMatch(bottomNav,/label: "마이페이지"/);
+
 const history=read("../app/api/student/history/route.ts");
 assert.match(history,/onedayBookings/);
 assert.match(history,/mergedOneDay/);
