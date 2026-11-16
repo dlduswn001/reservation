@@ -77,6 +77,14 @@ type OpenMonth = {
 const STUDENT_LOGIN_STORAGE_KEY = "munjangStudentLogin";
 const SLOT_CACHE_STORAGE_KEY = "munjangRegularSlotCacheV38";
 
+/** Days are interpreted as calendar dates in Korea, independent of the browser locale. */
+function isWeekdayInquiryDateKey(dateKey: string) {
+  if (!/^\\d{4}-\\d{2}-\\d{2}$/.test(dateKey)) return false;
+  const [y,m,d] = dateKey.split("-").map(Number);
+  return [3,4,5].includes(new Date(Date.UTC(y,m-1,d)).getUTCDay());
+}
+
+
 const STATUS_LABELS: Record<string, string> = {
   booked: "예약 완료",
   change_request: "변경 요청",
@@ -462,21 +470,42 @@ export default function RegularPage() {
 
   const visibleBookings = bookingSection === "upcoming" ? upcomingBookings : completedBookings;
   const upcomingExtraBookings = extras.upcomingBooked;
+  const isExtended120Student = Number(student?.lesson_duration_minutes ?? 90) === 120
+    && (student?.extended_self_booking_enabled === true || extendedAutoBookable);
 
   const slotsByDate = useMemo(() => {
     const grouped: Record<string, Slot[]> = {};
-    // Merge regular slots and the club / one-day events into ONE date timeline.
-    // A 120-minute pass never receives the freewriting entries.
+    // Merge real regular slots and club sessions. On this opt-in 120-minute
+    // calendar, weekday lesson rows are never shown (they require Kakao inquiry).
     for (const slot of [...slots, ...extras.entries]) {
       const key = seoulDateKey(slot.start_at);
+      if (isExtended120Student && isWeekdayInquiryDateKey(key)) continue;
       if (!grouped[key]) grouped[key] = [];
       grouped[key].push(slot);
+    }
+    if (isExtended120Student) {
+      const months = new Set([
+        ...availableMonths.map(month => month.key),
+        ...Object.keys(grouped).map(key => key.slice(0,7)),
+        ...(openMonth?.key ? [openMonth.key] : []),
+      ]);
+      const today = seoulDateKey(new Date(currentTime));
+      for (const monthKey of months) {
+        if (!/^\\d{4}-\\d{2}$/.test(monthKey)) continue;
+        const [year,month] = monthKey.split("-").map(Number);
+        if (month < 1 || month > 12) continue;
+        const count = new Date(Date.UTC(year,month,0)).getUTCDate();
+        for (let day=1;day<=count;day++) {
+          const key = `${monthKey}-${String(day).padStart(2,"0")}`;
+          if (key >= today && isWeekdayInquiryDateKey(key)) grouped[key] = [];
+        }
+      }
     }
     for (const key of Object.keys(grouped)) {
       grouped[key].sort((a, b) => new Date(a.start_at).getTime() - new Date(b.start_at).getTime());
     }
     return grouped;
-  }, [slots, extras.entries]);
+  }, [slots, extras.entries, availableMonths, openMonth?.key, isExtended120Student, currentTime]);
 
   const availableDateKeys = useMemo(() => {
     return Object.keys(slotsByDate).sort((a, b) => a.localeCompare(b));
@@ -522,6 +551,7 @@ export default function RegularPage() {
   }, [availableDateKeys, activeCalendarMonth, dateKeysByMonth]);
 
   const selectedSlots = selectedDate ? slotsByDate[selectedDate] || [] : [];
+  const selectedInquiryDay = isExtended120Student && isWeekdayInquiryDateKey(selectedDate || "");
   // A started lesson no longer has a live queue, even before the next refresh.
   const visibleWaitlist = waitlist.filter((item) => (
     item.available_slots?.start_at
@@ -567,7 +597,6 @@ export default function RegularPage() {
   }
 
   const studentLessonMinutes = Number(student?.lesson_duration_minutes ?? 90);
-  const isExtended120Student = studentLessonMinutes === 120 && (student?.extended_self_booking_enabled === true || extendedAutoBookable);
   const isDirectScheduleStudent = studentLessonMinutes === 120 && !extendedAutoBookable;
   const lifestyleCreditText = studentLessonMinutes === 45 ? "수강권 1회" : "수강권 0.5회";
 
@@ -640,11 +669,16 @@ export default function RegularPage() {
                     <p><strong>생활수업(45분)과 프리 라이팅 클럽</strong>은 45분 수강권 <strong>1회</strong>, 90분 수강권 <strong>0.5회</strong>가 차감됩니다.</p>
                   </div>
                 )}
+                {isExtended120Student && (
+                  <div className="noticeItem">
+                    <span className="noticeIcon">클럽</span>
+                    <p><strong>프리 라이팅 클럽은 무료</strong>이며, 120분 수강권이 차감되지 않습니다.</p>
+                  </div>
+                )}
               </div>
               {isExtended120Student ? (
                 <p className="small" style={{marginTop: 12, marginBottom: 0}}>
-                  120분 정규수업만 예약할 수 있습니다. 예약 가능한 시간은 <strong>예약하기</strong>,
-                  이미 예약되었거나 겹치는 시간은 <strong>마감</strong>으로 표시됩니다.
+                  토·일요일은 120분 수업과 클럽을 예약하고, 수·목·금요일은 날짜 선택 후 카카오톡으로 문의해 주세요.
                 </p>
               ) : (
               <p className="small" style={{marginTop: 12, marginBottom: 0}}>
@@ -710,7 +744,9 @@ export default function RegularPage() {
                   <div>
                     <strong>{formatDateTime(entry.start_at)} - {formatTime(entry.end_at)}</strong>
                     <p className="small">{entry.extra_title} · {entry.extra_booking_status === "대기" ? "대기 중" : "신청 완료"}
-                      {entry.extra_kind === "freewriting" ? ` · 수강권 ${entry.credit_cost}회 사용` : ""}
+                      {entry.extra_kind === "freewriting"
+                        ? (entry.credit_cost === 0 ? " · 무료 참여" : ` · 수강권 ${entry.credit_cost}회 사용`)
+                        : ""}
                     </p>
                   </div>
                   {entry.extra_booking_status !== "대기" &&
@@ -812,7 +848,9 @@ export default function RegularPage() {
                             const daySlots = slotsByDate[dateKey] || [];
                             const hasBookable = daySlots.some((item) => !item.is_waitlist && !item.is_closed);
                             const hasWaitlist = daySlots.some((item) => item.is_waitlist);
-                            const dayStatus = !available ? "예약 불가" : hasBookable ? "예약 가능" : hasWaitlist ? "대기 가능" : "마감";
+                            const dayStatus = !available ? "예약 불가"
+                              : isExtended120Student && isWeekdayInquiryDateKey(dateKey) ? "카카오톡 문의"
+                              : hasBookable ? "예약 가능" : hasWaitlist ? "대기 가능" : "마감";
                             const selected = selectedDate === dateKey;
                             return (
                               <button
@@ -838,11 +876,27 @@ export default function RegularPage() {
 
                 <div className="selectedSlots" style={styles.selectedSlots}>
                   <h3 style={styles.selectedDateTitle}>{selectedDate ? formatDateLabel(selectedDate) : "예약 가능한 시간"}</h3>
-                  {(student.lesson_credits ?? 0) <= 0 && <p className="error">잔여 수강권이 없어 예약할 수 없습니다. 관리자에게 문의해 주세요.</p>}
-                  {selectedSlots.length === 0 && <p>선택한 날짜에는 예약하거나 대기할 수 있는 수업이 없습니다.</p>}
+                  {selectedInquiryDay && (
+                    <div className="noticeBox" style={{margin:"12px 0",padding:16,borderRadius:14}}>
+                      <strong>수·목·금요일 120분 수업은 개별 일정 조율</strong>
+                      <p style={{fontSize:13,lineHeight:1.6,margin:"8px 0 12px"}}>
+                        희망 날짜와 시간을 문장학교 카카오톡으로 문의해 주세요.
+                      </p>
+                      <a href="http://pf.kakao.com/_xcxbGwn/chat" target="_blank"
+                        rel="noopener noreferrer" className="button" style={{display:"inline-block"}}>
+                        카카오톡으로 문의하기
+                      </a>
+                    </div>
+                  )}
+                  {!selectedInquiryDay && (student.lesson_credits ?? 0) <= 0 &&
+                    <p className="error">{isExtended120Student
+                      ? "정규수업 수강권은 남아 있지 않지만 프리 라이팅 클럽은 무료로 신청할 수 있습니다."
+                      : "잔여 수강권이 없어 예약할 수 없습니다. 관리자에게 문의해 주세요."}</p>}
+                  {!selectedInquiryDay && selectedSlots.length === 0 &&
+                    <p>선택한 날짜에는 예약하거나 대기할 수 있는 수업이 없습니다.</p>}
 
                   <div style={styles.timelineList} aria-label="선택 날짜 수업 시간표">
-                    {selectedSlots.map((slot, index) => (
+                    {!selectedInquiryDay && selectedSlots.map((slot, index) => (
                       <div key={slot.id} style={styles.timelineRow}>
                         <div style={styles.timelineRail} aria-hidden="true">
                           <span style={styles.timelineDot} />
@@ -860,7 +914,9 @@ export default function RegularPage() {
                           <p style={styles.timelineDescription}>
                             {slot.extra_kind
                               ? (slot.extra_kind === "freewriting"
-                                ? `프리 라이팅 클럽 · 신청 ${slot.extra_count ?? 0}/${slot.extra_capacity ?? 5}명 · 수강권 ${slot.credit_cost}회 차감`
+                                ? `프리 라이팅 클럽 · 신청 ${slot.extra_count ?? 0}/${slot.extra_capacity ?? 5}명 · ${Number(slot.credit_cost)===0
+                                    ? "무료 참여 (수강권 차감 없음)"
+                                    : `수강권 ${slot.credit_cost}회 차감`}`
                                 : `${slot.extra_title || "원데이 클래스"} · 신청 ${slot.extra_count || 0}/${slot.extra_capacity || 6}명`)
                               : (slot.rule_label || (slot.is_lifestyle
                                   ? `1:1 서평생활 / 필사생활 · ${lifestyleCreditText} 차감`
