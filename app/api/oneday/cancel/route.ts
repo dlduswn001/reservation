@@ -23,10 +23,16 @@ export async function POST(request: Request) {
     const bookingId = String(body.bookingId || "").trim();
     const name = String(body.student_name || "").trim();
     const phone = String(body.phone_last4 || "").trim();
-    if (!bookingId || !name || !/^\\d{4}$/.test(phone)) {
+    if (!bookingId || !name || !/^[0-9]{4}$/.test(phone)) {
       return NextResponse.json({ message: "신청자 정보를 확인해 주세요." }, { status: 400 });
     }
     const supabase = getSupabaseAdmin();
+    const { data: booking, error: lookupError } = await supabase.from("oneday_bookings")
+      .select("id, oneday_classes(class_kind)").eq("id",bookingId).maybeSingle();
+    if(lookupError)throw lookupError;
+    const klass=booking?.oneday_classes as unknown as {class_kind?:string}|null;
+    if(klass?.class_kind==="freewriting")
+      return NextResponse.json({message:"프리 라이팅 클럽은 정규수업 예약에서 취소해 주세요."},{status:400});
     const { data, error } = await supabase.rpc("munjang_oneday_cancel_and_promote", {
       p_booking_id: bookingId, p_student_name: name, p_phone_last4: phone,
     });
