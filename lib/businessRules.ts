@@ -138,10 +138,21 @@ export function isLifestyleLessonSlot(startAt: string) {
   return false;
 }
 
+/** December 2026 Saturday-only extra regular class, 17:30-19:00 for 90-minute passes.
+ * A 45-minute pass may use the same start with its normal 45-minute duration.
+ * Not a 120-minute self-booking slot. */
+export function isDecemberSaturday1730(startAt:string) {
+  const day=dateKeyInKst(new Date(startAt));
+  const {weekday,hour,minute}=kstDateTimeParts(startAt);
+  return day>="2026-12-01" && day<="2026-12-31"
+    && weekday==="Sat" && hour===17 && minute===30;
+}
+
 export function isRegularLessonSlot(startAt: string) {
   if (!isOctoberTimetableDate(startAt)) return false;
   const { weekday, hour, minute } = kstDateTimeParts(startAt);
   const time = minutesToTime(hour * 60 + minute);
+  if (isDecemberSaturday1730(startAt)) return true;
   if (["Sat", "Sun"].includes(weekday)) return WEEKEND_REGULAR_START_TIMES.includes(time);
   if (["Mon", "Tue", "Wed", "Thu", "Fri"].includes(weekday)) return WEEKDAY_REGULAR_START_TIMES.includes(time);
   return false;
@@ -177,6 +188,7 @@ export function isRegularLessonSlotForStudent(startAt: string, lessonMinutes: un
   const time = minutesToTime(hour * 60 + minute);
 
   if (normalized === EXTENDED_LESSON_MINUTES) return isExtendedLessonSlot(startAt);
+  if (isDecemberSaturday1730(startAt)) return true;
 
   if (["Sat", "Sun"].includes(weekday)) {
     return (normalized === SHORT_LESSON_MINUTES
