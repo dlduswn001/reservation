@@ -5,7 +5,8 @@ import type { CSSProperties } from "react";
 import BottomNav from "../components/BottomNav";
 import { disconnectPushOnLogout } from "../../lib/pushClient";
 import { isExtended120VisibleSlot } from "../../lib/businessRules";
-import StudentExtraClasses from "./StudentExtraClasses";
+import { useStudentExtraClasses } from "./StudentExtraClasses";
+import type { ExtraClassSlot } from "./StudentExtraClasses";
 
 type Student = {
   id: string;
@@ -33,6 +34,13 @@ type Slot = {
   is_lifestyle?: boolean;
   is_waitlist?: boolean;
   is_closed?: boolean;
+  extra_kind?: "freewriting" | "oneday";
+  extra_title?: string;
+  extra_count?: number;
+  extra_capacity?: number;
+  extra_booking_id?: string | null;
+  extra_booking_status?: string | null;
+  class_id?: string;
 };
 
 type WaitEntry = {
@@ -238,6 +246,12 @@ export default function RegularPage() {
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
   const [currentTime, setCurrentTime] = useState(() => Date.now());
   const [bookingSection, setBookingSection] = useState<"upcoming" | "completed">("upcoming");
+  const extras=useStudentExtraClasses(student,async()=>{
+    if(!student)return;
+    await refreshStudent();
+    await loadData(student.id,{useCache:false});
+  });
+
 
   async function login(customName?: string, customPhoneLast4?: string, shouldRemember = rememberLogin) {
     const loginName = String(customName ?? name).trim();
@@ -450,7 +464,9 @@ export default function RegularPage() {
 
   const slotsByDate = useMemo(() => {
     const grouped: Record<string, Slot[]> = {};
-    for (const slot of slots) {
+    // Merge regular slots and the club / one-day events into ONE date timeline.
+    // A 120-minute pass never receives the freewriting entries.
+    for (const slot of [...slots, ...extras.entries]) {
       const key = seoulDateKey(slot.start_at);
       if (!grouped[key]) grouped[key] = [];
       grouped[key].push(slot);
@@ -459,7 +475,7 @@ export default function RegularPage() {
       grouped[key].sort((a, b) => new Date(a.start_at).getTime() - new Date(b.start_at).getTime());
     }
     return grouped;
-  }, [slots]);
+  }, [slots, extras.entries]);
 
   const availableDateKeys = useMemo(() => {
     return Object.keys(slotsByDate).sort((a, b) => a.localeCompare(b));
@@ -622,6 +638,12 @@ export default function RegularPage() {
                   <span className="noticeIcon">생활</span>
                   <p><strong>1:1 서평생활</strong>과 <strong>1:1 필사생활</strong>은 45분 수업입니다. 45분 수강권은 <strong>1회</strong>, 90분 수강권은 <strong>0.5회</strong>가 차감됩니다.</p>
                 </div>
+                )}
+                {[45,90].includes(studentLessonMinutes) && (
+                  <div className="noticeItem">
+                    <span className="noticeIcon">클럽</span>
+                    <p><strong>프리 라이팅 클럽</strong>은 45분 수강권 <strong>1회</strong>, 90분 수강권 <strong>0.5회</strong>를 사용합니다.</p>
+                  </div>
                 )}
               </div>
               {isExtended120Student ? (
@@ -808,6 +830,7 @@ export default function RegularPage() {
                   <h3 style={styles.selectedDateTitle}>{selectedDate ? formatDateLabel(selectedDate) : "예약 가능한 시간"}</h3>
                   {(student.lesson_credits ?? 0) <= 0 && <p className="error">잔여 수강권이 없어 예약할 수 없습니다. 관리자에게 문의해 주세요.</p>}
                   {selectedSlots.length === 0 && <p>선택한 날짜에는 예약하거나 대기할 수 있는 수업이 없습니다.</p>}
+                  {extras.message && <p role="status" style={{fontSize:13,color:"#7a2638"}}>{extras.message}</p>}
                   <div style={styles.timelineList} aria-label="선택 날짜 수업 시간표">
                     {selectedSlots.map((slot, index) => (
                       <div key={slot.id} style={styles.timelineRow}>
@@ -819,15 +842,39 @@ export default function RegularPage() {
                           <div style={styles.timelineTopLine}>
                             <strong style={styles.timelineTime}>{`${formatTime(slot.start_at)} – ${formatTime(slot.end_at)}`}</strong>
                             <span style={slot.is_closed ? styles.timelineClosedLabel : styles.timelineDuration}>
-                              {slot.is_closed ? "마감" : slot.is_waitlist ? "예약 마감 · 대기 가능" : slot.is_lifestyle ? "45분" : `${slot.lesson_minutes || 90}분`}
+                              {slot.extra_kind
+                                ? (slot.extra_kind === "freewriting" ? "클럽" : "원데이")
+                                : slot.is_closed ? "마감" : slot.is_waitlist ? "예약 마감 · 대기 가능" : slot.is_lifestyle ? "45분" : `${slot.lesson_minutes || 90}분`}
                             </span>
                           </div>
                           <p style={styles.timelineDescription}>
-                            {slot.rule_label || (slot.is_lifestyle
-                              ? `1:1 서평생활 / 필사생활 · ${lifestyleCreditText} 차감`
-                              : "1:1 정규수업 · 수강권 1회 차감")}
+                            {slot.extra_kind
+                              ? (slot.extra_kind === "freewriting"
+                                ? "프리 라이팅 클럽 · 자유 주제로 쓰며 순회 1:1 지도를 받습니다."
+                                : `${slot.extra_title || "원데이 클래스"} · 신청 ${slot.extra_count || 0}/${slot.extra_capacity || 6}명`)
+                              : (slot.rule_label || (slot.is_lifestyle
+                                  ? `1:1 서평생활 / 필사생활 · ${lifestyleCreditText} 차감`
+                                  : "1:1 정규수업 · 수강권 1회 차감"))}
                           </p>
-                          {slot.is_closed ? (
+                          {slot.extra_kind ? (
+                            <div style={styles.timelineActions}>
+                              {slot.extra_booking_id && <strong style={{fontSize:13,color:"#79283E"}}>신청 완료</strong>}
+                              <button type="button"
+                                onClick={() => void extras.send(slot as ExtraClassSlot)}
+                                disabled={extras.busy || slot.is_closed ||
+                                  (!slot.extra_booking_id && (slot.extra_kind === "freewriting"
+                                    ? Number(student.lesson_credits||0) < Number(slot.credit_cost||0) ||
+                                      Number(slot.extra_count||0) >= Number(slot.extra_capacity||5)
+                                    : false)) ||
+                                  (Boolean(slot.extra_booking_id) && slot.extra_booking_status === "대기")}
+                                style={slot.is_closed ? styles.timelineClosedButton : styles.timelinePrimaryButton}>
+                                {slot.extra_booking_id ? "신청 취소" :
+                                  slot.extra_kind === "freewriting"
+                                    ? Number(slot.extra_count||0) >= Number(slot.extra_capacity||5) ? "정원 마감" : "클럽 신청하기"
+                                    : slot.is_waitlist ? "대기 신청" : "신청하기"}
+                              </button>
+                            </div>
+                          ) : slot.is_closed ? (
                             <div style={styles.timelineActions}>
                               <span style={styles.timelineClosedButton} aria-label="예약 및 대기 신청 마감">마감</span>
                             </div>
@@ -878,10 +925,6 @@ export default function RegularPage() {
           )}
         </>
       )}
-      {student && <StudentExtraClasses student={student} onChanged={async()=>{
-        await refreshStudent();
-        await loadData(student.id,{useCache:false});
-      }}/>}
       <BottomNav />
     </main>
   );
