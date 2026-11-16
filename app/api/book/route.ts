@@ -205,12 +205,12 @@ export async function POST(request: Request) {
 
     const { data: onedayClasses, error: onedayError } = await supabase
       .from("oneday_classes")
-      .select("id, start_at, end_at")
+      .select("id, start_at, end_at, class_kind")
       .eq("is_open", true)
       .gte("end_at", slot.start_at);
     if (onedayError) throw onedayError;
 
-    if (conflictsWithOneDayBlocks(slot.start_at, candidateEndAt, onedayClasses || [])) {
+    if (conflictsWithOneDayBlocks(slot.start_at, candidateEndAt, onedayClasses || [], undefined, isExtendedSelfBooking)) {
       return NextResponse.json({ message: "해당 시간에는 원데이 클래스가 있어 예약할 수 없습니다. 다른 시간을 선택해 주세요." }, { status: 400 });
     }
 
