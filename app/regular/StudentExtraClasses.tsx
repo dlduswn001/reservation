@@ -83,10 +83,10 @@ export function useStudentExtraClasses(student:Student|null,onChanged:()=>Promis
   },[studentId,refresh]);
 
   const studentMinutes=Number(student?.lesson_duration_minutes||0);
-  const creditCost=studentMinutes===45?1:0.5;
+  const creditCost=studentMinutes===120?0:studentMinutes===45?1:0.5;
   const entries=useMemo<ExtraClassSlot[]>(()=>{
     if(!student)return[];
-    const clubs=[45,90].includes(studentMinutes)?free.map(c=>{
+    const clubs=[45,90,120].includes(studentMinutes)?free.map(c=>{
       const mine=myClubBookings.find(b=>b.class_id===c.id&&b.status==="등록완료")
         || history.find(b=>b.class_id===c.id&&b.status==="등록완료");
       const closed=c.booked_count>=c.capacity||new Date(c.start_at).getTime()<=Date.now()+CUTOFF_MS;
@@ -96,7 +96,9 @@ export function useStudentExtraClasses(student:Student|null,onChanged:()=>Promis
         extra_count:c.booked_count,extra_capacity:c.capacity,
         extra_booking_id:mine?.id||null,extra_booking_status:mine?.status||null,
         credit_cost:creditCost,is_closed:closed,is_waitlist:false,
-        rule_label:`프리 라이팅 클럽 · 신청 ${c.booked_count}/${c.capacity}명 · 수강권 ${creditCost}회 차감`
+        rule_label:creditCost===0
+          ? `프리 라이팅 클럽 · 신청 ${c.booked_count}/${c.capacity}명 · 무료 참여`
+          : `프리 라이팅 클럽 · 신청 ${c.booked_count}/${c.capacity}명 · 수강권 ${creditCost}회 차감`
       };
     }):[];
     const oneDays=other.map(c=>{
@@ -122,8 +124,9 @@ export function useStudentExtraClasses(student:Student|null,onChanged:()=>Promis
     const action=hasBooking?"cancel":"book";
     if(entry.is_closed && !hasBooking)return;
     const explanation=club
-      ? (hasBooking?"클럽 신청을 취소하고 수강권을 환급받을까요?":
-          "프리 라이팅 클럽에 신청하고 수강권 "+creditCost+"회를 차감할까요?")
+      ? (hasBooking?(creditCost===0?"무료 클럽 신청을 취소할까요?":"클럽 신청을 취소하고 수강권을 환급받을까요?"):
+          creditCost===0?"프리 라이팅 클럽에 무료로 신청하시겠습니까? (수강권 차감 없음)":
+            "프리 라이팅 클럽에 신청하고 수강권 "+creditCost+"회를 차감할까요?")
       : (hasBooking?"원데이 클래스 신청을 취소하시겠습니까?":"원데이 클래스에 신청하시겠습니까?");
     if(!window.confirm(explanation))return;
     setBusy(true);setMessage("");
@@ -157,7 +160,7 @@ export function useStudentExtraClasses(student:Student|null,onChanged:()=>Promis
         }
       }
       const successText=club
-        ?(hasBooking?"클럽 신청이 취소되고 수강권이 환급됐습니다.":"클럽 신청 완료 · 수강권 "+creditCost+"회 차감")
+        ?(hasBooking?"클럽 신청이 취소되고 수강권이 환급됐습니다.":creditCost===0?"클럽 신청 완료 · 무료 참여 (수강권 차감 없음)":"클럽 신청 완료 · 수강권 "+creditCost+"회 차감")
         :"원데이 클래스 신청 내역이 반영됐습니다.";
       setMessage(successText);
       // A successful transaction must remain visible even if a subsequent

@@ -50,8 +50,8 @@ export async function POST(request:Request){
     .eq("id",studentId).eq("name",name).eq("phone_last4",phone).maybeSingle();
   if(se)throw se;
   if(!student||!student.is_active||["paused","withdrawn"].includes(student.manual_enrollment_status||"")||
-    ![45,90].includes(Number(student.lesson_duration_minutes)))
-    return NextResponse.json({message:"45분 또는 90분 재원 수강생만 신청할 수 있습니다."},{status:403});
+    ![45,90,120].includes(Number(student.lesson_duration_minutes)))
+    return NextResponse.json({message:"재원 중인 45분·90분·120분 수강생만 신청할 수 있습니다."},{status:403});
   if(action==="list"){
     // Return ONLY the authenticated student's own club reservations; the public
     // timetable endpoint never publishes student identifiers or booking IDs.

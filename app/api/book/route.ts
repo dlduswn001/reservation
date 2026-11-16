@@ -139,6 +139,11 @@ export async function POST(request: Request) {
     const weekdayKst = new Intl.DateTimeFormat("en-US", {
       timeZone: "Asia/Seoul", weekday: "short",
     }).format(new Date(slot.start_at));
+    if (isExtendedSelfBooking && !["Sat","Sun"].includes(weekdayKst)) {
+      return NextResponse.json({
+        message: "120분 평일 수업은 카카오톡으로 희망 날짜와 시간을 별도로 문의해 주세요.",
+      }, { status: 400 });
+    }
     if (["Mon", "Tue"].includes(weekdayKst)) {
       const dateKey = new Intl.DateTimeFormat("en-CA", {
         timeZone: "Asia/Seoul", year: "numeric", month: "2-digit", day: "2-digit",
