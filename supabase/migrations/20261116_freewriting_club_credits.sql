@@ -9,6 +9,14 @@ begin
   alter table public.oneday_classes add constraint oneday_classes_class_kind_check check(class_kind in ('oneday','freewriting'));
  end if;
 end $$;
+-- Keep one unique club per calendar start. Historical one-day classes are unchanged.
+create unique index if not exists one_freewriting_class_per_start
+  on public.oneday_classes(start_at) where class_kind='freewriting';
+
+-- Existing generic one-day RPCs are not a way to bypass prepaid club credit deduction.
+revoke all on function public.munjang_oneday_join_waitlist(text,text,text,integer) from public, anon, authenticated;
+grant execute on function public.munjang_oneday_join_waitlist(text,text,text,integer) to service_role;
+
 -- This atomic RPC runs as service_role only, after the server checks the student's name and last 4 digits.
 create or replace function public.munjang_freewriting_book(p_class_id uuid,p_student_id uuid)
 returns jsonb language plpgsql security invoker set search_path=''
