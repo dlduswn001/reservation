@@ -33,18 +33,27 @@ export function bookingOrigin(booking: Pick<LessonBooking, "memo">): "student" |
   return "unknown";
 }
 
+/** 관리자 입력이라도 수강권 1회를 차감한 정규수업은 이미 결제한 수강권으로 이용합니다. */
+export function isPrepaidPassBooking(booking: Pick<LessonBooking, "memo">): boolean {
+  const origin = bookingOrigin(booking);
+  return origin === "student" || (origin === "admin"
+    && /수강권\s*1(?:\.0+)?회\s*차감/.test(String(booking.memo || "")));
+}
+
 /** 수강생 직접 예약은 저장된 금액이 없을 때에도 예약 당시 수강생 유형으로 자동 산정합니다. */
 export function lessonFee(booking: Pick<LessonBooking, "memo">, tuition?: LessonTuition | null): number | null {
-  if (!tuition) return null;
-  if (bookingOrigin(booking) === "student") {
-    const automatic = defaultBookingTuition(
-      tuition.student_minutes ?? null,
-      Number(tuition.lesson_minutes)
-    );
-    // Already recorded payments are kept, never silently overwritten.
-    if (validTuitionAmount(tuition.amount_krw) && tuition.amount_krw !== null) return tuition.amount_krw;
+  if (isPrepaidPassBooking(booking)) {
+    const metadata = String(booking.memo || "");
+    const memoLessonMinutes = Number(metadata.match(/(45|90|120)분 수업/)?.[1] ?? NaN);
+    const minutes = tuition?.lesson_minutes ?? (Number.isFinite(memoLessonMinutes) ? memoLessonMinutes : null);
+    const studentMinutes = tuition?.student_minutes
+      ?? (minutes === 120 ? 120 : null);
+    const automatic = minutes === null ? null : defaultBookingTuition(studentMinutes, Number(minutes));
+    // Keep any existing historical amount without overwriting the database.
+    if (tuition && validTuitionAmount(tuition.amount_krw) && tuition.amount_krw !== null) return tuition.amount_krw;
     return automatic;
   }
+  if (!tuition) return null;
   return validTuitionAmount(tuition.amount_krw) ? tuition.amount_krw : null;
 }
 
