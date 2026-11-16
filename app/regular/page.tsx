@@ -79,7 +79,7 @@ const SLOT_CACHE_STORAGE_KEY = "munjangRegularSlotCacheV38";
 
 /** Days are interpreted as calendar dates in Korea, independent of the browser locale. */
 function isWeekdayInquiryDateKey(dateKey: string) {
-  if (!/^\\d{4}-\\d{2}-\\d{2}$/.test(dateKey)) return false;
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(dateKey)) return false;
   const [y,m,d] = dateKey.split("-").map(Number);
   return [3,4,5].includes(new Date(Date.UTC(y,m-1,d)).getUTCDay());
 }
@@ -491,7 +491,7 @@ export default function RegularPage() {
       ]);
       const today = seoulDateKey(new Date(currentTime));
       for (const monthKey of months) {
-        if (!/^\\d{4}-\\d{2}$/.test(monthKey)) continue;
+        if (!/^\d{4}-\d{2}$/.test(monthKey)) continue;
         const [year,month] = monthKey.split("-").map(Number);
         if (month < 1 || month > 12) continue;
         const count = new Date(Date.UTC(year,month,0)).getUTCDate();
