@@ -853,7 +853,7 @@ export default function RegularPage() {
                             <strong style={styles.timelineTime}>{`${formatTime(slot.start_at)} – ${formatTime(slot.end_at)}`}</strong>
                             <span style={slot.is_closed ? styles.timelineClosedLabel : styles.timelineDuration}>
                               {slot.extra_kind
-                                ? (slot.extra_kind === "freewriting" ? "클럽" : "원데이")
+                                ? (slot.extra_kind === "freewriting" ? "120분" : "원데이")
                                 : slot.is_closed ? "마감" : slot.is_waitlist ? "예약 마감 · 대기 가능" : slot.is_lifestyle ? "45분" : `${slot.lesson_minutes || 90}분`}
                             </span>
                           </div>
