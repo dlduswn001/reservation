@@ -5,6 +5,7 @@ import type { CSSProperties } from "react";
 import BottomNav from "../components/BottomNav";
 import { disconnectPushOnLogout } from "../../lib/pushClient";
 import { isExtended120VisibleSlot } from "../../lib/businessRules";
+import StudentExtraClasses from "./StudentExtraClasses";
 
 type Student = {
   id: string;
@@ -877,6 +878,10 @@ export default function RegularPage() {
           )}
         </>
       )}
+      {student && <StudentExtraClasses student={student} onChanged={async()=>{
+        await refreshStudent();
+        await loadData(student.id,{useCache:false});
+      }}/>}
       <BottomNav />
     </main>
   );
