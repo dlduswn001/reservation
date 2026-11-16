@@ -12,7 +12,8 @@ const { defaultBookingTuition: fee, validTuitionAmount: valid } = context.export
 assert.equal(fee(90,90),65000);
 assert.equal(fee(45,45),40000);
 assert.equal(fee(90,45),32500);
-for (const [student,lesson] of [[120,120],[45,90],[90,120],[null,45],[90,44.5],[90,0]]) assert.equal(fee(student,lesson),null);
+assert.equal(fee(120,120),80000);
+for (const [student,lesson] of [[45,90],[90,120],[null,45],[90,44.5],[90,0]]) assert.equal(fee(student,lesson),null);
 for (const value of [null,0,32500,40000,65000,2147483647]) assert.equal(valid(value),true);
 for (const value of [-1,1.5,NaN,Infinity,'65000',undefined,2147483648]) assert.equal(valid(value),false);
 console.log('Booking tuition: 22 price and validation assertions passed');
