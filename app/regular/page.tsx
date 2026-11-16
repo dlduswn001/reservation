@@ -853,7 +853,7 @@ export default function RegularPage() {
                           {slot.extra_kind ? (
                             <div style={styles.timelineActions}>
                               {slot.extra_booking_id && <strong style={{fontSize:13,color:"#79283E"}}>신청 완료</strong>}
-                              {slot.extra_kind === "freewriting" && !slot.extra_booking_id && slot.extra_count >= slot.extra_capacity &&
+                              {slot.extra_kind === "freewriting" && !slot.extra_booking_id && Number(slot.extra_count ?? 0) >= Number(slot.extra_capacity ?? 5) &&
                                 <strong style={{fontSize:13,color:"#79283E"}}>정원 5명 마감</strong>}
                               <button type="button"
                                 onClick={() => void extras.send(slot as ExtraClassSlot)}
