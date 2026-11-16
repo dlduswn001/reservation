@@ -47,6 +47,16 @@ export async function POST(request:Request){
   if(!student||!student.is_active||["paused","withdrawn"].includes(student.manual_enrollment_status||"")||
     ![45,90].includes(Number(student.lesson_duration_minutes)))
     return NextResponse.json({message:"45분 또는 90분 재원 수강생만 신청할 수 있습니다."},{status:403});
+  if(action==="list"){
+    // Return ONLY the authenticated student's own club reservations; the public
+    // timetable endpoint never publishes student identifiers or booking IDs.
+    const {data:mine,error:myError}=await db.from("oneday_bookings")
+      .select("id,class_id,status")
+      .eq("student_id",studentId).eq("status","등록완료")
+      .order("created_at",{ascending:false});
+    if(myError)throw myError;
+    return NextResponse.json({my_bookings:mine||[]},{headers:{"Cache-Control":"private, no-store"}});
+  }
   if(!["book","cancel"].includes(action))return NextResponse.json({message:"올바르지 않은 요청입니다."},{status:400});
   const {data:result,error}=await db.rpc(action==="cancel"?"munjang_freewriting_cancel":"munjang_freewriting_book",
     action==="cancel"?{p_booking_id:bookingId,p_student_id:studentId}:{p_class_id:classId,p_student_id:studentId});

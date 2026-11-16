@@ -42,14 +42,28 @@ const api=read("../app/api/freewriting/route.ts");
 assert.match(api,/\[45,90\]\.includes/);
 assert.match(api,/munjang_freewriting_book/);
 assert.match(api,/munjang_freewriting_cancel/);
+assert.match(api,/if\(action==="list"\)/);
+assert.match(api,/\.eq\("student_id",studentId\)/);
 const studentUI=read("../app/regular/StudentExtraClasses.tsx");
 assert.match(studentUI,/\[45,90\]\.includes/);
 assert.match(studentUI,/extra_kind:"freewriting"/);
 assert.match(studentUI,/extra_kind:"oneday"/);
 assert.match(studentUI,/useStudentExtraClasses/);
+assert.match(studentUI,/Promise\.allSettled/,"Club rendering must not depend on unrelated history endpoints");
+assert.match(studentUI,/action:"list"/,"Private club status must be loaded through authenticated read");
+assert.match(studentUI,/setMyClubBookings/);
+assert.match(studentUI,/extra_count:c\.booked_count/);
+assert.match(studentUI,/extra_capacity:c\.capacity/);
+
 const calendarPage=read("../app/regular/page.tsx");
 assert.match(calendarPage,/useStudentExtraClasses/);
 assert.match(calendarPage,/클럽 신청하기/);
+assert.match(calendarPage,/생활·클럽/,"Lifestyle and club credits must be a single notice");
+assert.ok(calendarPage.includes("slot.extra_count ?? 0") && calendarPage.includes("slot.extra_capacity ?? 5"),
+  "Each club card must display the exact 0/5 capacity");
+assert.match(calendarPage,/slot\.is_closed && !slot\.extra_booking_id/,
+  "Existing club registrants must still be able to cancel when the club is full");
+
 assert.match(calendarPage,/신청하기/);
 assert.doesNotMatch(calendarPage,/<StudentExtraClasses/);
 const menu=read("../app/book/page.tsx");

@@ -40,27 +40,41 @@ export function useStudentExtraClasses(student:Student|null,onChanged:()=>Promis
   const [free,setFree] = useState<FreeSession[]>([]);
   const [other,setOther] = useState<OneClass[]>([]);
   const [history,setHistory] = useState<OneBooking[]>([]);
+  const [myClubBookings,setMyClubBookings] = useState<Array<{id:string;class_id:string;status:string}>>([]);
   const [loading,setLoading] = useState(false);
   const [busy,setBusy] = useState(false);
   const [message,setMessage] = useState("");
   const studentId=student?.id||"";
+  const studentName=student?.name||"";
+  const studentPhone=student?.phone_last4||"";
+
+  async function readJson(response:Response) {
+    const result=await response.json();
+    if(!response.ok)throw new Error(result.message||"수업 정보를 불러오지 못했습니다.");
+    return result;
+  }
 
   const refresh=useCallback(async()=>{
     if(!studentId)return;
-    const [a,b,c]=await Promise.all([
-      fetch("/api/freewriting",{cache:"no-store"}),
-      fetch("/api/oneday",{cache:"no-store"}),
-      fetch("/api/student/history?studentId="+encodeURIComponent(studentId),{cache:"no-store"})
+    // A failure in legacy one-day/history queries must NEVER hide an open club
+    // or disable its enrollment. Fetch the schedule and private booking state
+    // separately, then degrade gracefully for unrelated resources.
+    const [publicClub,ownClub,oneDay,legacyHistory]=await Promise.allSettled([
+      fetch("/api/freewriting",{cache:"no-store"}).then(readJson),
+      fetch("/api/freewriting",{method:"POST",headers:{"Content-Type":"application/json"},
+        body:JSON.stringify({action:"list",studentId,name:studentName,phone_last4:studentPhone}),cache:"no-store"}).then(readJson),
+      fetch("/api/oneday",{cache:"no-store"}).then(readJson),
+      fetch("/api/student/history?studentId="+encodeURIComponent(studentId),{cache:"no-store"}).then(readJson),
     ]);
-    const [x,y,z]=await Promise.all([a.json(),b.json(),c.json()]);
-    if(!a.ok||!b.ok||!c.ok)throw Error(x.message||y.message||z.message||"수업을 불러오지 못했습니다.");
-    setFree(x.sessions||[]);
-    setOther(y.classes||[]);
-    setHistory(z.onedayBookings||[]);
-  },[studentId]);
+    if(publicClub.status==="fulfilled")setFree(publicClub.value.sessions||[]);
+    if(ownClub.status==="fulfilled")setMyClubBookings(ownClub.value.my_bookings||[]);
+    if(oneDay.status==="fulfilled")setOther(oneDay.value.classes||[]);
+    if(legacyHistory.status==="fulfilled")setHistory(legacyHistory.value.onedayBookings||[]);
+    if(publicClub.status==="rejected")throw publicClub.reason;
+  },[studentId,studentName,studentPhone]);
 
   useEffect(()=>{
-    if(!studentId){setFree([]);setOther([]);setHistory([]);return;}
+    if(!studentId){setFree([]);setOther([]);setHistory([]);setMyClubBookings([]);setMessage("");return;}
     let active=true;
     setLoading(true);
     void refresh().catch(e=>{if(active)setMessage(String(e?.message||e));})
@@ -73,7 +87,8 @@ export function useStudentExtraClasses(student:Student|null,onChanged:()=>Promis
   const entries=useMemo<ExtraClassSlot[]>(()=>{
     if(!student)return[];
     const clubs=[45,90].includes(studentMinutes)?free.map(c=>{
-      const mine=history.find(b=>b.class_id===c.id&&b.status==="등록완료");
+      const mine=myClubBookings.find(b=>b.class_id===c.id&&b.status==="등록완료")
+        || history.find(b=>b.class_id===c.id&&b.status==="등록완료");
       const closed=c.booked_count>=c.capacity||new Date(c.start_at).getTime()<=Date.now()+CUTOFF_MS;
       return {
         id:"club:"+c.id,class_id:c.id,start_at:c.start_at,end_at:c.end_at,
@@ -81,7 +96,7 @@ export function useStudentExtraClasses(student:Student|null,onChanged:()=>Promis
         extra_count:c.booked_count,extra_capacity:c.capacity,
         extra_booking_id:mine?.id||null,extra_booking_status:mine?.status||null,
         credit_cost:creditCost,is_closed:closed,is_waitlist:false,
-        rule_label:"자유 주제로 쓰고, 순회 1:1 지도를 받는 시간 · 정원 5명"
+        rule_label:`프리 라이팅 클럽 · 신청 ${c.booked_count}/${c.capacity}명 · 수강권 ${creditCost}회 차감`
       };
     }):[];
     const oneDays=other.map(c=>{
@@ -98,7 +113,7 @@ export function useStudentExtraClasses(student:Student|null,onChanged:()=>Promis
       };
     });
     return [...clubs,...oneDays].sort((a,b)=>a.start_at.localeCompare(b.start_at));
-  },[free,other,history,student?.id,studentMinutes,creditCost]);
+  },[free,other,history,myClubBookings,student?.id,studentMinutes,creditCost]);
 
   async function send(entry:ExtraClassSlot) {
     if(!student||busy)return;
@@ -125,11 +140,14 @@ export function useStudentExtraClasses(student:Student|null,onChanged:()=>Promis
       const resp=await fetch(endpoint,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(payload)});
       const json=await resp.json();
       if(!resp.ok)throw Error(json.message||"신청 처리에 실패했습니다.");
-      await refresh();
-      await onChanged();
-      setMessage(club
+      const successText=club
         ?(hasBooking?"클럽 신청이 취소되고 수강권이 환급됐습니다.":"클럽 신청 완료 · 수강권 "+creditCost+"회 차감")
-        :"원데이 클래스 신청 내역이 반영됐습니다.");
+        :"원데이 클래스 신청 내역이 반영됐습니다.";
+      setMessage(successText);
+      // A successful transaction must remain visible even if a subsequent
+      // schedule/profile refresh fails on a slow mobile connection.
+      try{await refresh();await onChanged();}
+      catch{setMessage(successText+" 내역 갱신은 화면의 새로고침을 이용해 주세요.");}
     }catch(e){setMessage(String(e instanceof Error?e.message:e));}
     finally{setBusy(false);}
   }

@@ -633,16 +633,10 @@ export default function RegularPage() {
                   <span className="noticeIcon">기간</span>
                   <p><strong>4회 정규수강권</strong>은 첫 수업일로부터 <strong>10주 동안</strong> 사용할 수 있습니다.</p>
                 </div>
-                {!isExtended120Student && (
-                <div className="noticeItem">
-                  <span className="noticeIcon">생활</span>
-                  <p><strong>1:1 서평생활</strong>과 <strong>1:1 필사생활</strong>은 45분 수업입니다. 45분 수강권은 <strong>1회</strong>, 90분 수강권은 <strong>0.5회</strong>가 차감됩니다.</p>
-                </div>
-                )}
                 {[45,90].includes(studentLessonMinutes) && (
                   <div className="noticeItem">
-                    <span className="noticeIcon">클럽</span>
-                    <p><strong>프리 라이팅 클럽</strong>은 45분 수강권 <strong>1회</strong>, 90분 수강권 <strong>0.5회</strong>를 사용합니다.</p>
+                    <span className="noticeIcon">생활·클럽</span>
+                    <p><strong>생활수업(45분)과 프리 라이팅 클럽</strong>은 45분 수강권 <strong>1회</strong>, 90분 수강권 <strong>0.5회</strong>가 차감됩니다.</p>
                   </div>
                 )}
               </div>
@@ -850,7 +844,7 @@ export default function RegularPage() {
                           <p style={styles.timelineDescription}>
                             {slot.extra_kind
                               ? (slot.extra_kind === "freewriting"
-                                ? "프리 라이팅 클럽 · 자유 주제로 쓰며 순회 1:1 지도를 받습니다."
+                                ? `프리 라이팅 클럽 · 신청 ${slot.extra_count ?? 0}/${slot.extra_capacity ?? 5}명 · 수강권 ${slot.credit_cost}회 차감`
                                 : `${slot.extra_title || "원데이 클래스"} · 신청 ${slot.extra_count || 0}/${slot.extra_capacity || 6}명`)
                               : (slot.rule_label || (slot.is_lifestyle
                                   ? `1:1 서평생활 / 필사생활 · ${lifestyleCreditText} 차감`
@@ -859,9 +853,11 @@ export default function RegularPage() {
                           {slot.extra_kind ? (
                             <div style={styles.timelineActions}>
                               {slot.extra_booking_id && <strong style={{fontSize:13,color:"#79283E"}}>신청 완료</strong>}
+                              {slot.extra_kind === "freewriting" && !slot.extra_booking_id && Number(slot.extra_count ?? 0) >= Number(slot.extra_capacity ?? 5) &&
+                                <strong style={{fontSize:13,color:"#79283E"}}>정원 5명 마감</strong>}
                               <button type="button"
                                 onClick={() => void extras.send(slot as ExtraClassSlot)}
-                                disabled={extras.busy || slot.is_closed ||
+                                disabled={extras.busy || (slot.is_closed && !slot.extra_booking_id) ||
                                   (!slot.extra_booking_id && (slot.extra_kind === "freewriting"
                                     ? Number(student.lesson_credits||0) < Number(slot.credit_cost||0) ||
                                       Number(slot.extra_count||0) >= Number(slot.extra_capacity||5)
@@ -870,7 +866,9 @@ export default function RegularPage() {
                                 style={slot.is_closed ? styles.timelineClosedButton : styles.timelinePrimaryButton}>
                                 {slot.extra_booking_id ? "신청 취소" :
                                   slot.extra_kind === "freewriting"
-                                    ? Number(slot.extra_count||0) >= Number(slot.extra_capacity||5) ? "정원 마감" : "클럽 신청하기"
+                                    ? Number(slot.extra_count||0) >= Number(slot.extra_capacity||5)
+                                      ? "정원 5명 마감"
+                                      : `클럽 신청하기 (${slot.extra_count ?? 0}/${slot.extra_capacity ?? 5}명)`
                                     : slot.is_waitlist ? "대기 신청" : "신청하기"}
                               </button>
                             </div>
