@@ -32,6 +32,18 @@ assert.equal(revenue.bookingOrigin(b3),"admin");
 assert.equal(revenue.lessonFee(b1,rows[0]),65000);
 assert.equal(revenue.lessonFee(b2,rows[1]),32500);
 assert.equal(revenue.lessonFee(b3,rows[2]),200000);
+const yang = booking("yang","2026-11-21T08:30:00.000Z","booked",
+  "관리자 직접 예약 / 120분 수업 / 수강권 1회 차감 / [연속 120분 수업]");
+const yangRow = tuitionRow("yang",120,120,80000,"2026-11-16T02:00:00Z");
+assert.equal(revenue.bookingOrigin(yang),"admin");
+assert.equal(revenue.isPrepaidPassBooking(yang),true,"Admin-entered credit-deducted lessons are prepaid");
+assert.equal(revenue.isPrepaidPassBooking(b3),false,"Non-credit admin lessons remain editable");
+assert.equal(revenue.lessonFee(yang,yangRow),80000);
+assert.equal(revenue.lessonFee(yang,tuitionRow("yang",120,120)),80000,"Prepaid 120m amount is automatic");
+assert.equal(revenue.lessonFee(yang,null),80000,"Legacy 120m memo falls back to 80k when no tuition row");
+const tuitionField = readFileSync(new URL("../app/admin/BookingTuitionField.tsx",import.meta.url),"utf8");
+assert.match(tuitionField,/bookingOrigin\(booking\) === "admin" && !isPrepaidPassBooking\(booking\)/);
+
 assert.equal(revenue.seoulDayKey(b1.start_at),"2026-10-19");
 const day=revenue.dailyLessonRevenue([b1,b2,b3,b4],rows,"2026-10-19");
 assert.equal(day.bookings,3);
