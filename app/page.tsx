@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import type { CSSProperties } from "react";
 import Link from "next/link";
 import { CalendarDays, ChevronRight, PenLine, UserRound, BookOpenText, Bell } from "lucide-react";
 import BottomNav from "./components/BottomNav";
@@ -50,6 +51,22 @@ function onedayStatusLabel(status?: string) {
 export default function Home() {
   const [student, setStudent] = useState<Student | null>(null);
   const [upcoming, setUpcoming] = useState<UpcomingSummary[]>([]);
+  const [pinnedNoticeTitle, setPinnedNoticeTitle] = useState("");
+
+  useEffect(() => {
+    let active = true;
+    fetch("/api/announcements",{cache:"no-store"})
+      .then(async response => {
+        if(!response.ok) throw new Error("Could not load notices");
+        return response.json();
+      })
+      .then(json => {
+        const notices = Array.isArray(json.notices) ? json.notices : [];
+        const pinned = notices.find((notice:{is_pinned?:boolean}) => notice.is_pinned) || notices[0];
+        if(active && pinned?.title) setPinnedNoticeTitle(String(pinned.title));
+      }).catch(() => {/* Notices remain navigable when the API is unavailable. */});
+    return () => {active=false;};
+  }, []);
 
   useEffect(() => {
     const saved = readStoredStudentLogin();
@@ -105,6 +122,16 @@ export default function Home() {
     loadHome();
   }, []);
 
+  const quickRowStyle: CSSProperties = {
+    display:"grid",gridTemplateColumns:"28px 96px minmax(0,1fr) 17px",
+    alignItems:"center",columnGap:9,minHeight:67,padding:"14px 13px",
+    color:"#29252a",textDecoration:"none"
+  };
+  const quickDetailStyle: CSSProperties = {
+    fontSize:12,color:"#7a7276",whiteSpace:"nowrap",
+    overflow:"hidden",textOverflow:"ellipsis",textAlign:"right",minWidth:0
+  };
+
   return (
     <main className="container appContainer studioApp">
       <header className="studioHeader">
@@ -125,48 +152,33 @@ export default function Home() {
         <Link href={student ? "/passes" : "/profile"} aria-label="수강권 확인하기" className="studioCircleArrow"><ChevronRight size={23}/></Link>
       </section>
 
-      <section className="studioSection">
-        <div className="studioSectionHeading">
-          <h2>수업 예약</h2>
-          <Link href="/book" className="studioMore">전체 보기 <ChevronRight size={17} /></Link>
-        </div>
-        <div className="studioQuickGrid">
-          <Link href="/regular" className="studioQuickLink">
-            <span className="studioQuickIcon"><PenLine size={24} strokeWidth={1.8}/></span>
-            <strong>수업 예약</strong>
-            <small>정규수업 · 프리 라이팅 · 원데이</small>
-            <ChevronRight className="studioQuickArrow" size={17} />
-          </Link>
-          <Link href="/notices" className="studioQuickLink">
-            <span className="studioQuickIcon"><Bell size={24} strokeWidth={1.8}/></span>
-            <strong>공지사항</strong>
-            <small>문장학교 소식과 수업 안내</small>
-            <ChevronRight className="studioQuickArrow" size={17} />
-          </Link>
-        </div>
-      </section>
 
-      <section className="studioSection">
-        <div className="studioSectionHeading">
-          <h2>다가오는 수업</h2>
-          <Link href="/history" className="studioMore">전체 보기 <ChevronRight size={17}/></Link>
-        </div>
-        <div className="studioScheduleList">
-          {upcoming.length === 0 && (
-            <div className="studioEmpty">
-              <CalendarDays size={29} strokeWidth={1.45}/>
-              <strong>예정된 수업이 없어요</strong>
-              <p>예약한 수업이 생기면 이곳에서 확인할 수 있어요.</p>
-            </div>
-          )}
-          {upcoming.map((item, index) => (
-            <div className="studioScheduleRow" key={`${item.label}-${index}`}>
-              <div className="studioScheduleTop"><span>{item.label}</span><small>{item.status}</small></div>
-              <strong>{item.title}</strong>
-              <p>{item.time}</p>
-            </div>
-          ))}
-        </div>
+      <section aria-label="문장학교 주요 메뉴" style={{
+        marginTop:20,background:"#fff",border:"1px solid #ece7ea",
+        borderRadius:21,overflow:"hidden"
+      }}>
+        <Link href="/regular" style={quickRowStyle} aria-label="수업예약 열기">
+          <PenLine size={21} strokeWidth={1.8} color="#803149"/>
+          <strong style={{fontSize:15,whiteSpace:"nowrap"}}>수업예약</strong>
+          <span style={quickDetailStyle}>정규 · 프리 라이팅</span>
+          <ChevronRight size={17} color="#aa9ba2"/>
+        </Link>
+        <div style={{height:1,background:"#f0e9ec",margin:"0 13px"}}/>
+        <Link href="/notices" style={quickRowStyle} aria-label="공지사항 열기">
+          <Bell size={21} strokeWidth={1.8} color="#803149"/>
+          <strong style={{fontSize:15,whiteSpace:"nowrap"}}>공지사항</strong>
+          <span style={quickDetailStyle}>{pinnedNoticeTitle || "공지사항 보기"}</span>
+          <ChevronRight size={17} color="#aa9ba2"/>
+        </Link>
+        <div style={{height:1,background:"#f0e9ec",margin:"0 13px"}}/>
+        <Link href="/history" style={quickRowStyle} aria-label="다가오는 수업 확인하기">
+          <CalendarDays size={21} strokeWidth={1.8} color="#803149"/>
+          <strong style={{fontSize:15,whiteSpace:"nowrap"}}>다가오는 수업</strong>
+          <span style={quickDetailStyle}>
+            {upcoming.length ? upcoming[0].time + " · " + upcoming[0].title : "예정된 수업 없음"}
+          </span>
+          <ChevronRight size={17} color="#aa9ba2"/>
+        </Link>
       </section>
 
       <PWAInstallPrompt />
