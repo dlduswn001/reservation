@@ -9,6 +9,7 @@ type Student = { id: string; name: string; phone_last4: string; lesson_credits?:
 type Booking = { id: string; start_at: string; end_at: string; status: string; memo?: string; created_at?: string };
 type ManualHistory = { id: string; lesson_date: string; title: string; memo?: string; created_at?: string };
 type OneDayClassInfo = {
+  class_kind?: "oneday" | "freewriting";
   id: string;
   title: string;
   start_at: string;
