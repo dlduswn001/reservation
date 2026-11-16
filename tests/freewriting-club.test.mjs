@@ -39,7 +39,7 @@ assert.match(sql,/class_kind text not null default 'oneday'/);
 assert.match(sql,/revoke all on function public\.munjang_oneday_join_waitlist/);
 assert.doesNotMatch(sql,/delete from public\.oneday_bookings/i);
 const api=read("../app/api/freewriting/route.ts");
-assert.match(api,/\[45,90\]\.includes/);
+assert.match(api,/\[45,90,120\]\.includes/);
 assert.match(api,/munjang_freewriting_book/);
 assert.match(api,/munjang_freewriting_cancel/);
 assert.match(api,/if\(action==="list"\)/);
