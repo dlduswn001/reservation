@@ -54,7 +54,7 @@ assert.match(page,/extras\.send\(slot as ExtraClassSlot\)/);
 assert.doesNotMatch(page,/<StudentExtraClasses/);
 const controller=src("../app/regular/StudentExtraClasses.tsx");
 assert.doesNotMatch(controller,/<section className="card"/);
-assert.match(controller,(/\[45,90\]\.includes\(studentMinutes\)/));
+assert.match(controller,(/\[45,90,120\]\.includes\(studentMinutes\)/));
 assert.match(controller,/extra_kind:"freewriting"/);
 assert.match(controller,/extra_kind:"oneday"/);
 const slots=src("../app/api/slots/route.ts");
