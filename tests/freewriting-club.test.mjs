@@ -45,7 +45,7 @@ assert.match(api,/munjang_freewriting_cancel/);
 assert.match(api,/if\(action==="list"\)/);
 assert.match(api,/\.eq\("student_id",studentId\)/);
 const studentUI=read("../app/regular/StudentExtraClasses.tsx");
-assert.match(studentUI,/\[45,90\]\.includes/);
+assert.match(studentUI,/\[45,90,120\]\.includes/);
 assert.match(studentUI,/extra_kind:"freewriting"/);
 assert.match(studentUI,/extra_kind:"oneday"/);
 assert.match(studentUI,/useStudentExtraClasses/);
