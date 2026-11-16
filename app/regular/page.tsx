@@ -461,6 +461,7 @@ export default function RegularPage() {
   }, [bookings, currentTime]);
 
   const visibleBookings = bookingSection === "upcoming" ? upcomingBookings : completedBookings;
+  const upcomingExtraBookings = extras.upcomingBooked;
 
   const slotsByDate = useMemo(() => {
     const grouped: Record<string, Slot[]> = {};
@@ -682,7 +683,7 @@ export default function RegularPage() {
                 aria-selected={bookingSection === "upcoming"}
                 style={bookingSection === "upcoming" ? styles.activeTab : styles.tab}
               >
-                예정된 수업 <span>{upcomingBookings.length}</span>
+                예정된 수업 <span>{upcomingBookings.length + upcomingExtraBookings.length}</span>
               </button>
               <button
                 type="button"
@@ -697,13 +698,28 @@ export default function RegularPage() {
             </div>
 
             <div className="list bookingSectionList">
-              {visibleBookings.length === 0 && bookingSection === "upcoming" && (
-                <p>현재 예정된 정규수업이 없습니다.</p>
+              {visibleBookings.length === 0 && upcomingExtraBookings.length === 0 && bookingSection === "upcoming" && (
+                <p>현재 예정된 수업이 없습니다.</p>
               )}
               {visibleBookings.length === 0 && bookingSection === "completed" && (
                 <p>아직 완료한 정규수업이 없습니다.</p>
               )}
 
+              {bookingSection === "upcoming" && upcomingExtraBookings.map(entry => (
+                <div className="item bookingItem" key={entry.id}>
+                  <div>
+                    <strong>{formatDateTime(entry.start_at)} - {formatTime(entry.end_at)}</strong>
+                    <p className="small">{entry.extra_title} · {entry.extra_booking_status === "대기" ? "대기 중" : "신청 완료"}
+                      {entry.extra_kind === "freewriting" ? ` · 수강권 ${entry.credit_cost}회 사용` : ""}
+                    </p>
+                  </div>
+                  {entry.extra_booking_status !== "대기" &&
+                    new Date(entry.start_at).getTime() > currentTime + 3 * 60 * 60 * 1000 && (
+                      <button type="button" className="danger" disabled={extras.busy}
+                        onClick={() => void extras.send(entry)}>신청 취소</button>
+                    )}
+                </div>
+              ))}
               {visibleBookings.map((booking) => {
                 const viewStatus = bookingViewStatus(booking);
                 const canCancel = bookingSection === "upcoming"
@@ -824,7 +840,7 @@ export default function RegularPage() {
                   <h3 style={styles.selectedDateTitle}>{selectedDate ? formatDateLabel(selectedDate) : "예약 가능한 시간"}</h3>
                   {(student.lesson_credits ?? 0) <= 0 && <p className="error">잔여 수강권이 없어 예약할 수 없습니다. 관리자에게 문의해 주세요.</p>}
                   {selectedSlots.length === 0 && <p>선택한 날짜에는 예약하거나 대기할 수 있는 수업이 없습니다.</p>}
-                  {extras.message && <p role="status" style={{fontSize:13,color:"#7a2638"}}>{extras.message}</p>}
+
                   <div style={styles.timelineList} aria-label="선택 날짜 수업 시간표">
                     {selectedSlots.map((slot, index) => (
                       <div key={slot.id} style={styles.timelineRow}>
@@ -837,7 +853,7 @@ export default function RegularPage() {
                             <strong style={styles.timelineTime}>{`${formatTime(slot.start_at)} – ${formatTime(slot.end_at)}`}</strong>
                             <span style={slot.is_closed ? styles.timelineClosedLabel : styles.timelineDuration}>
                               {slot.extra_kind
-                                ? (slot.extra_kind === "freewriting" ? "클럽" : "원데이")
+                                ? (slot.extra_kind === "freewriting" ? "120분" : "원데이")
                                 : slot.is_closed ? "마감" : slot.is_waitlist ? "예약 마감 · 대기 가능" : slot.is_lifestyle ? "45분" : `${slot.lesson_minutes || 90}분`}
                             </span>
                           </div>
@@ -868,7 +884,9 @@ export default function RegularPage() {
                                   slot.extra_kind === "freewriting"
                                     ? Number(slot.extra_count||0) >= Number(slot.extra_capacity||5)
                                       ? "정원 5명 마감"
-                                      : `클럽 신청하기 (${slot.extra_count ?? 0}/${slot.extra_capacity ?? 5}명)`
+                                      : Number(student.lesson_credits||0) < Number(slot.credit_cost||0)
+                                        ? "수강권 잔여 횟수 부족"
+                                        : `클럽 신청하기 (${slot.extra_count ?? 0}/${slot.extra_capacity ?? 5}명)`
                                     : slot.is_waitlist ? "대기 신청" : "신청하기"}
                               </button>
                             </div>
@@ -922,6 +940,14 @@ export default function RegularPage() {
           </section>
           )}
         </>
+      )}
+      {extras.message && (
+        <div role="status" aria-live="polite" style={{
+          position:"fixed",bottom:89,left:"50%",transform:"translateX(-50%)",
+          width:"min(90vw,650px)",padding:"14px 16px",borderRadius:12,
+          color:"#68243a",background:"#fff2f5",border:"1px solid #d7bac4",
+          boxShadow:"0 6px 24px #32102125",zIndex:45,fontSize:13,lineHeight:1.6
+        }}>{extras.message}</div>
       )}
       <BottomNav />
     </main>

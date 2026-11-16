@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { getSupabaseAdmin } from "../../../lib/supabaseAdmin";
 import { getErrorMessage } from "../../../lib/supabaseCompat";
 export const dynamic="force-dynamic";
-const UUID=/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+const UUID=/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const ACTIVE=["booked","등록완료","등록대기","입금대기","입금완료"];
 
 export async function GET() {
@@ -36,9 +36,14 @@ export async function POST(request:Request){
   const name=String(data.name||"").trim();
   const phone=String(data.phone_last4||"");
   const action=String(data.action||"book");
-  if(!UUID.test(studentId)||!name||!/^[0-9]{4}$/.test(phone)||
-    (action==="book"&&!UUID.test(classId))||(action==="cancel"&&!UUID.test(bookingId)))
-    return NextResponse.json({message:"신청 정보를 확인해 주세요."},{status:400});
+  if(!UUID.test(studentId))
+    return NextResponse.json({message:"수강생 로그인 정보가 올바르지 않습니다. 다시 로그인해 주세요."},{status:400});
+  if(!name||!/^[0-9]{4}$/.test(phone))
+    return NextResponse.json({message:"이름과 휴대폰 번호 끝 4자리를 확인해 주세요."},{status:400});
+  if(action==="book"&&!UUID.test(classId))
+    return NextResponse.json({message:"신청할 클럽 시간을 다시 선택해 주세요."},{status:400});
+  if(action==="cancel"&&!UUID.test(bookingId))
+    return NextResponse.json({message:"취소할 신청 내역을 다시 선택해 주세요."},{status:400});
   const db=getSupabaseAdmin();
   const {data:student,error:se}=await db.from("students")
     .select("id,lesson_duration_minutes,is_active,manual_enrollment_status")

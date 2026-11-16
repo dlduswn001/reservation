@@ -90,7 +90,7 @@ export default function Home() {
           return oneClass && active && new Date(oneClass.end_at).getTime() > now;
         })
         .map((booking: any) => ({
-          label: "원데이",
+          label: booking.oneday_classes?.class_kind === "freewriting" ? "프리 라이팅" : "원데이",
           title: booking.oneday_classes?.title || "원데이 클래스",
           time: formatDateTime(booking.oneday_classes?.start_at),
           rawDate: booking.oneday_classes?.start_at,
