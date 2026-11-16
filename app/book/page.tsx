@@ -12,20 +12,12 @@ export default function BookPage() {
           <div className="studioOptionIcon"><CalendarDays size={27} strokeWidth={1.7}/></div>
           <div>
             <span>REGULAR CLASS</span>
-            <h2>정규 1:1 글쓰기</h2>
-            <p>45분 · 90분 수업을 예약해요.</p>
+            <h2>정규수업 · 프리 라이팅 클럽</h2>
+            <p>45분 · 90분 · 120분 수업, 프리 라이팅 클럽과 원데이 클래스까지 함께 예약해요.</p>
           </div>
           <ChevronRight size={22} strokeWidth={1.7}/>
         </Link>
-        <Link className="studioBookingOption" href="/oneday">
-          <div className="studioOptionIcon"><BookOpenText size={27} strokeWidth={1.7}/></div>
-          <div>
-            <span>MONTHLY CLASS</span>
-            <h2>원데이 클래스</h2>
-            <p>함께 읽고 생각하는 시간을 만나보세요.</p>
-          </div>
-          <ChevronRight size={22} strokeWidth={1.7}/>
-        </Link>
+
       </section>
       <section className="studioSection studioBookingPolicy">
         <h2><Clock3 size={20}/> 예약 안내</h2>
