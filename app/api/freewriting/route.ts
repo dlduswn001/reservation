@@ -5,10 +5,9 @@ export const dynamic="force-dynamic";
 const UUID=/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const ACTIVE=["booked","등록완료","등록대기","입금대기","입금완료"];
 
-export async function GET(request:Request) {
+export async function GET() {
  try {
   const db=getSupabaseAdmin();
-  const id=new URL(request.url).searchParams.get("studentId");
   const {data:classes,error}=await db.from("oneday_classes")
     .select("id,title,description,start_at,end_at,capacity,is_open")
     .eq("class_kind","freewriting").eq("is_open",true)
@@ -23,7 +22,7 @@ export async function GET(request:Request) {
     id:c.id,title:c.title,description:c.description,start_at:c.start_at,end_at:c.end_at,capacity:c.capacity,
     booked_count:(bookings||[]).filter(b=>b.class_id===c.id&&ACTIVE.includes(b.status))
       .reduce((n,b)=>n+Number(b.people_count||1),0),
-    my_booking:id&&UUID.test(id)?(bookings||[]).find(b=>b.class_id===c.id&&b.student_id===id&&b.status==="등록완료")?.id||null:null
+    my_booking:null
   }));
   return NextResponse.json({sessions},{headers:{"Cache-Control":"no-store"}});
  } catch{return NextResponse.json({message:"프리 라이팅 클럽 일정을 불러오지 못했습니다."},{status:500});}
