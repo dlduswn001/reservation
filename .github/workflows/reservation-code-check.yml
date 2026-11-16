@@ -24,6 +24,7 @@ jobs:
           node tests/renewal-pass-manual-status.test.mjs
           node tests/booking-tuition.test.mjs
           node tests/booking-revenue.test.mjs
+          node tests/freewriting-club.test.mjs
           node tests/manual-block-revenue.test.mjs
           node tests/admin-pwa.test.mjs
       - name: Build app
