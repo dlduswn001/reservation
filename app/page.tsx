@@ -133,14 +133,14 @@ export default function Home() {
         <div className="studioQuickGrid">
           <Link href="/regular" className="studioQuickLink">
             <span className="studioQuickIcon"><PenLine size={24} strokeWidth={1.8}/></span>
-            <strong>정규수업</strong>
-            <small>45분 · 90분 1:1</small>
+            <strong>수업 예약</strong>
+            <small>정규수업 · 프리 라이팅 · 원데이</small>
             <ChevronRight className="studioQuickArrow" size={17} />
           </Link>
-          <Link href="/oneday" className="studioQuickLink">
-            <span className="studioQuickIcon"><BookOpenText size={24} strokeWidth={1.8}/></span>
-            <strong>원데이 클래스</strong>
-            <small>함께 읽고 쓰는 시간</small>
+          <Link href="/notices" className="studioQuickLink">
+            <span className="studioQuickIcon"><Bell size={24} strokeWidth={1.8}/></span>
+            <strong>공지사항</strong>
+            <small>문장학교 소식과 수업 안내</small>
             <ChevronRight className="studioQuickArrow" size={17} />
           </Link>
         </div>
