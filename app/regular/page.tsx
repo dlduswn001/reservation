@@ -597,7 +597,8 @@ export default function RegularPage() {
   }
 
   const studentLessonMinutes = Number(student?.lesson_duration_minutes ?? 90);
-  const isDirectScheduleStudent = studentLessonMinutes === 120 && !extendedAutoBookable;
+  const isDirectScheduleStudent = studentLessonMinutes === 120 && !extendedAutoBookable
+    && !extras.entries.some(entry => entry.extra_kind === "freewriting");
   const lifestyleCreditText = studentLessonMinutes === 45 ? "수강권 1회" : "수강권 0.5회";
 
   async function cancel(bookingId: string) {
@@ -669,16 +670,18 @@ export default function RegularPage() {
                     <p><strong>생활수업(45분)과 프리 라이팅 클럽</strong>은 45분 수강권 <strong>1회</strong>, 90분 수강권 <strong>0.5회</strong>가 차감됩니다.</p>
                   </div>
                 )}
-                {isExtended120Student && (
+                {studentLessonMinutes === 120 && (
                   <div className="noticeItem">
                     <span className="noticeIcon">클럽</span>
                     <p><strong>프리 라이팅 클럽은 무료</strong>이며, 120분 수강권이 차감되지 않습니다.</p>
                   </div>
                 )}
               </div>
-              {isExtended120Student ? (
+              {studentLessonMinutes === 120 ? (
                 <p className="small" style={{marginTop: 12, marginBottom: 0}}>
-                  토·일요일은 120분 수업과 클럽을 예약하고, 수·목·금요일은 날짜 선택 후 카카오톡으로 문의해 주세요.
+                  {isExtended120Student
+                    ? "토·일요일은 120분 수업과 클럽을 예약하고, 수·목·금요일은 날짜 선택 후 카카오톡으로 문의해 주세요."
+                    : "120분 정규수업은 카카오톡으로 개별 문의하고, 프리 라이팅 클럽은 달력에서 무료로 신청할 수 있습니다."}
                 </p>
               ) : (
               <p className="small" style={{marginTop: 12, marginBottom: 0}}>
