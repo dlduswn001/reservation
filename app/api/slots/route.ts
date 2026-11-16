@@ -446,7 +446,8 @@ export async function GET(request: Request) {
           ? [...(lessonMinutes === 45 ? WEEKEND_REGULAR_START_TIMES_45 : WEEKEND_REGULAR_START_TIMES), ...WEEKEND_LIFESTYLE_START_TIMES]
           : WEEKDAY_VISIBLE_TIMETABLE_START_TIMES;
       // December Saturdays also have an extra 17:30 regular class.
-      if (weekday===6 && dateKey.startsWith("2026-12") && !extendedSelfBookingAllowed) {
+      if (!extendedSelfBookingAllowed &&
+          isDecemberSaturday1730(kstDateTimeToIso(year,month,day,17,30))) {
         times.push("17:30");
       }
       for (const time of times) {
