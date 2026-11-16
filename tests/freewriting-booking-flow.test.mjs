@@ -68,12 +68,13 @@ const context={
  }
 };
 const js=ts.transpileModule(src,{compilerOptions:{module:ts.ModuleKind.CommonJS}}).outputText;
-vm.runInNewContext(js,context);
+vm.runInNewContext(js + "\\nexports.__checkId = value => UUID.test(value);",context);
 const get=()=>context.exports.GET();
 const post=body=>context.exports.POST(new Request("http://localhost/api/freewriting",{
  method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(body)
 }));
 const base={studentId,name:"테스트 수강생",phone_last4:"0000"};
+assert.equal(context.exports.__checkId(base.studentId),true,"Mock UUID rejected: "+JSON.stringify(base));
 const initial=(await get()).data;
 assert.equal(initial.sessions.length,1);
 assert.equal(initial.sessions[0].capacity,5);
