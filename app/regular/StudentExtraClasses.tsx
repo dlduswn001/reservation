@@ -140,6 +140,22 @@ export function useStudentExtraClasses(student:Student|null,onChanged:()=>Promis
       const resp=await fetch(endpoint,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(payload)});
       const json=await resp.json();
       if(!resp.ok)throw Error(json.message||"신청 처리에 실패했습니다.");
+      // The transaction succeeded: immediately reflect the confirmed booking
+      // before any non-critical history/profile refresh can fail or lag.
+      if(club && json.ok===true){
+        if(hasBooking){
+          setMyClubBookings(prev=>prev.filter(b=>b.id!==entry.extra_booking_id));
+          setHistory(prev=>prev.map(b=>b.id===entry.extra_booking_id?{...b,status:"취소완료"}:b));
+          setFree(prev=>prev.map(c=>c.id===entry.class_id
+            ? {...c,booked_count:Math.max(0,c.booked_count-1)}:c));
+        }else if(typeof json.booking_id==="string"){
+          setMyClubBookings(prev=>prev.some(b=>b.id===json.booking_id)?prev:[
+            ...prev,{id:json.booking_id,class_id:entry.class_id,status:"등록완료"}
+          ]);
+          setFree(prev=>prev.map(c=>c.id===entry.class_id
+            ? {...c,booked_count:Math.min(c.capacity,c.booked_count+1)}:c));
+        }
+      }
       const successText=club
         ?(hasBooking?"클럽 신청이 취소되고 수강권이 환급됐습니다.":"클럽 신청 완료 · 수강권 "+creditCost+"회 차감")
         :"원데이 클래스 신청 내역이 반영됐습니다.";
@@ -151,5 +167,9 @@ export function useStudentExtraClasses(student:Student|null,onChanged:()=>Promis
     }catch(e){setMessage(String(e instanceof Error?e.message:e));}
     finally{setBusy(false);}
   }
-  return {entries,loading,busy,message,send,refresh};
+  const upcomingBooked = entries.filter(entry =>
+    Boolean(entry.extra_booking_id) && ACTIVE.has(entry.extra_booking_status||"")
+      && new Date(entry.end_at).getTime()>Date.now()
+  );
+  return {entries,upcomingBooked,loading,busy,message,send,refresh};
 }
