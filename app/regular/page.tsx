@@ -489,7 +489,7 @@ export default function RegularPage() {
         ...Object.keys(grouped).map(key => key.slice(0,7)),
         ...(openMonth?.key ? [openMonth.key] : []),
       ]);
-      const today = seoulDateKey(new Date(currentTime));
+      const today = seoulDateKey(new Date(currentTime).toISOString());
       for (const monthKey of months) {
         if (!/^\d{4}-\d{2}$/.test(monthKey)) continue;
         const [year,month] = monthKey.split("-").map(Number);
