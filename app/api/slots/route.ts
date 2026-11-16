@@ -281,7 +281,7 @@ export async function GET(request: Request) {
 
     const { data: onedayClasses, error: onedayError } = await supabase
       .from("oneday_classes")
-      .select("id, start_at, end_at, is_open")
+      .select("id, start_at, end_at, is_open, class_kind")
       .gte("end_at", cutoff)
       .lte("start_at", searchRange.rangeEndIso);
     if (onedayError) throw onedayError;
@@ -339,7 +339,7 @@ export async function GET(request: Request) {
 
       const slotLessonMinutes = getReservationLessonMinutes(slot.start_at, lessonMinutes);
       const candidateEndAt = lessonEndIso(slot.start_at, slotLessonMinutes);
-      if (conflictsWithOneDayBlocks(slot.start_at, candidateEndAt, activeOnedayBlocks)) return false;
+      if (conflictsWithOneDayBlocks(slot.start_at, candidateEndAt, activeOnedayBlocks, undefined, extendedSelfBookingAllowed)) return false;
       if (overlapsAnyTimeBlock(slot.start_at, candidateEndAt, activeBlockedTimes)) return false;
 
       return true;
