@@ -10,7 +10,7 @@ const studentId = "00000000-0000-0000-0000-000000000001";
 const classId = "00000000-0000-0000-0000-000000000002";
 const bookingId = "00000000-0000-0000-0000-000000000003";
 const classes = [{
- id:classId,title:"프리 라이팅 클럽",capacity:5,is_open:true,
+ id:classId,title:"프리 라이팅 클럽",class_kind:"freewriting",capacity:5,is_open:true,
  start_at:"2026-12-05T03:00:00Z",end_at:"2026-12-05T05:00:00Z"
 }];
 let bookings=[];
