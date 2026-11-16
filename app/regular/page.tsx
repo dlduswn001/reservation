@@ -866,7 +866,9 @@ export default function RegularPage() {
                                 style={slot.is_closed ? styles.timelineClosedButton : styles.timelinePrimaryButton}>
                                 {slot.extra_booking_id ? "신청 취소" :
                                   slot.extra_kind === "freewriting"
-                                    ? Number(slot.extra_count||0) >= Number(slot.extra_capacity||5) ? "정원 마감" : "클럽 신청하기"
+                                    ? Number(slot.extra_count||0) >= Number(slot.extra_capacity||5)
+                                      ? "정원 5명 마감"
+                                      : `클럽 신청하기 (${slot.extra_count ?? 0}/${slot.extra_capacity ?? 5}명)`
                                     : slot.is_waitlist ? "대기 신청" : "신청하기"}
                               </button>
                             </div>
