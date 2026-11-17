@@ -4,6 +4,7 @@ import {
   isLessonWithinOperatingHours,
   isExtendedLessonSlot,
   isDecemberSaturday1730,
+  isSundayEveningRegularSlot,
   lessonEndIso,
   normalizeLessonDurationMinutes,
   getReservationLessonMinutes,
@@ -448,10 +449,13 @@ export async function GET(request: Request) {
         : weekday === 0 || weekday === 6
           ? [...(lessonMinutes === 45 ? WEEKEND_REGULAR_START_TIMES_45 : WEEKEND_REGULAR_START_TIMES), ...WEEKEND_LIFESTYLE_START_TIMES]
           : WEEKDAY_VISIBLE_TIMETABLE_START_TIMES;
-      // December Saturdays also have an extra 17:30 regular class.
-      if (!extendedSelfBookingAllowed &&
-          isDecemberSaturday1730(kstDateTimeToIso(year,month,day,17,30))) {
-        times.push("17:30");
+      // Extra evening regular class: December Saturdays and Sundays from December onward.
+      // This remains unavailable for the separate 120-minute self-booking timetable.
+      if (!extendedSelfBookingAllowed) {
+        const eveningStart = kstDateTimeToIso(year, month, day, 17, 30);
+        if (isDecemberSaturday1730(eveningStart) || isSundayEveningRegularSlot(eveningStart)) {
+          times.push("17:30");
+        }
       }
       for (const time of times) {
         const [hour, minute] = time.split(":").map(Number);
