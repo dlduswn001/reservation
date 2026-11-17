@@ -879,6 +879,9 @@ export default function RegularPage() {
 
                 <div className="selectedSlots" style={styles.selectedSlots}>
                   <h3 style={styles.selectedDateTitle}>{selectedDate ? formatDateLabel(selectedDate) : "예약 가능한 시간"}</h3>
+                  {extras.message && (
+                    <p role="status" aria-live="polite" style={styles.timelineInlineNotice}>{extras.message}</p>
+                  )}
                   {selectedInquiryDay && (
                     <div className="noticeBox" style={{margin:"12px 0",padding:16,borderRadius:14}}>
                       <strong>수·목·금요일 120분 수업은 개별 일정 조율</strong>
@@ -908,10 +911,15 @@ export default function RegularPage() {
                         <div style={styles.timelineContent}>
                           <div style={styles.timelineTopLine}>
                             <strong style={styles.timelineTime}>{`${formatTime(slot.start_at)} – ${formatTime(slot.end_at)}`}</strong>
-                            <span style={slot.is_closed ? styles.timelineClosedLabel : styles.timelineDuration}>
-                              {slot.extra_kind
-                                ? (slot.extra_kind === "freewriting" ? "120분" : "원데이")
-                                : slot.is_closed ? "마감" : slot.is_waitlist ? "예약 마감 · 대기 가능" : slot.is_lifestyle ? "45분" : `${slot.lesson_minutes || 90}분`}
+                            <span style={{display:"inline-flex",alignItems:"center",gap:8,flexWrap:"wrap",justifyContent:"flex-end"}}>
+                              {slot.extra_booking_id && (
+                                <span style={styles.timelineBookedBadge}>✓ 신청 완료</span>
+                              )}
+                              <span style={slot.is_closed ? styles.timelineClosedLabel : styles.timelineDuration}>
+                                {slot.extra_kind
+                                  ? (slot.extra_kind === "freewriting" ? "120분" : "원데이")
+                                  : slot.is_closed ? "마감" : slot.is_waitlist ? "예약 마감 · 대기 가능" : slot.is_lifestyle ? "45분" : `${slot.lesson_minutes || 90}분`}
+                              </span>
                             </span>
                           </div>
                           <p style={styles.timelineDescription}>
@@ -927,7 +935,6 @@ export default function RegularPage() {
                           </p>
                           {slot.extra_kind ? (
                             <div style={styles.timelineActions}>
-                              {slot.extra_booking_id && <strong style={{fontSize:13,color:"#79283E"}}>신청 완료</strong>}
                               {slot.extra_kind === "freewriting" && !slot.extra_booking_id && Number(slot.extra_count ?? 0) >= Number(slot.extra_capacity ?? 5) &&
                                 <strong style={{fontSize:13,color:"#79283E"}}>정원 5명 마감</strong>}
                               <button type="button"
@@ -938,7 +945,7 @@ export default function RegularPage() {
                                       Number(slot.extra_count||0) >= Number(slot.extra_capacity||5)
                                     : false)) ||
                                   (Boolean(slot.extra_booking_id) && slot.extra_booking_status === "대기")}
-                                style={slot.is_closed ? styles.timelineClosedButton : styles.timelinePrimaryButton}>
+                                style={slot.extra_booking_id ? styles.timelineCancelButton : slot.is_closed ? styles.timelineClosedButton : styles.timelinePrimaryButton}>
                                 {slot.extra_booking_id ? "신청 취소" :
                                   slot.extra_kind === "freewriting"
                                     ? Number(slot.extra_count||0) >= Number(slot.extra_capacity||5)
@@ -999,14 +1006,6 @@ export default function RegularPage() {
           </section>
           )}
         </>
-      )}
-      {extras.message && (
-        <div role="status" aria-live="polite" style={{
-          position:"fixed",bottom:89,left:"50%",transform:"translateX(-50%)",
-          width:"min(90vw,650px)",padding:"14px 16px",borderRadius:12,
-          color:"#68243a",background:"#fff2f5",border:"1px solid #d7bac4",
-          boxShadow:"0 6px 24px #32102125",zIndex:45,fontSize:13,lineHeight:1.6
-        }}>{extras.message}</div>
       )}
       <BottomNav />
     </main>
@@ -1167,7 +1166,10 @@ const styles: Record<string, CSSProperties> = {
   timelineTime: { fontSize: 16, color: "#252326", letterSpacing: "-0.025em" },
   timelineDuration: { fontSize: 12, color: "#777078" },
   timelineDescription: { margin: "7px 0 13px", fontSize: 12, color: "#777078", lineHeight: 1.5 },
-  timelineActions: { display: "flex", flexWrap: "wrap", gap: 8 },
+  timelineActions: { display: "flex", flexWrap: "wrap", gap: 8, width: "100%" },
+  timelineBookedBadge: { display:"inline-flex", alignItems:"center", gap:4, padding:"4px 8px", borderRadius:999, background:"#f9ebef", color:"#79283E", fontWeight:700, fontSize:11, whiteSpace:"nowrap" },
+  timelineInlineNotice: { margin:"10px 0", padding:"10px 12px", borderRadius:10, background:"#fff2f5", color:"#79283E", border:"1px solid #ead4dc", fontSize:12, lineHeight:1.5 },
+  timelineCancelButton: { width:"100%", minWidth:0, margin:0, padding:"11px 16px", borderRadius:10, fontSize:13, fontWeight:700, background:"#fff", color:"#79283E", border:"1px solid #d8c1c6", cursor:"pointer" },
   timelineClosedLabel: { fontSize: 12, color: "#7c7779", fontWeight: 700 },
   timelineClosedButton: { display: "inline-flex", alignItems: "center", justifyContent: "center", minWidth: 115, padding: "10px 16px", borderRadius: 9, fontSize: 13, fontWeight: 700, background: "#f2f1f2", color: "#777276", border: "1px solid #e5e2e4" },
   timelinePrimaryButton: { display: "inline-flex", alignItems: "center", justifyContent: "center", gap: 8, minWidth: 115, margin: 0, padding: "10px 16px", borderRadius: 9, fontSize: 13, fontWeight: 700, background: "#79283E", color: "#fff", border: "none", cursor: "pointer" },

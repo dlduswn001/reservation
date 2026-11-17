@@ -160,7 +160,7 @@ export default function Home() {
         <Link href="/regular" style={quickRowStyle} aria-label="수업예약 열기">
           <PenLine size={21} strokeWidth={1.8} color="#803149"/>
           <strong style={{fontSize:15,whiteSpace:"nowrap"}}>수업예약</strong>
-          <span style={quickDetailStyle}>정규 · 프리 라이팅</span>
+          <span aria-hidden="true" />
           <ChevronRight size={17} color="#aa9ba2"/>
         </Link>
         <div style={{height:1,background:"#f0e9ec",margin:"0 13px"}}/>
