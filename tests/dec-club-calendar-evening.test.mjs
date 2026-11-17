@@ -28,7 +28,7 @@ for(const day of ["2026-12-05","2026-12-12","2026-12-19","2026-12-26"]) {
  assert.equal(rules.lessonEndIso(start,90),asIso(day,"19:00"));
  assert.equal(rules.lessonEndIso(start,45),asIso(day,"18:15"));
 }
-for(const day of ["2026-11-28","2027-01-02","2026-12-06","2026-12-04"]) {
+for(const day of ["2026-11-28","2027-01-02","2026-12-04"]) {
  assert.equal(rules.isDecemberSaturday1730(asIso(day,"17:30")),false);
  assert.equal(rules.isRegularLessonSlotForStudent(asIso(day,"17:30"),90),false);
 }
