@@ -44,6 +44,12 @@ export function useStudentExtraClasses(student:Student|null,onChanged:()=>Promis
   const [loading,setLoading] = useState(false);
   const [busy,setBusy] = useState(false);
   const [message,setMessage] = useState("");
+  // Feedback should not persist or cover the booking controls indefinitely.
+  useEffect(() => {
+    if (!message) return;
+    const timer = window.setTimeout(() => setMessage(""), 4500);
+    return () => window.clearTimeout(timer);
+  }, [message]);
   const studentId=student?.id||"";
   const studentName=student?.name||"";
   const studentPhone=student?.phone_last4||"";
