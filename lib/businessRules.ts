@@ -148,11 +148,20 @@ export function isDecemberSaturday1730(startAt:string) {
     && weekday==="Sat" && hour===17 && minute===30;
 }
 
+/** Extra regular booking start for Sundays from December 2026 onward.
+ * 90-minute classes end at 19:00; 45-minute passes retain their 45-minute duration.
+ * 120-minute opt-in students keep their separate approved start times. */
+export function isSundayEveningRegularSlot(startAt: string) {
+  const day = dateKeyInKst(new Date(startAt));
+  const { weekday, hour, minute } = kstDateTimeParts(startAt);
+  return day >= "2026-12-01" && weekday === "Sun" && hour === 17 && minute === 30;
+}
+
 export function isRegularLessonSlot(startAt: string) {
   if (!isOctoberTimetableDate(startAt)) return false;
   const { weekday, hour, minute } = kstDateTimeParts(startAt);
   const time = minutesToTime(hour * 60 + minute);
-  if (isDecemberSaturday1730(startAt)) return true;
+  if (isDecemberSaturday1730(startAt) || isSundayEveningRegularSlot(startAt)) return true;
   if (["Sat", "Sun"].includes(weekday)) return WEEKEND_REGULAR_START_TIMES.includes(time);
   if (["Mon", "Tue", "Wed", "Thu", "Fri"].includes(weekday)) return WEEKDAY_REGULAR_START_TIMES.includes(time);
   return false;
@@ -188,7 +197,7 @@ export function isRegularLessonSlotForStudent(startAt: string, lessonMinutes: un
   const time = minutesToTime(hour * 60 + minute);
 
   if (normalized === EXTENDED_LESSON_MINUTES) return isExtendedLessonSlot(startAt);
-  if (isDecemberSaturday1730(startAt)) return true;
+  if (isDecemberSaturday1730(startAt) || isSundayEveningRegularSlot(startAt)) return true;
 
   if (["Sat", "Sun"].includes(weekday)) {
     return (normalized === SHORT_LESSON_MINUTES
@@ -592,6 +601,9 @@ export function buildTimetableSlots(startDateKey: string, weeks: number) {
             time,
             minutes: WEEKEND_LIFESTYLE_START_TIMES.includes(time) ? SHORT_LESSON_MINUTES : DEFAULT_LESSON_MINUTES,
           })),
+          ...(weekday === 0 && dateKey >= "2026-12-01"
+            ? [{ time: "17:30", minutes: DEFAULT_LESSON_MINUTES }]
+            : []),
         ];
       } else {
         timeRows = [];
