@@ -51,7 +51,7 @@ function onedayStatusLabel(status?: string) {
 export default function Home() {
   const [student, setStudent] = useState<Student | null>(null);
   const [upcoming, setUpcoming] = useState<UpcomingSummary[]>([]);
-  const [pinnedNoticeTitle, setPinnedNoticeTitle] = useState("");
+  const [homeNotices, setHomeNotices] = useState<{id:string; title:string}[]>([]);
 
   useEffect(() => {
     let active = true;
@@ -62,8 +62,8 @@ export default function Home() {
       })
       .then(json => {
         const notices = Array.isArray(json.notices) ? json.notices : [];
-        const pinned = notices.find((notice:{is_pinned?:boolean}) => notice.is_pinned) || notices[0];
-        if(active && pinned?.title) setPinnedNoticeTitle(String(pinned.title));
+        const pinned = notices.filter((notice:{is_pinned?:boolean}) => notice.is_pinned);
+        if (active) setHomeNotices(pinned.length ? pinned : notices.slice(0, 1));
       }).catch(() => {/* Notices remain navigable when the API is unavailable. */});
     return () => {active=false;};
   }, []);
@@ -167,7 +167,9 @@ export default function Home() {
         <Link href="/notices" style={quickRowStyle} aria-label="공지사항 열기">
           <Bell size={21} strokeWidth={1.8} color="#803149"/>
           <strong style={{fontSize:15,whiteSpace:"nowrap"}}>공지사항</strong>
-          <span style={quickDetailStyle}>{pinnedNoticeTitle || "공지사항 보기"}</span>
+          <span style={{display:"grid",gap:6,minWidth:0,fontSize:13,lineHeight:1.45}}>
+            {homeNotices.length ? homeNotices.map(notice => <span key={notice.id}>{notice.title}</span>) : "공지사항 보기"}
+          </span>
           <ChevronRight size={17} color="#aa9ba2"/>
         </Link>
         <div style={{height:1,background:"#f0e9ec",margin:"0 13px"}}/>
