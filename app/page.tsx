@@ -164,13 +164,30 @@ export default function Home() {
           <ChevronRight size={17} color="#aa9ba2"/>
         </Link>
         <div style={{height:1,background:"#f0e9ec",margin:"0 13px"}}/>
-        <Link href="/notices" style={quickRowStyle} aria-label="공지사항 열기">
-          <Bell size={21} strokeWidth={1.8} color="#803149"/>
-          <strong style={{fontSize:15,whiteSpace:"nowrap"}}>공지사항</strong>
-          <span style={{display:"grid",gap:6,minWidth:0,fontSize:13,lineHeight:1.45}}>
-            {homeNotices.length ? homeNotices.map(notice => <span key={notice.id}>{notice.title}</span>) : "공지사항 보기"}
-          </span>
-          <ChevronRight size={17} color="#aa9ba2"/>
+        <Link href="/notices" style={{
+          ...quickRowStyle, gridTemplateColumns:"28px minmax(0,1fr) 17px", rowGap:8
+        }}>
+          <Bell size={21} strokeWidth={1.8} color="#803149" aria-hidden="true"/>
+          <strong style={{fontSize:15}}>공지사항</strong>
+          <ChevronRight size={17} color="#aa9ba2" aria-hidden="true"/>
+          {homeNotices.length > 0 && (
+            <ul style={{
+              gridColumn:"2 / -1", margin:0, padding:0, listStyle:"none",
+              display:"grid", gap:7, color:"#51454a", fontSize:14, lineHeight:1.55
+            }}>
+              {homeNotices.map(notice => (
+                <li key={notice.id} style={{
+                  display:"grid", gridTemplateColumns:"4px minmax(0,1fr)", gap:8,
+                  wordBreak:"keep-all", overflowWrap:"anywhere"
+                }}>
+                  <span aria-hidden="true" style={{
+                    width:4, height:4, marginTop:"0.65em", borderRadius:"50%", background:"#a85b70"
+                  }}/>
+                  <span>{notice.title}</span>
+                </li>
+              ))}
+            </ul>
+          )}
         </Link>
         <div style={{height:1,background:"#f0e9ec",margin:"0 13px"}}/>
         <Link href="/history" style={quickRowStyle} aria-label="다가오는 수업 확인하기">
