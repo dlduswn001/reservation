@@ -78,5 +78,4 @@ begin
       select created_at, id from public.regular_waitlist where id=v_id
     );
   return jsonb_build_object('ok', true, 'id',v_id,'position',v_position);
-end $function$
-
+end $function$;
