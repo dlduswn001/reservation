@@ -307,6 +307,11 @@ function isActiveOneDayBooking(status?: string) {
   return ACTIVE_ONEDAY_STATUSES.has(String(status || ""));
 }
 
+function applicantSummary(bookings: OneDayBooking[]) {
+  const names = bookings.map(booking => booking.student_name || "이름 미등록");
+  return names.length ? `신청자 · ${names.join(", ")}` : "신청자 없음";
+}
+
 function onedayStatusLabel(status?: string) {
   if (!status) return "-";
   return ONEDAY_STATUS_LABELS[status] || status;
@@ -1726,7 +1731,7 @@ export default function AdminPage() {
         end_at: klass.end_at,
         label: "원데이",
         title: klass.title || "원데이 클래스",
-        subtitle: `신청 ${relatedBookings.length}명 / 확정 ${confirmedCount}명 / 정원 ${klass.capacity || 0}명`,
+        subtitle: `${applicantSummary(relatedBookings)} · 신청 ${relatedBookings.length}명 / 확정 ${confirmedCount}명 / 정원 ${klass.capacity || 0}명`,
         detail: klass.description || undefined,
       });
     }
@@ -1797,7 +1802,7 @@ export default function AdminPage() {
         end_at: klass.end_at,
         label: "원데이",
         title: klass.title || "원데이 클래스",
-        subtitle: `신청 ${relatedBookings.length}명 / 확정 ${confirmedCount}명 / 정원 ${klass.capacity || 0}명`,
+        subtitle: `${applicantSummary(relatedBookings)} · 신청 ${relatedBookings.length}명 / 확정 ${confirmedCount}명 / 정원 ${klass.capacity || 0}명`,
         detail: klass.description || undefined,
       });
     }
@@ -1873,7 +1878,7 @@ export default function AdminPage() {
         end_at: klass.end_at,
         label: "원데이",
         title: klass.title || "원데이 클래스",
-        subtitle: `신청 ${applications.length}건 · 정원 ${klass.capacity || 0}명`,
+        subtitle: `${applicantSummary(applications)} · 신청 ${applications.length}건 · 정원 ${klass.capacity || 0}명`,
         detail: klass.description || undefined,
       });
     }
@@ -2027,10 +2032,10 @@ export default function AdminPage() {
                 <span>신청 {relatedBookings.length}명</span>
                 <span>대기 {waitingCount}명</span>
                 <span>확정 {confirmedCount}명</span>
-                <span>정원 6명</span>
+                <span>정원 {c.capacity}명</span>
                 <span>{c.is_open ? "예약 화면 노출" : "예약 화면 숨김"}</span>
               </div>
-              <p className="small">정규수강생 전용 · 정원 6명 · 마감 시 대기 신청</p>
+              <p className="small">{applicantSummary(relatedBookings)}</p>
               {c.description && <p className="onedayCurriculumPreview" style={{whiteSpace:"pre-line"}}>{c.description}</p>}
             </div>
             {!c.is_deleted && <div className="inlineActions oneDayClassActions">
