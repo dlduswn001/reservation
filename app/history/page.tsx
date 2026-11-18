@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import BottomNav from "../components/BottomNav";
-import { bookingDisplayNameFromMemo } from "../../lib/businessRules";
+import { bookingDisplayNameFromMemo, freeCancelLeadHoursForLesson } from "../../lib/businessRules";
 
 type Student = { id: string; name: string; phone_last4: string; lesson_credits?: number };
 type Booking = { id: string; start_at: string; end_at: string; status: string; memo?: string; created_at?: string };
@@ -128,6 +128,7 @@ function regularStatusLabel(booking: Booking, now: number) {
   if (["booked", "change_request"].includes(booking.status) && endTime <= now) {
     return "수강 완료";
   }
+  if(booking.status==="late_cancelled") return `${freeCancelLeadHoursForLesson(booking.start_at)}시간 이내 취소 · 수강권 차감`;
   return STATUS_LABELS[booking.status] || booking.status;
 }
 
