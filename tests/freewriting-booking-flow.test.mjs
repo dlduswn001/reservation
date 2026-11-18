@@ -64,6 +64,7 @@ const context={
    })}};
    if(name.endsWith("/supabaseAdmin"))return {getSupabaseAdmin:()=>db};
    if(name.endsWith("/supabaseCompat"))return {getErrorMessage:e=>String(e?.message||e)};
+   if(name.endsWith("/businessRules"))return {isSchoolClosedLessonStart:()=>false};
    throw Error(name);
  }
 };
