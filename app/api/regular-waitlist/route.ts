@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { getSupabaseAdmin } from "../../../lib/supabaseAdmin";
+import { isSchoolClosedLessonStart } from "../../../lib/businessRules";
 
 export async function GET(request: Request) {
   try {
@@ -54,6 +55,12 @@ export async function POST(request: Request) {
       return NextResponse.json(data);
     }
     if (!body.slotId) return NextResponse.json({message:"수업 시간이 없습니다."},{status:400});
+    const {data:waitSlot,error:waitSlotError}=await db.from("available_slots")
+      .select("start_at").eq("id",String(body.slotId)).maybeSingle();
+    if(waitSlotError)throw waitSlotError;
+    if(!waitSlot)return NextResponse.json({message:"수업 시간을 찾을 수 없습니다."},{status:404});
+    if(isSchoolClosedLessonStart(waitSlot.start_at))
+      return NextResponse.json({message:"12월 30일과 31일은 문장학교 연말 휴무일로 대기 신청할 수 없습니다."},{status:400});
     const {data,error}=await db.rpc("munjang_regular_waitlist_join_v2",{
       p_slot_id:String(body.slotId),p_student_id:String(body.studentId),
       p_preferred_lifestyle:body.lifestyleClassName || null
