@@ -24,6 +24,10 @@ function query(table) {
     in(name,items){filters.push(row=>items.includes(row[name]));return q;},
     order(){return q;},
     async maybeSingle(){
+      if(table==="oneday_classes") {
+        const matches=classes.filter(row=>filters.every(fn=>fn(row)));
+        return {data:matches[0]||null,error:null};
+      }
       if(table==="students")return {data:{
         id:studentId,name:"테스트 수강생",phone_last4:"0000",lesson_duration_minutes:90,
         is_active:true,manual_enrollment_status:null
