@@ -28,6 +28,7 @@ jobs:
           node tests/freewriting-booking-flow.test.mjs
           node tests/freewriting-120-weekend-preview.test.mjs
           node tests/december-cutoff-policy.test.mjs
+          node tests/december-year-end-closure-2026.test.mjs
           node tests/dec-club-calendar-evening.test.mjs
           node tests/manual-block-revenue.test.mjs
           node tests/admin-pwa.test.mjs
