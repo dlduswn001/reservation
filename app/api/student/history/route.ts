@@ -35,6 +35,8 @@ export async function GET(request: Request) {
       status,
       amount_due,
       credits_deducted,
+      registration_status,
+      canceled_at,
       created_at,
       oneday_classes (
         id,
