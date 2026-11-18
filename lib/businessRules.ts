@@ -305,6 +305,22 @@ export const WEEKDAY_TIMES = buildThirtyMinuteTimes(WEEKDAY_START_TIME, WEEKDAY_
 export const WEEKEND_TIMES = buildThirtyMinuteTimes(WEEKEND_START_TIME, WEEKEND_LAST_START_TIME);
 export const SATURDAY_TIMES = WEEKEND_TIMES;
 
+/**
+ * The December 2026 policy depends on the KST date of the LESSON, not the date
+ * the booking/cancellation was submitted. Before Dec 1, honor the old 3h/3h rule.
+ */
+export const DECEMBER_RESERVATION_POLICY_DATE_KEY = "2026-12-01";
+export const DECEMBER_BOOKING_MIN_HOURS = 2;
+export const DECEMBER_FREE_CANCEL_MIN_HOURS = 6;
+export function bookingLeadHoursForLesson(startAt: string): number {
+  return dateKeyInKst(new Date(startAt)) >= DECEMBER_RESERVATION_POLICY_DATE_KEY
+    ? DECEMBER_BOOKING_MIN_HOURS : BOOKING_MIN_HOURS_BEFORE_LESSON;
+}
+export function freeCancelLeadHoursForLesson(startAt: string): number {
+  return dateKeyInKst(new Date(startAt)) >= DECEMBER_RESERVATION_POLICY_DATE_KEY
+    ? DECEMBER_FREE_CANCEL_MIN_HOURS : CANCEL_MIN_HOURS_BEFORE_LESSON;
+}
+
 export function bookingCutoffDate(now = new Date()) {
   return new Date(now.getTime() + BOOKING_MIN_HOURS_BEFORE_LESSON * 60 * 60 * 1000);
 }
@@ -313,20 +329,23 @@ export function cancelCutoffDate(now = new Date()) {
   return new Date(now.getTime() + CANCEL_MIN_HOURS_BEFORE_LESSON * 60 * 60 * 1000);
 }
 
-// 예약 가능 시간을 계산할 때 사용합니다. 현재 정책은 수업 시작 3시간 전까지 예약 가능입니다.
+// The availability query searches from 2h onward; filter individual lessons
+// by their own 2h/3h cutoff to preserve November's existing policy.
 export function reservationCutoffDate(now = new Date()) {
-  return bookingCutoffDate(now);
+  return new Date(now.getTime() + DECEMBER_BOOKING_MIN_HOURS * 60 * 60 * 1000);
 }
 
 export function isAtLeastThreeHoursBefore(startAt: string, now = new Date()) {
-  return new Date(startAt).getTime() >= bookingCutoffDate(now).getTime();
+  return new Date(startAt).getTime() - now.getTime()
+    >= bookingLeadHoursForLesson(startAt) * 60 * 60 * 1000;
 }
 
 export function isAtLeastCancelHoursBefore(startAt: string, now = new Date()) {
-  return new Date(startAt).getTime() >= cancelCutoffDate(now).getTime();
+  return new Date(startAt).getTime() - now.getTime()
+    >= freeCancelLeadHoursForLesson(startAt) * 60 * 60 * 1000;
 }
 
-// 이전 함수명을 쓰던 코드가 있어도 현재 취소 기준(3시간 전)을 따르도록 호환용으로 남겨둡니다.
+// Backward-compatible alias; it always follows the effective lesson-date policy.
 export function isAtLeastSixHoursBefore(startAt: string, now = new Date()) {
   return isAtLeastCancelHoursBefore(startAt, now);
 }
