@@ -15,6 +15,7 @@ import {
   conflictsWithRegularBookingsAllowingContinuous,
   reservationCutoffDate,
   isAtLeastThreeHoursBefore,
+  isSchoolClosedDateKey,
   overlapsAnyTimeBlock,
   WEEKDAY_VISIBLE_TIMETABLE_START_TIMES,
   EXTENDED_WEEKDAY_START_TIMES,
@@ -327,6 +328,7 @@ export async function GET(request: Request) {
       if (extendedSelfBookingAllowed &&
           (!isExtendedLessonSlot(slot.start_at) || !["Sat","Sun"].includes(slotWeekday(slot.start_at)))) return false;
       const dateKey = slotDateKey(slot.start_at);
+      if (isSchoolClosedDateKey(dateKey)) return false;
       const weekday = slotWeekday(slot.start_at);
       if (["Mon", "Tue"].includes(weekday) && !protectedDates.has(dateKey)) {
         const timeKey = new Intl.DateTimeFormat("en-GB", {
