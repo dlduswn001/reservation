@@ -1,6 +1,16 @@
 export const BOOKING_MIN_HOURS_BEFORE_LESSON = 3;
 export const CANCEL_MIN_HOURS_BEFORE_LESSON = 3;
 
+/** 문장학교 2026년 연말 정규 휴무일: 실제 수업·클럽 온라인 예약 모두 불가. */
+export const YEAR_END_CLOSURE_DATES_2026 = ["2026-12-30", "2026-12-31"] as const;
+export function isSchoolClosedDateKey(dateKey: string): boolean {
+  return YEAR_END_CLOSURE_DATES_2026.some(day => day === dateKey);
+}
+export function isSchoolClosedLessonStart(startAt: string): boolean {
+  return isSchoolClosedDateKey(dateKeyInKst(new Date(startAt)));
+}
+
+
 // 예전 코드와의 호환을 위해 남겨둡니다. 새 예약 가능 시간 계산은 BOOKING_MIN_HOURS_BEFORE_LESSON를 사용합니다.
 export const MIN_HOURS_BEFORE_LESSON = BOOKING_MIN_HOURS_BEFORE_LESSON;
 

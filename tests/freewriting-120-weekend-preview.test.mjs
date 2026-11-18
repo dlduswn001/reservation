@@ -23,7 +23,7 @@ for(const key of ["2026-12-05","2026-12-06","2026-12-07","2026-12-08","2026-12-1
 assert.equal(isWeekday("junk"),false);
 
 assert.match(page,/isExtended120Student && isWeekdayInquiryDateKey\(key\)\) continue/);
-assert.match(page,/if \(key >= today && isWeekdayInquiryDateKey\(key\)\) grouped\[key\] = \[\]/);
+assert.match(page,/if \(key >= today && isWeekdayInquiryDateKey\(key\) && !isSchoolClosedDateKey\(key\)\) grouped\[key\] = \[\]/);
 assert.match(page,/selectedInquiryDay &&/);
 assert.match(page,/!selectedInquiryDay && selectedSlots\.map/);
 assert.match(page,/카카오톡으로 문의하기/);

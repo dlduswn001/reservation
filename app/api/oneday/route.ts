@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { getSupabaseAdmin } from "../../../lib/supabaseAdmin";
+import { isSchoolClosedLessonStart } from "../../../lib/businessRules";
 
 const ACTIVE_STATUSES = ["booked", "입금대기", "등록대기", "입금완료", "등록완료"];
 const CAPACITY = 6;
@@ -57,7 +58,8 @@ export async function GET() {
     if (waitingError) throw waitingError;
     for (const booking of waitingBookings || []) waitingCounts.set(booking.class_id, (waitingCounts.get(booking.class_id) || 0) + 1);
 
-    const classIds = (classes || []).map((klass) => klass.id);
+    const activeClasses = (classes || []).filter(c=>!isSchoolClosedLessonStart(c.start_at));
+    const classIds = activeClasses.map((klass) => klass.id);
     type PublicPhoto = {
       id: string;
       class_id: string;
@@ -94,7 +96,7 @@ export async function GET() {
       }
     }
 
-    const withRemaining = (classes || []).map((c) => ({
+    const withRemaining = activeClasses.map((c) => ({
       ...c,
       capacity: CAPACITY,
       booked_count: counts.get(c.id) || 0,
@@ -127,9 +129,10 @@ export async function POST(request: Request) {
     const supabase = getSupabaseAdmin();
     // Old one-day registration cannot bypass the credit-based freewriting RPC.
     const { data: klass, error: classError } = await supabase.from("oneday_classes")
-      .select("class_kind").eq("id",classId).maybeSingle();
+      .select("class_kind,start_at").eq("id",classId).maybeSingle();
     if(classError)throw classError;
     if(!klass || klass.class_kind!=="oneday")return NextResponse.json({message:"이 수업은 정규수업 예약에서 신청해 주세요."},{status:400});
+    if(isSchoolClosedLessonStart(klass.start_at))return NextResponse.json({message:"12월 30일과 31일은 문장학교 연말 휴무입니다."},{status:400});
     const { data, error } = await supabase.rpc("munjang_oneday_join_waitlist", {
       p_class_id: classId, p_student_name: studentName,
       p_phone_last4: last4, p_people_count: count,

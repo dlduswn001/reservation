@@ -3,6 +3,7 @@ import { getSupabaseAdmin } from "../../../lib/supabaseAdmin";
 import {
   isAtLeastThreeHoursBefore,
   bookingLeadHoursForLesson,
+  isSchoolClosedLessonStart,
   isLessonWithinOperatingHours,
   isExtendedLessonSlot,
   lessonEndIso,
@@ -133,6 +134,10 @@ export async function POST(request: Request) {
         .single();
       if (slotError) throw slotError;
       slot = normalSlot;
+    }
+
+    if (isSchoolClosedLessonStart(slot.start_at)) {
+      return NextResponse.json({message:"12월 30일과 31일은 문장학교 연말 휴무일로 예약할 수 없습니다."},{status:400});
     }
 
     // 월·화요일에는 관리자가 해당 날짜를 명시적으로 개방한 5개 시간만 실제 예약할 수 있습니다.

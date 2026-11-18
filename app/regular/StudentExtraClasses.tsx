@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { bookingLeadHoursForLesson, freeCancelLeadHoursForLesson, isAtLeastThreeHoursBefore } from "../../lib/businessRules";
+import { bookingLeadHoursForLesson, freeCancelLeadHoursForLesson, isAtLeastThreeHoursBefore, isSchoolClosedLessonStart } from "../../lib/businessRules";
 
 type Student = {
   id:string;name:string;phone_last4:string;
@@ -94,7 +94,7 @@ export function useStudentExtraClasses(student:Student|null,onChanged:()=>Promis
   const creditCost=studentMinutes===120?0:studentMinutes===45?1:0.5;
   const entries=useMemo<ExtraClassSlot[]>(()=>{
     if(!student)return[];
-    const clubs=[45,90,120].includes(studentMinutes)?free.map(c=>{
+    const clubs=[45,90,120].includes(studentMinutes)?free.filter(c=>!isSchoolClosedLessonStart(c.start_at)).map(c=>{
       const mine=myClubBookings.find(b=>b.class_id===c.id&&b.status==="등록완료")
         || history.find(b=>b.class_id===c.id&&b.status==="등록완료");
       const closed=c.booked_count>=c.capacity||!isAtLeastThreeHoursBefore(c.start_at);
@@ -109,7 +109,7 @@ export function useStudentExtraClasses(student:Student|null,onChanged:()=>Promis
           : `프리 라이팅 클럽 · 신청 ${c.booked_count}/${c.capacity}명 · 수강권 ${creditCost}회 차감`
       };
     }):[];
-    const oneDays=other.map(c=>{
+    const oneDays=other.filter(c=>!isSchoolClosedLessonStart(c.start_at)).map(c=>{
       const mine=history.find(b=>b.class_id===c.id&&ACTIVE.has(b.status));
       return {
         id:"oneday:"+c.id,class_id:c.id,start_at:c.start_at,end_at:c.end_at,
