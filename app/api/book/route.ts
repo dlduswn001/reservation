@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { getSupabaseAdmin } from "../../../lib/supabaseAdmin";
 import {
   isAtLeastThreeHoursBefore,
+  bookingLeadHoursForLesson,
   isLessonWithinOperatingHours,
   isExtendedLessonSlot,
   lessonEndIso,
@@ -169,7 +170,7 @@ export async function POST(request: Request) {
     }
 
     if (!isAtLeastThreeHoursBefore(slot.start_at)) {
-      return NextResponse.json({ message: "수업 시작 3시간 전까지만 예약할 수 있습니다." }, { status: 400 });
+      return NextResponse.json({ message: `수업 시작 ${bookingLeadHoursForLesson(slot.start_at)}시간 전까지만 예약할 수 있습니다.` }, { status: 400 });
     }
 
     const passPolicyCheck = canBookWithRegularPassPolicy(student, slot.start_at);
