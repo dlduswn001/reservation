@@ -89,7 +89,13 @@ begin
    early_cancel := true;
  end if;
  refundable := case when early_cancel then b.credits_deducted else 0 end;
- update public.oneday_bookings set status='취소완료',canceled_at=now(),updated_at=now() where id=b.id;
+ update public.oneday_bookings set
+  status='취소완료',
+  registration_status=case
+    when b.credits_deducted=0 then 'cancelled_free'
+    when early_cancel then 'cancelled_refunded'
+    else 'cancelled_charged' end,
+  canceled_at=now(),updated_at=now() where id=b.id;
  if refundable>0 then
   update public.students set lesson_credits=lesson_credits+refundable where id=b.student_id;
  end if;
