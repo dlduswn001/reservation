@@ -560,16 +560,16 @@ export default function RegularPage() {
 
   async function book(slot: Slot, lifestyleClassName?: "정규수업" | "1:1 서평생활" | "1:1 필사생활") {
     if (!student) return;
+    if (slot.is_lifestyle && !lifestyleClassName) {
+      setMessage("1:1 서평생활 또는 1:1 필사생활을 선택해 주세요.");
+      return;
+    }
     // Bookings made inside the free-cancellation window are non-refundable
     // even though they are valid until the 2-hour application deadline.
     const freeCancelHours=freeCancelLeadHoursForLesson(slot.start_at);
     const remainingMs=new Date(slot.start_at).getTime()-Date.now();
     if(remainingMs < freeCancelHours*60*60*1000 &&
        !window.confirm(`수업 시작 ${freeCancelHours}시간 이내에 신청하는 수업은 이후 취소해도 수강권이 반환되지 않습니다. 예약할까요?`)) return;
-    if (slot.is_lifestyle && !lifestyleClassName) {
-      setMessage("1:1 서평생활 또는 1:1 필사생활을 선택해 주세요.");
-      return;
-    }
     setMessage("");
     const res = await fetch("/api/book", {
       method: "POST",
@@ -767,7 +767,7 @@ export default function RegularPage() {
                     </p>
                   </div>
                   {entry.extra_booking_status !== "대기" &&
-                    new Date(entry.start_at).getTime() > currentTime + 3 * 60 * 60 * 1000 && (
+                    new Date(entry.start_at).getTime() > currentTime + (entry.extra_kind === "freewriting" ? 0 : 3*60*60*1000) && (
                       <button type="button" className="danger" disabled={extras.busy}
                         onClick={() => void extras.send(entry)}>신청 취소</button>
                     )}
