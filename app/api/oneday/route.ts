@@ -58,7 +58,8 @@ export async function GET() {
     if (waitingError) throw waitingError;
     for (const booking of waitingBookings || []) waitingCounts.set(booking.class_id, (waitingCounts.get(booking.class_id) || 0) + 1);
 
-    const classIds = (classes || []).map((klass) => klass.id);
+    const activeClasses = (classes || []).filter(c=>!isSchoolClosedLessonStart(c.start_at));
+    const classIds = activeClasses.map((klass) => klass.id);
     type PublicPhoto = {
       id: string;
       class_id: string;
@@ -95,7 +96,7 @@ export async function GET() {
       }
     }
 
-    const withRemaining = (classes || []).map((c) => ({
+    const withRemaining = activeClasses.map((c) => ({
       ...c,
       capacity: CAPACITY,
       booked_count: counts.get(c.id) || 0,
