@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import type { CSSProperties } from "react";
 import BottomNav from "../components/BottomNav";
 import { disconnectPushOnLogout } from "../../lib/pushClient";
-import { isExtended120VisibleSlot, bookingLeadHoursForLesson, freeCancelLeadHoursForLesson, isAtLeastCancelHoursBefore } from "../../lib/businessRules";
+import { isExtended120VisibleSlot, isSchoolClosedDateKey, bookingLeadHoursForLesson, freeCancelLeadHoursForLesson, isAtLeastCancelHoursBefore } from "../../lib/businessRules";
 import { useStudentExtraClasses } from "./StudentExtraClasses";
 import type { ExtraClassSlot } from "./StudentExtraClasses";
 
@@ -479,6 +479,7 @@ export default function RegularPage() {
     // calendar, weekday lesson rows are never shown (they require Kakao inquiry).
     for (const slot of [...slots, ...extras.entries]) {
       const key = seoulDateKey(slot.start_at);
+      if (isSchoolClosedDateKey(key)) continue;
       if (isExtended120Student && isWeekdayInquiryDateKey(key)) continue;
       if (!grouped[key]) grouped[key] = [];
       grouped[key].push(slot);
@@ -497,7 +498,7 @@ export default function RegularPage() {
         const count = new Date(Date.UTC(year,month,0)).getUTCDate();
         for (let day=1;day<=count;day++) {
           const key = `${monthKey}-${String(day).padStart(2,"0")}`;
-          if (key >= today && isWeekdayInquiryDateKey(key)) grouped[key] = [];
+          if (key >= today && isWeekdayInquiryDateKey(key) && !isSchoolClosedDateKey(key)) grouped[key] = [];
         }
       }
     }
@@ -854,6 +855,11 @@ export default function RegularPage() {
                     return (
                       <div key={monthKey} className="studioMonthBlock">
                         <h3 className="studioMonthTitle">{formatMonthTitle(`${monthKey}-01`)}</h3>
+                        {monthKey==="2026-12" && (
+                          <p className="small" style={{margin:"0 0 10px",color:"#822940",fontWeight:600}}>
+                            12월 30일(수)~31일(목)은 문장학교 연말 휴무입니다.
+                          </p>
+                        )}
                         <div className="studioCalendarWeekdays">
                           {["일", "월", "화", "수", "목", "금", "토"].map((weekday) => <span key={weekday}>{weekday}</span>)}
                         </div>
@@ -865,7 +871,8 @@ export default function RegularPage() {
                             const daySlots = slotsByDate[dateKey] || [];
                             const hasBookable = daySlots.some((item) => !item.is_waitlist && !item.is_closed);
                             const hasWaitlist = daySlots.some((item) => item.is_waitlist);
-                            const dayStatus = !available ? "예약 불가"
+                            const dayStatus = isSchoolClosedDateKey(dateKey) ? "연말 휴무"
+                              : !available ? "예약 불가"
                               : isExtended120Student && isWeekdayInquiryDateKey(dateKey) ? "카카오톡 문의"
                               : hasBookable ? "예약 가능" : hasWaitlist ? "대기 가능" : "마감";
                             const selected = selectedDate === dateKey;
@@ -874,7 +881,7 @@ export default function RegularPage() {
                                 key={dateKey}
                                 type="button"
                                 className={`studioCalendarDate ${selected ? "selected" : ""} ${available ? "available" : ""}`}
-                                disabled={!available}
+                                disabled={!available || isSchoolClosedDateKey(dateKey)}
                                 aria-label={`${dateKey} ${dayStatus}`}
                                 title={dayStatus}
                                 aria-pressed={selected}
