@@ -14,6 +14,7 @@ import {
   conflictsWithOneDayBlocks,
   conflictsWithRegularBookingsAllowingContinuous,
   reservationCutoffDate,
+  isAtLeastThreeHoursBefore,
   overlapsAnyTimeBlock,
   WEEKDAY_VISIBLE_TIMETABLE_START_TIMES,
   EXTENDED_WEEKDAY_START_TIMES,
@@ -344,7 +345,7 @@ export async function GET(request: Request) {
     const isSlotAvailable = (slot: SlotRow) => {
       if (!isAllowedLessonDateAndTime(slot)) return false;
       // 닫힌 슬롯과 예약 시작 3시간 전을 넘긴 시간은 예약과 대기 모두 불가능합니다.
-      if (slot.is_open === false || new Date(slot.start_at).getTime() <= cutoffDate.getTime()) return false;
+      if (slot.is_open === false || !isAtLeastThreeHoursBefore(slot.start_at)) return false;
 
       const slotLessonMinutes = getReservationLessonMinutes(slot.start_at, lessonMinutes);
       const candidateEndAt = lessonEndIso(slot.start_at, slotLessonMinutes);

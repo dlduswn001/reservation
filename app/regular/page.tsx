@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import type { CSSProperties } from "react";
 import BottomNav from "../components/BottomNav";
 import { disconnectPushOnLogout } from "../../lib/pushClient";
-import { isExtended120VisibleSlot } from "../../lib/businessRules";
+import { isExtended120VisibleSlot, bookingLeadHoursForLesson, freeCancelLeadHoursForLesson, isAtLeastCancelHoursBefore } from "../../lib/businessRules";
 import { useStudentExtraClasses } from "./StudentExtraClasses";
 import type { ExtraClassSlot } from "./StudentExtraClasses";
 
@@ -75,7 +75,7 @@ type OpenMonth = {
 };
 
 const STUDENT_LOGIN_STORAGE_KEY = "munjangStudentLogin";
-const SLOT_CACHE_STORAGE_KEY = "munjangRegularSlotCacheV38";
+const SLOT_CACHE_STORAGE_KEY = "munjangRegularSlotCacheV40-DecBooking";
 
 /** Days are interpreted as calendar dates in Korea, independent of the browser locale. */
 function isWeekdayInquiryDateKey(dateKey: string) {
@@ -92,7 +92,7 @@ const STATUS_LABELS: Record<string, string> = {
   cancelled: "취소 완료",
   done: "수강 완료",
   in_progress: "수업 진행 중",
-  late_cancelled: "3시간 이내 취소",
+  late_cancelled: "수강권 차감 취소",
 };
 
 function readStoredStudentLogin() {
@@ -127,8 +127,8 @@ function clearStoredStudentLogin() {
 }
 
 function estimateOpenMonthKey() {
-  // 예약은 3시간 전까지만 가능하고, 월말에는 다음 달 스케줄이 먼저 열릴 수 있습니다.
-  const cutoffLikeServer = new Date(Date.now() + 3 * 60 * 60 * 1000);
+  // 12월 이후 수업은 2시간 전까지 신청 가능.
+  const cutoffLikeServer = new Date(Date.now() + 2 * 60 * 60 * 1000);
   const parts = new Intl.DateTimeFormat("en-CA", {
     timeZone: "Asia/Seoul",
     year: "numeric",
@@ -564,6 +564,12 @@ export default function RegularPage() {
       setMessage("1:1 서평생활 또는 1:1 필사생활을 선택해 주세요.");
       return;
     }
+    // Bookings made inside the free-cancellation window are non-refundable
+    // even though they are valid until the 2-hour application deadline.
+    const freeCancelHours=freeCancelLeadHoursForLesson(slot.start_at);
+    const remainingMs=new Date(slot.start_at).getTime()-Date.now();
+    if(remainingMs < freeCancelHours*60*60*1000 &&
+       !window.confirm(`수업 시작 ${freeCancelHours}시간 이내에 신청하는 수업은 이후 취소해도 수강권이 반환되지 않습니다. 예약할까요?`)) return;
     setMessage("");
     const res = await fetch("/api/book", {
       method: "POST",
@@ -603,6 +609,14 @@ export default function RegularPage() {
 
   async function cancel(bookingId: string) {
     if (!student) return;
+    const target=bookings.find(item=>item.id===bookingId);
+    if (!target) return;
+    const hours=freeCancelLeadHoursForLesson(target.start_at);
+    const early=isAtLeastCancelHoursBefore(target.start_at);
+    const prompt=early
+      ? `수강권을 돌려받고 예약을 취소할까요? (수업 ${hours}시간 전까지 취소 가능)`
+      : `수업 시작 ${hours}시간 이내 취소이므로 수강권은 반환되지 않습니다. 예약을 취소할까요?`;
+    if(!window.confirm(prompt))return;
     setMessage("");
     const res = await fetch("/api/cancel", {
       method: "POST",
@@ -654,11 +668,11 @@ export default function RegularPage() {
               <div className="noticeGrid">
                 <div className="noticeItem">
                   <span className="noticeIcon">예약</span>
-                  <p>수업 신청은 시작 <strong>3시간 전까지</strong> 가능합니다.</p>
+                  <p><strong>12월 1일 수업부터 2시간 전까지</strong> 신청 가능합니다. (11월 수업은 3시간 전)</p>
                 </div>
                 <div className="noticeItem">
                   <span className="noticeIcon">취소</span>
-                  <p>수업 시작 <strong>3시간 전까지 취소</strong>해야 수강권이 차감되지 않습니다.</p>
+                  <p><strong>12월 1일 수업부터 6시간 전까지</strong> 무료 취소가 가능하며, 이후에도 취소할 수 있지만 수강권은 반환되지 않습니다. (11월 수업은 3시간 전)</p>
                 </div>
                 <div className="noticeItem">
                   <span className="noticeIcon">기간</span>
@@ -753,7 +767,7 @@ export default function RegularPage() {
                     </p>
                   </div>
                   {entry.extra_booking_status !== "대기" &&
-                    new Date(entry.start_at).getTime() > currentTime + 3 * 60 * 60 * 1000 && (
+                    new Date(entry.start_at).getTime() > currentTime + (entry.extra_kind === "freewriting" ? 0 : 3*60*60*1000) && (
                       <button type="button" className="danger" disabled={extras.busy}
                         onClick={() => void extras.send(entry)}>신청 취소</button>
                     )}
@@ -769,7 +783,7 @@ export default function RegularPage() {
                   <div className={`item bookingItem ${viewStatus === "done" ? "completed" : ""}`} key={booking.id}>
                     <div>
                       <strong>{formatDateTime(booking.start_at)} - {formatTime(booking.end_at)}</strong>
-                      <p className="small">상태: {STATUS_LABELS[viewStatus] || viewStatus}</p>
+                      <p className="small">상태: {viewStatus==="late_cancelled" ? `${freeCancelLeadHoursForLesson(booking.start_at)}시간 이내 취소 · 수강권 차감` : STATUS_LABELS[viewStatus] || viewStatus}</p>
                     </div>
                     {canCancel && (
                       <button className="danger" onClick={() => cancel(booking.id)}>취소하기</button>
@@ -813,7 +827,7 @@ export default function RegularPage() {
             {!isLoadingData && availableDateKeys.length === 0 && (
               <div className="item" style={styles.emptyItem}>
                 <strong>현재 예약 가능한 시간이 없습니다.</strong>
-                <p className="small">이미 예약된 시간과 3시간 이내 수업은 자동으로 보이지 않습니다.</p>
+                <p className="small">이미 예약된 시간과 신청 마감된 시간은 자동으로 보이지 않습니다.</p>
               </div>
             )}
 

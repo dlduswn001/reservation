@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import BottomNav from "../components/BottomNav";
-import { bookingDisplayNameFromMemo } from "../../lib/businessRules";
+import { bookingDisplayNameFromMemo, freeCancelLeadHoursForLesson } from "../../lib/businessRules";
 
 type Student = { id: string; name: string; phone_last4: string; lesson_credits?: number };
 type Booking = { id: string; start_at: string; end_at: string; status: string; memo?: string; created_at?: string };
@@ -24,6 +24,9 @@ type OneDayBooking = {
   is_regular_student?: boolean;
   status?: string;
   amount_due?: number | null;
+  credits_deducted?: number | null;
+  registration_status?: string | null;
+  canceled_at?: string | null;
   created_at?: string;
   oneday_classes?: OneDayClassInfo | null;
 };
@@ -128,6 +131,7 @@ function regularStatusLabel(booking: Booking, now: number) {
   if (["booked", "change_request"].includes(booking.status) && endTime <= now) {
     return "수강 완료";
   }
+  if(booking.status==="late_cancelled") return `${freeCancelLeadHoursForLesson(booking.start_at)}시간 이내 취소 · 수강권 차감`;
   return STATUS_LABELS[booking.status] || booking.status;
 }
 
@@ -257,7 +261,8 @@ export default function HistoryPage() {
         if (!oneClass) return false;
         const lessonEnded = new Date(oneClass.end_at).getTime() <= currentTime;
         const isActive = ACTIVE_ONEDAY_STATUSES.has(String(booking.status || ""));
-        return lessonEnded && isActive;
+        const isCancelledClub=oneClass.class_kind==="freewriting" && booking.status==="취소완료";
+        return (lessonEnded && isActive) || isCancelledClub;
       })
       .map((booking) => ({
         kind: "oneday",
@@ -331,13 +336,21 @@ export default function HistoryPage() {
                 const price = item.booking.amount_due ?? item.oneClass.regular_price ?? 10000;
                 return (
                   <div className="item" key={`oneday-${item.booking.id}`}>
-                    <strong>원데이 클래스 · {item.oneClass.title}</strong>
+                    <strong>{item.oneClass.class_kind==="freewriting" ? "프리 라이팅 클럽" : "원데이 클래스"} · {item.oneClass.title}</strong>
                     <p>{formatDateTime(item.oneClass.start_at)} - {formatTime(item.oneClass.end_at)}</p>
                     <p className="small">
                       신청 인원: {item.booking.people_count || 1}명 / 상태: {onedayStatusLabel(item.booking.status)}
                     </p>
                     <p className="small">
-                      비용: {formatOneDayAmount(price)}
+                      {item.oneClass.class_kind==="freewriting"
+                        ? (Number(item.booking.credits_deducted||0)===0
+                          ? "참가비 무료 · 수강권 차감 없음"
+                          : item.booking.status==="취소완료"
+                            ? item.booking.registration_status==="cancelled_refunded"
+                              ? `수강권 ${item.booking.credits_deducted}회 반환`
+                              : `수강권 ${item.booking.credits_deducted}회 차감 유지`
+                            : `수강권 ${item.booking.credits_deducted}회 사용`)
+                        : `비용: ${formatOneDayAmount(price)}`}
                     </p>
                     <p className="small">메모: 수강생 직접 예약</p>
                     {item.oneClass.description && <p>커리큘럼: {item.oneClass.description}</p>}

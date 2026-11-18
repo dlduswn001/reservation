@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { bookingLeadHoursForLesson, freeCancelLeadHoursForLesson, isAtLeastThreeHoursBefore } from "../../lib/businessRules";
 
 type Student = {
   id:string;name:string;phone_last4:string;
@@ -16,7 +17,8 @@ type OneClass = {
 };
 type OneBooking = {id:string;class_id?:string;status:string;people_count?:number};
 const ACTIVE = new Set(["booked","등록완료","등록대기","입금대기","입금완료","대기"]);
-const CUTOFF_MS = 3 * 60 * 60 * 1000;
+// Original one-day classes keep their own 3-hour booking cutoff.
+const ONEDAY_APPLY_CUTOFF_MS = 3 * 60 * 60 * 1000;
 
 export type ExtraClassSlot = {
   id:string;
@@ -95,7 +97,7 @@ export function useStudentExtraClasses(student:Student|null,onChanged:()=>Promis
     const clubs=[45,90,120].includes(studentMinutes)?free.map(c=>{
       const mine=myClubBookings.find(b=>b.class_id===c.id&&b.status==="등록완료")
         || history.find(b=>b.class_id===c.id&&b.status==="등록완료");
-      const closed=c.booked_count>=c.capacity||new Date(c.start_at).getTime()<=Date.now()+CUTOFF_MS;
+      const closed=c.booked_count>=c.capacity||!isAtLeastThreeHoursBefore(c.start_at);
       return {
         id:"club:"+c.id,class_id:c.id,start_at:c.start_at,end_at:c.end_at,
         extra_kind:"freewriting" as const,extra_title:"프리 라이팅 클럽",
@@ -115,7 +117,7 @@ export function useStudentExtraClasses(student:Student|null,onChanged:()=>Promis
         extra_count:Math.max(0,6-c.remaining),extra_capacity:6,
         extra_booking_id:mine?.id||null,extra_booking_status:mine?.status||null,
         credit_cost:0,
-        is_closed:new Date(c.start_at).getTime()<=Date.now()+CUTOFF_MS,
+        is_closed:new Date(c.start_at).getTime()<=Date.now()+ONEDAY_APPLY_CUTOFF_MS,
         is_waitlist:c.remaining<=0,
         rule_label:"원데이 클래스 · 신청 가능한 인원은 수업별로 표시"
       };
@@ -129,10 +131,21 @@ export function useStudentExtraClasses(student:Student|null,onChanged:()=>Promis
     const club=entry.extra_kind==="freewriting";
     const action=hasBooking?"cancel":"book";
     if(entry.is_closed && !hasBooking)return;
+    if(club && hasBooking && new Date(entry.start_at).getTime()<=Date.now()) {
+      setMessage("이미 시작된 클럽은 취소할 수 없습니다.");return;
+    }
+    const hoursToStart=(new Date(entry.start_at).getTime()-Date.now())/(60*60*1000);
+    const freeCancelHours=freeCancelLeadHoursForLesson(entry.start_at);
+    const lateCancel=hasBooking&&hoursToStart<freeCancelHours;
+    const lateBooking=!hasBooking&&hoursToStart<freeCancelHours;
     const explanation=club
-      ? (hasBooking?(creditCost===0?"무료 클럽 신청을 취소할까요?":"클럽 신청을 취소하고 수강권을 환급받을까요?"):
-          creditCost===0?"프리 라이팅 클럽에 무료로 신청하시겠습니까? (수강권 차감 없음)":
-            "프리 라이팅 클럽에 신청하고 수강권 "+creditCost+"회를 차감할까요?")
+      ? (hasBooking
+          ? (creditCost===0?"무료 클럽 신청을 취소할까요?":
+              lateCancel?`수업 시작 ${freeCancelHours}시간 이내 취소이므로 수강권 ${creditCost}회가 반환되지 않습니다. 취소할까요?`:
+              `클럽 신청을 취소하고 수강권 ${creditCost}회를 환급받을까요?`)
+          : (creditCost===0?"프리 라이팅 클럽에 무료로 신청하시겠습니까? (수강권 차감 없음)":
+             lateBooking?`클럽 신청 시 수강권 ${creditCost}회가 차감됩니다. 지금은 수업 시작 ${freeCancelHours}시간 이내이므로 취소해도 환급되지 않습니다. 신청할까요?`:
+             `프리 라이팅 클럽에 신청하고 수강권 ${creditCost}회를 차감할까요?`))
       : (hasBooking?"원데이 클래스 신청을 취소하시겠습니까?":"원데이 클래스에 신청하시겠습니까?");
     if(!window.confirm(explanation))return;
     setBusy(true);setMessage("");
@@ -166,7 +179,13 @@ export function useStudentExtraClasses(student:Student|null,onChanged:()=>Promis
         }
       }
       const successText=club
-        ?(hasBooking?"클럽 신청이 취소되고 수강권이 환급됐습니다.":creditCost===0?"클럽 신청 완료 · 무료 참여 (수강권 차감 없음)":"클럽 신청 완료 · 수강권 "+creditCost+"회 차감")
+        ? (hasBooking
+            ? (creditCost===0?"무료 클럽 신청이 취소되었습니다. 수강권 변경 없음":
+               Number(json.refunded_credits||0)>0
+                ? `클럽 신청 취소 · 수강권 ${json.refunded_credits}회 복구`
+                : "클럽 신청 취소 · 6시간 이내 취소로 수강권 차감 유지")
+            : creditCost===0?"클럽 신청 완료 · 무료 참여 (수강권 차감 없음)"
+              : "클럽 신청 완료 · 수강권 "+creditCost+"회 차감")
         :"원데이 클래스 신청 내역이 반영됐습니다.";
       setMessage(successText);
       // A successful transaction must remain visible even if a subsequent

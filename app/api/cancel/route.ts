@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { getSupabaseAdmin } from "../../../lib/supabaseAdmin";
-import { creditCostFromBookingMemo, isAtLeastCancelHoursBefore } from "../../../lib/businessRules";
+import { creditCostFromBookingMemo, isAtLeastCancelHoursBefore, freeCancelLeadHoursForLesson } from "../../../lib/businessRules";
 
 export async function POST(request: Request) {
   try {
@@ -62,9 +62,10 @@ export async function POST(request: Request) {
     const isEarlyCancel = isAtLeastCancelHoursBefore(booking.start_at);
     const nextStatus = isEarlyCancel ? "cancelled" : "late_cancelled";
     const creditCost = creditCostFromBookingMemo(booking.memo, 1);
+    const freeCancelHours = freeCancelLeadHoursForLesson(booking.start_at);
     const nextMemo = isEarlyCancel
-      ? `수강생 직접 취소 / 수업 3시간 전 취소로 수강권 ${creditCost}회 복구`
-      : "수강생 직접 취소 / 수업 3시간 이내 취소로 수강권 차감 유지";
+      ? `수강생 직접 취소 / 수업 ${freeCancelHours}시간 전 취소로 수강권 ${creditCost}회 복구`
+      : `수강생 직접 취소 / 수업 ${freeCancelHours}시간 이내 취소로 수강권 차감 유지`;
 
     const { error } = await supabase
       .from("regular_bookings")
@@ -96,7 +97,7 @@ export async function POST(request: Request) {
       lesson_credits: nextCredits,
       message: isEarlyCancel
         ? `예약이 취소되었습니다. 수강권 ${creditCost}회가 복구되었습니다.`
-        : "예약이 취소되었습니다. 수업 3시간 이내 취소라 수강권은 차감된 상태로 유지됩니다.",
+        : `예약이 취소되었습니다. 수업 ${freeCancelHours}시간 이내 취소라 수강권은 차감된 상태로 유지됩니다.`,
     });
   } catch (error) {
     const message = typeof error === "object" && error && "message" in error
