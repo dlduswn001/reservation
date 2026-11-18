@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { getSupabaseAdmin } from "../../../lib/supabaseAdmin";
 import { getErrorMessage } from "../../../lib/supabaseCompat";
+import { isSchoolClosedLessonStart } from "../../../lib/businessRules";
 export const dynamic="force-dynamic";
 const UUID=/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const ACTIVE=["booked","등록완료","등록대기","입금대기","입금완료"];
@@ -13,12 +14,13 @@ export async function GET() {
     .eq("class_kind","freewriting").eq("is_open",true)
     .gte("end_at",new Date().toISOString()).order("start_at",{ascending:true});
   if(error)throw error;
-  const ids=(classes||[]).map(c=>c.id);
+  const activeClasses=(classes||[]).filter(c=>!isSchoolClosedLessonStart(c.start_at));
+  const ids=activeClasses.map(c=>c.id);
   if(!ids.length)return NextResponse.json({sessions:[]});
   const {data:bookings,error:be}=await db.from("oneday_bookings")
     .select("id,class_id,people_count,status,student_id").in("class_id",ids);
   if(be)throw be;
-  const sessions=(classes||[]).map(c=>({
+  const sessions=activeClasses.map(c=>({
     id:c.id,title:c.title,description:c.description,start_at:c.start_at,end_at:c.end_at,capacity:c.capacity,
     booked_count:(bookings||[]).filter(b=>b.class_id===c.id&&ACTIVE.includes(b.status))
       .reduce((n,b)=>n+Number(b.people_count||1),0),
@@ -63,6 +65,14 @@ export async function POST(request:Request){
     return NextResponse.json({my_bookings:mine||[]},{headers:{"Cache-Control":"private, no-store"}});
   }
   if(!["book","cancel"].includes(action))return NextResponse.json({message:"올바르지 않은 요청입니다."},{status:400});
+  if(action==="book"){
+    const {data:club,error:clubError}=await db.from("oneday_classes")
+      .select("start_at").eq("id",classId).eq("class_kind","freewriting").maybeSingle();
+    if(clubError)throw clubError;
+    if(!club)return NextResponse.json({message:"클럽 시간을 찾을 수 없습니다."},{status:404});
+    if(isSchoolClosedLessonStart(club.start_at))
+      return NextResponse.json({message:"12월 30일과 31일은 문장학교 연말 휴무입니다."},{status:400});
+  }
   const {data:result,error}=await db.rpc(action==="cancel"?"munjang_freewriting_cancel":"munjang_freewriting_book",
     action==="cancel"?{p_booking_id:bookingId,p_student_id:studentId}:{p_class_id:classId,p_student_id:studentId});
   if(error)throw error;
