@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import type { CSSProperties } from "react";
 import Link from "next/link";
-import { CalendarDays, ChevronRight, PenLine, UserRound, BookOpenText, Bell, CreditCard, MessageSquare } from "lucide-react";
+import { CalendarDays, ChevronRight, PenLine, UserRound, Bell, CreditCard, MessageSquare } from "lucide-react";
 import BottomNav from "./components/BottomNav";
 import PWAInstallPrompt from "./components/PWAInstallPrompt";
 import { bookingDisplayNameFromMemo } from "../lib/businessRules";
@@ -127,10 +127,6 @@ export default function Home() {
     alignItems:"center",columnGap:9,minHeight:67,padding:"14px 13px",
     color:"#29252a",textDecoration:"none"
   };
-  const quickDetailStyle: CSSProperties = {
-    fontSize:12,color:"#7a7276",whiteSpace:"nowrap",
-    overflow:"hidden",textOverflow:"ellipsis",textAlign:"right",minWidth:0
-  };
 
   return (
     <main className="container appContainer studioApp">
@@ -143,37 +139,52 @@ export default function Home() {
       </header>
 
 
-      <section className="studioPassOverview" aria-label="수강권 요약">
-        <div>
-          <span className="studioCardKicker">MY CLASS PASS</span>
-          <h2>나의 수강권</h2>
-          {student ? <p><strong>{student.lesson_credits ?? 0}</strong>회 남아 있어요</p> : <p>로그인하면 수강권 정보를 확인할 수 있어요.</p>}
-        </div>
-        <Link href={student ? "/passes" : "/profile"} aria-label="수강권 확인하기" className="studioCircleArrow"><ChevronRight size={23}/></Link>
+      <section aria-label="수업 예약과 다가오는 수업" style={{display:"grid",gap:14,marginTop:20}}>
+        <Link href="/regular" aria-label="수업 예약하기" style={{
+          display:"flex",alignItems:"center",gap:14,padding:"25px 22px",minHeight:94,
+          borderRadius:20,background:"#783047",color:"#fff",textDecoration:"none"
+        }}>
+          <PenLine size={28} strokeWidth={1.8} aria-hidden="true" />
+          <strong style={{flex:1,fontSize:23,letterSpacing:"-0.5px"}}>수업 예약하기</strong>
+          <ChevronRight size={24} aria-hidden="true" />
+        </Link>
+        <Link href="/history" aria-label="다가오는 수업 확인하기" style={{
+          display:"block",padding:"20px 22px",borderRadius:20,border:"1px solid #dcc4ce",
+          background:"#fcf8fa",color:"#29252a",textDecoration:"none"
+        }}>
+          <span style={{display:"flex",alignItems:"center",gap:10}}>
+            <CalendarDays size={23} color="#803149" aria-hidden="true" />
+            <strong style={{flex:1,fontSize:19}}>다가오는 수업</strong>
+            <ChevronRight size={20} color="#803149" aria-hidden="true" />
+          </span>
+          {upcoming.length ? (
+            <span style={{display:"block",marginTop:16}}>
+              <strong style={{display:"block",fontSize:19,lineHeight:1.5,color:"#713044",wordBreak:"keep-all"}}>{upcoming[0].time}</strong>
+              <span style={{display:"block",fontSize:14,marginTop:5,color:"#67565e"}}>{upcoming[0].title} · {upcoming[0].status}</span>
+            </span>
+          ) : <span style={{display:"block",marginTop:14,fontSize:15,color:"#786c72"}}>{student ? "예정된 수업이 없어요." : "로그인하면 예약한 수업을 확인할 수 있어요."}</span>}
+        </Link>
       </section>
 
-
-      <section aria-label="문장학교 주요 메뉴" style={{
-        marginTop:20,background:"#fff",border:"1px solid #ece7ea",
-        borderRadius:21,overflow:"hidden"
+      <Link href={student ? "/passes" : "/profile"} aria-label="수강권 확인하기" style={{
+        display:"flex",alignItems:"center",gap:8,padding:"16px 4px",color:"#796d73",textDecoration:"none",fontSize:13
       }}>
-        <Link href="/regular" style={quickRowStyle} aria-label="수업예약 열기">
-          <PenLine size={21} strokeWidth={1.8} color="#803149"/>
-          <strong style={{fontSize:15,whiteSpace:"nowrap"}}>수업예약</strong>
-          <span aria-hidden="true" />
-          <ChevronRight size={17} color="#aa9ba2"/>
-        </Link>
-        <div style={{height:1,background:"#f0e9ec",margin:"0 13px"}}/>
+        <span style={{flex:1}}>나의 수강권</span>
+        <span>{student ? <><strong style={{color:"#51454a",fontSize:15}}>{student.lesson_credits ?? 0}회</strong> 남음</> : "로그인 후 확인"}</span>
+        <ChevronRight size={16} aria-hidden="true" />
+      </Link>
+
+      <section aria-label="공지사항" style={{background:"#fff",border:"1px solid #ece7ea",borderRadius:16,overflow:"hidden"}}>
         <Link href="/notices" style={{
           ...quickRowStyle, gridTemplateColumns:"28px minmax(0,1fr) 17px", rowGap:8
         }}>
           <Bell size={21} strokeWidth={1.8} color="#803149" aria-hidden="true"/>
-          <strong style={{fontSize:15}}>공지사항</strong>
+          <strong style={{fontSize:14}}>공지사항</strong>
           <ChevronRight size={17} color="#aa9ba2" aria-hidden="true"/>
           {homeNotices.length > 0 && (
             <ul style={{
               gridColumn:"2 / -1", margin:0, padding:0, listStyle:"none",
-              display:"grid", gap:7, color:"#51454a", fontSize:14, lineHeight:1.55
+              display:"grid", gap:7, color:"#51454a", fontSize:13, lineHeight:1.55
             }}>
               {homeNotices.map(notice => (
                 <li key={notice.id} style={{
@@ -189,28 +200,20 @@ export default function Home() {
             </ul>
           )}
         </Link>
-        <div style={{height:1,background:"#f0e9ec",margin:"0 13px"}}/>
-        <Link href="/history" style={quickRowStyle} aria-label="다가오는 수업 확인하기">
-          <CalendarDays size={21} strokeWidth={1.8} color="#803149"/>
-          <strong style={{fontSize:15,whiteSpace:"nowrap"}}>다가오는 수업</strong>
-          <span style={quickDetailStyle}>
-            {upcoming.length ? upcoming[0].time + " · " + upcoming[0].title : "예정된 수업 없음"}
-          </span>
-          <ChevronRight size={17} color="#aa9ba2"/>
-        </Link>
+
       </section>
 
-      <section aria-label="수강권 결제와 수업 후기" style={{marginTop:16, display:"grid", gap:10}}>
+      <section aria-label="수강권 결제와 수업 후기" style={{marginTop:12, display:"grid", gap:0, border:"1px solid #ece7ea", borderRadius:16, overflow:"hidden"}}>
         <a href="https://naver.me/xE6YN5Rf" target="_blank" rel="noopener noreferrer"
-          style={{display:"flex",alignItems:"center",gap:12,padding:"18px 16px",borderRadius:16,background:"#783047",color:"#fff",textDecoration:"none"}}>
+          style={{display:"flex",alignItems:"center",gap:12,padding:"14px 16px",background:"#fff",color:"#62565c",textDecoration:"none"}}>
           <CreditCard size={22} aria-hidden="true" style={{flexShrink:0}} />
-          <span style={{flex:1,minWidth:0}}><strong style={{fontSize:15}}>정규수업 수강권 결제하기</strong><span style={{display:"block",fontSize:12,marginTop:5,opacity:0.85}}>네이버 예약에서 수강권 선택·결제</span></span>
+          <span style={{flex:1,minWidth:0}}><strong style={{fontSize:14}}>정규수업 수강권 결제하기</strong><span style={{display:"block",fontSize:12,marginTop:5,opacity:0.85}}>네이버 예약에서 수강권 선택·결제</span></span>
           <ChevronRight size={18} aria-hidden="true" style={{flexShrink:0}} />
         </a>
         <a href="https://m.place.naver.com/my/timeline?shortcut=true&amp;tab=RESERVATION" target="_blank" rel="noopener noreferrer"
-          style={{display:"flex",alignItems:"center",gap:12,padding:"18px 16px",borderRadius:16,background:"#f7f1f3",border:"1px solid #eadce2",color:"#713044",textDecoration:"none"}}>
+          style={{display:"flex",alignItems:"center",gap:12,padding:"14px 16px",background:"#fff",borderTop:"1px solid #f0e9ec",color:"#62565c",textDecoration:"none"}}>
           <MessageSquare size={22} aria-hidden="true" style={{flexShrink:0}} />
-          <span style={{flex:1,minWidth:0}}><strong style={{fontSize:15}}>수업 후기 남기기</strong><span style={{display:"block",fontSize:12,marginTop:5,lineHeight:1.5,color:"#75656d"}}>네이버 로그인 후 문장학교 이용 내역에서 리뷰쓰기</span></span>
+          <span style={{flex:1,minWidth:0}}><strong style={{fontSize:14}}>수업 후기 남기기</strong><span style={{display:"block",fontSize:12,marginTop:5,lineHeight:1.5,color:"#75656d"}}>네이버 로그인 후 문장학교 이용 내역에서 리뷰쓰기</span></span>
           <ChevronRight size={18} aria-hidden="true" style={{flexShrink:0}} />
         </a>
       </section>
