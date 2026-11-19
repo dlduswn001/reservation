@@ -694,7 +694,7 @@ export default function RegularPage() {
               </div>
               {studentLessonMinutes === 120 ? (
                 <p className="small" style={{marginTop: 12, marginBottom: 0}}>
-                  {isExtended120Student
+                  {student.extended_self_booking_enabled === true
                     ? "토·일요일은 열린 120분 정규수업을 예약할 수 있습니다. 수·목·금요일의 120분 정규수업은 카카오톡으로 문의해 주세요. 12월 생활수업과 프리 라이팅 클럽은 달력의 열린 시간에서 신청할 수 있습니다."
                     : "120분 정규수업은 카카오톡으로 개별 문의해 주세요. 12월 생활수업과 프리 라이팅 클럽은 달력의 열린 시간에서 신청할 수 있습니다."}
                 </p>
