@@ -76,7 +76,7 @@ export async function POST(request: Request) {
     if (error) throw error;
 
     let nextCredits: number | null = null;
-    if (isEarlyCancel) {
+    if (isEarlyCancel && creditCost > 0) {
       const { data: student, error: studentError } = await supabase
         .from("students")
         .select("lesson_credits")

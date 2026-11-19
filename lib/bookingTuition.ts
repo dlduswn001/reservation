@@ -1,7 +1,7 @@
 export function defaultBookingTuition(studentMinutes: number | null, lessonMinutes: number): number | null {
   if (studentMinutes === 90 && lessonMinutes === 90) return 65000;
-  if (studentMinutes === 45 && lessonMinutes === 45) return 40000;
-  if (studentMinutes === 90 && lessonMinutes === 45) return 32500;
+  if (studentMinutes === 45 && [45,60].includes(lessonMinutes)) return 40000;
+  if (studentMinutes === 90 && [45,60].includes(lessonMinutes)) return 32500;
   if (studentMinutes === 120 && lessonMinutes === 120) return 80000;
   return null;
 }

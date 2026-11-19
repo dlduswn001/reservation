@@ -118,6 +118,7 @@ export const SATURDAY_END_TIME = WEEKEND_END_TIME;
 
 export function normalizeLessonDurationMinutes(value: unknown) {
   const minutes = Number(value);
+  if (minutes === 60) return 60;
   if (minutes === SHORT_LESSON_MINUTES) return SHORT_LESSON_MINUTES;
   if (minutes === EXTENDED_LESSON_MINUTES) return EXTENDED_LESSON_MINUTES;
   return DEFAULT_LESSON_MINUTES;
@@ -226,7 +227,12 @@ export function isRegularLessonSlotForStudent(startAt: string, lessonMinutes: un
   return false;
 }
 
+export function isDecemberShortLesson(startAt: string) {
+  return Date.parse(startAt) >= Date.parse("2026-12-01T00:00:00+09:00");
+}
+
 export function getReservationLessonMinutes(startAt: string, studentLessonMinutes: unknown) {
+  if (isDecemberShortLesson(startAt) && (isLifestyleLessonSlot(startAt) || Number(studentLessonMinutes) === 45)) return 60;
   return isLifestyleLessonSlot(startAt)
     ? lifestyleLessonMinutesForStudent(studentLessonMinutes)
     : normalizeLessonDurationMinutes(studentLessonMinutes);
@@ -234,7 +240,7 @@ export function getReservationLessonMinutes(startAt: string, studentLessonMinute
 
 export function getReservationCreditCost(startAt: string, studentLessonMinutes: unknown = DEFAULT_LESSON_MINUTES) {
   if (!isLifestyleLessonSlot(startAt)) return REGULAR_CLASS_CREDIT_COST;
-  return normalizeLessonDurationMinutes(studentLessonMinutes) === SHORT_LESSON_MINUTES
+  return [45,60].includes(normalizeLessonDurationMinutes(studentLessonMinutes))
     ? LIFESTYLE_CLASS_CREDIT_COST_FOR_45
     : LIFESTYLE_CLASS_CREDIT_COST_FOR_90;
 }
@@ -245,7 +251,7 @@ export function creditCostFromBookingMemo(memo: unknown, fallback = REGULAR_CLAS
   const match = text.match(/수강권\s*([0-9]+(?:\.[0-9]+)?)회\s*차감/);
   if (match) {
     const value = Number(match[1]);
-    if (Number.isFinite(value) && value > 0) return value;
+    if (Number.isFinite(value) && value >= 0) return value;
   }
   return fallback;
 }
@@ -277,8 +283,8 @@ export function regularLessonRule(startAt: string, lessonMinutes: unknown = DEFA
     };
   }
 
-  const normalizedLessonMinutes = normalizeLessonDurationMinutes(lessonMinutes);
-  const isLifestyleMinutes = normalizedLessonMinutes === SHORT_LESSON_MINUTES;
+  const normalizedLessonMinutes = Number(lessonMinutes) === 45 && isDecemberShortLesson(startAt) ? 60 : normalizeLessonDurationMinutes(lessonMinutes);
+  const isLifestyleMinutes = [45,60].includes(normalizedLessonMinutes);
   return {
     lessonMinutes: normalizedLessonMinutes,
     breakMinutes: isLifestyleMinutes ? 0 : BREAK_MINUTES,
@@ -416,7 +422,7 @@ function requiredBreakForRanges(earlierStartAt: string, earlierEndAt: string, la
   // 45분 정규수업은 90분 정규수업 한 칸을 둘로 나누어 운영할 수 있으므로
   // 45분 수업끼리는 바로 이어서 예약할 수 있습니다.
   if (isOctoberTimetableDate(earlierStartAt) && isOctoberTimetableDate(laterStartAt)
-    && earlierMinutes === SHORT_LESSON_MINUTES && laterMinutes === SHORT_LESSON_MINUTES) {
+    && [45,60].includes(earlierMinutes) && [45,60].includes(laterMinutes)) {
     return 0;
   }
 
@@ -614,6 +620,7 @@ export function buildTimetableSlots(startDateKey: string, weeks: number) {
     const weekday = current.getUTCDay();
     const dateKey = dateKeyInKst(current);
 
+    const shortMinutes = dateKey >= "2026-12-01" ? 60 : SHORT_LESSON_MINUTES;
     let timeRows: Array<{ time: string; minutes: number }> = [];
 
     if (dateKey >= OCTOBER_TIMETABLE_START_DATE_KEY) {
@@ -621,14 +628,14 @@ export function buildTimetableSlots(startDateKey: string, weeks: number) {
         timeRows = [
           ...WEEKDAY_VISIBLE_TIMETABLE_START_TIMES.map((time) => ({
             time,
-            minutes: WEEKDAY_REGULAR_START_TIMES.includes(time) ? DEFAULT_LESSON_MINUTES : SHORT_LESSON_MINUTES,
+            minutes: WEEKDAY_REGULAR_START_TIMES.includes(time) ? DEFAULT_LESSON_MINUTES : shortMinutes,
           })),
         ];
       } else if (weekday === 0 || weekday === 6) {
         timeRows = [
           ...WEEKEND_ALL_TIMETABLE_START_TIMES.map((time) => ({
             time,
-            minutes: WEEKEND_LIFESTYLE_START_TIMES.includes(time) ? SHORT_LESSON_MINUTES : DEFAULT_LESSON_MINUTES,
+            minutes: WEEKEND_LIFESTYLE_START_TIMES.includes(time) ? shortMinutes : DEFAULT_LESSON_MINUTES,
           })),
           ...(weekday === 0 && dateKey >= "2026-12-01"
             ? [{ time: "17:30", minutes: DEFAULT_LESSON_MINUTES }]
