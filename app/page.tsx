@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import type { CSSProperties } from "react";
 import Link from "next/link";
-import { CalendarDays, ChevronRight, PenLine, UserRound, BookOpenText, Bell } from "lucide-react";
+import { CalendarDays, ChevronRight, PenLine, UserRound, BookOpenText, Bell, CreditCard, MessageSquare } from "lucide-react";
 import BottomNav from "./components/BottomNav";
 import PWAInstallPrompt from "./components/PWAInstallPrompt";
 import { bookingDisplayNameFromMemo } from "../lib/businessRules";
@@ -198,6 +198,21 @@ export default function Home() {
           </span>
           <ChevronRight size={17} color="#aa9ba2"/>
         </Link>
+      </section>
+
+      <section aria-label="수강권 결제와 수업 후기" style={{marginTop:16, display:"grid", gap:10}}>
+        <a href="https://naver.me/xE6YN5Rf" target="_blank" rel="noopener noreferrer"
+          style={{display:"flex",alignItems:"center",gap:12,padding:"18px 16px",borderRadius:16,background:"#783047",color:"#fff",textDecoration:"none"}}>
+          <CreditCard size={22} aria-hidden="true" style={{flexShrink:0}} />
+          <span style={{flex:1,minWidth:0}}><strong style={{fontSize:15}}>정규수업 수강권 결제하기</strong><span style={{display:"block",fontSize:12,marginTop:5,opacity:0.85}}>네이버 예약에서 수강권 선택·결제</span></span>
+          <ChevronRight size={18} aria-hidden="true" style={{flexShrink:0}} />
+        </a>
+        <a href="https://m.place.naver.com/my/timeline?shortcut=true&amp;tab=RESERVATION" target="_blank" rel="noopener noreferrer"
+          style={{display:"flex",alignItems:"center",gap:12,padding:"18px 16px",borderRadius:16,background:"#f7f1f3",border:"1px solid #eadce2",color:"#713044",textDecoration:"none"}}>
+          <MessageSquare size={22} aria-hidden="true" style={{flexShrink:0}} />
+          <span style={{flex:1,minWidth:0}}><strong style={{fontSize:15}}>수업 후기 남기기</strong><span style={{display:"block",fontSize:12,marginTop:5,lineHeight:1.5,color:"#75656d"}}>네이버 로그인 후 문장학교 이용 내역에서 리뷰쓰기</span></span>
+          <ChevronRight size={18} aria-hidden="true" style={{flexShrink:0}} />
+        </a>
       </section>
 
       <PWAInstallPrompt />
