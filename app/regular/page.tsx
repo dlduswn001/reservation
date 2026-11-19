@@ -75,15 +75,7 @@ type OpenMonth = {
 };
 
 const STUDENT_LOGIN_STORAGE_KEY = "munjangStudentLogin";
-const SLOT_CACHE_STORAGE_KEY = "munjangRegularSlotCacheV40-DecBooking";
-
-/** Days are interpreted as calendar dates in Korea, independent of the browser locale. */
-function isWeekdayInquiryDateKey(dateKey: string) {
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(dateKey)) return false;
-  const [y,m,d] = dateKey.split("-").map(Number);
-  return [3,4,5].includes(new Date(Date.UTC(y,m-1,d)).getUTCDay());
-}
-
+const SLOT_CACHE_STORAGE_KEY = "munjangRegularSlotCacheV41-Weekday120";
 
 const STATUS_LABELS: Record<string, string> = {
   booked: "예약 완료",
@@ -475,32 +467,12 @@ export default function RegularPage() {
 
   const slotsByDate = useMemo(() => {
     const grouped: Record<string, Slot[]> = {};
-    // Merge real regular slots and club sessions. On this opt-in 120-minute
-    // calendar, weekday lesson rows are never shown (they require Kakao inquiry).
+    // Show the actual regular slots and club sessions returned by the server.
     for (const slot of [...slots, ...extras.entries]) {
       const key = seoulDateKey(slot.start_at);
       if (isSchoolClosedDateKey(key)) continue;
-      if (isExtended120Student && !slot.is_lifestyle && isWeekdayInquiryDateKey(key)) continue;
       if (!grouped[key]) grouped[key] = [];
       grouped[key].push(slot);
-    }
-    if (isExtended120Student) {
-      const months = new Set([
-        ...availableMonths.map(month => month.key),
-        ...Object.keys(grouped).map(key => key.slice(0,7)),
-        ...(openMonth?.key ? [openMonth.key] : []),
-      ]);
-      const today = seoulDateKey(new Date(currentTime).toISOString());
-      for (const monthKey of months) {
-        if (!/^\d{4}-\d{2}$/.test(monthKey)) continue;
-        const [year,month] = monthKey.split("-").map(Number);
-        if (month < 1 || month > 12) continue;
-        const count = new Date(Date.UTC(year,month,0)).getUTCDate();
-        for (let day=1;day<=count;day++) {
-          const key = `${monthKey}-${String(day).padStart(2,"0")}`;
-          if (key >= today && isWeekdayInquiryDateKey(key) && !isSchoolClosedDateKey(key)) grouped[key] ??= [];
-        }
-      }
     }
     for (const key of Object.keys(grouped)) {
       grouped[key].sort((a, b) => new Date(a.start_at).getTime() - new Date(b.start_at).getTime());
@@ -552,7 +524,6 @@ export default function RegularPage() {
   }, [availableDateKeys, activeCalendarMonth, dateKeysByMonth]);
 
   const selectedSlots = selectedDate ? slotsByDate[selectedDate] || [] : [];
-  const selectedInquiryDay = isExtended120Student && isWeekdayInquiryDateKey(selectedDate || "");
   // A started lesson no longer has a live queue, even before the next refresh.
   const visibleWaitlist = waitlist.filter((item) => (
     item.available_slots?.start_at
@@ -679,10 +650,13 @@ export default function RegularPage() {
                   <span className="noticeIcon">기간</span>
                   <p><strong>4회 정규수강권</strong>은 첫 수업일로부터 <strong>10주 동안</strong> 사용할 수 있습니다.</p>
                 </div>
+                {studentLessonMinutes !== 120 && (
                 <div className="noticeItem">
                   <span className="noticeIcon">60·90분</span>
                   <p><strong>서평생활·필사생활(12월부터 60분)과 프리 라이팅 클럽</strong>은 60분 수강권 <strong>1회</strong>, 90분 수강권 <strong>0.5회</strong>가 차감됩니다. (11월까지 45분 수강권)</p>
                 </div>
+                )}
+                {studentLessonMinutes === 120 && (<>
                 <div className="noticeItem">
                   <span className="noticeIcon">120분</span>
                   <p>12월부터 <strong>서평생활·필사생활은 합산 월 1회 무료</strong>이며, 이후에는 <strong>0.5회씩 차감</strong>됩니다. <strong>프리 라이팅 클럽은 횟수 제한 없이 무료</strong>입니다.</p>
@@ -691,11 +665,12 @@ export default function RegularPage() {
                   <span className="noticeIcon">무료 혜택</span>
                   <p>120분 수강권의 월 1회 무료 생활수업은 <strong>수업 6시간 전까지 취소하면 해당 월의 무료 혜택이 복원</strong>됩니다. 이후 취소 시에는 사용한 것으로 처리됩니다. 예약·취소 시간 규칙은 모든 수강권과 생활수업·클럽에 동일하게 적용됩니다.</p>
                 </div>
+                </>)}
               </div>
               {studentLessonMinutes === 120 ? (
                 <p className="small" style={{marginTop: 12, marginBottom: 0}}>
                   {student.extended_self_booking_enabled === true
-                    ? "토·일요일은 열린 120분 정규수업을 예약할 수 있습니다. 수·목·금요일의 120분 정규수업은 카카오톡으로 문의해 주세요. 12월 생활수업과 프리 라이팅 클럽은 달력의 열린 시간에서 신청할 수 있습니다."
+                    ? "수·목·금요일과 토·일요일에 관리자가 연 120분 정규수업을 직접 예약할 수 있습니다. 12월 생활수업과 프리 라이팅 클럽은 달력의 열린 시간에서 신청할 수 있습니다."
                     : "120분 정규수업은 카카오톡으로 개별 문의해 주세요. 12월 생활수업과 프리 라이팅 클럽은 달력의 열린 시간에서 신청할 수 있습니다."}
                 </p>
               ) : (
@@ -873,7 +848,6 @@ export default function RegularPage() {
                             const hasWaitlist = daySlots.some((item) => item.is_waitlist);
                             const dayStatus = isSchoolClosedDateKey(dateKey) ? "연말 휴무"
                               : !available ? "예약 불가"
-                              : isExtended120Student && isWeekdayInquiryDateKey(dateKey) ? "카카오톡 문의"
                               : hasBookable ? "예약 가능" : hasWaitlist ? "대기 가능" : "마감";
                             const selected = selectedDate === dateKey;
                             return (
@@ -903,23 +877,11 @@ export default function RegularPage() {
                   {extras.message && (
                     <p role="status" aria-live="polite" style={styles.timelineInlineNotice}>{extras.message}</p>
                   )}
-                  {selectedInquiryDay && (
-                    <div className="noticeBox" style={{margin:"12px 0",padding:16,borderRadius:14}}>
-                      <strong>수·목·금요일 120분 수업은 개별 일정 조율</strong>
-                      <p style={{fontSize:13,lineHeight:1.6,margin:"8px 0 12px"}}>
-                        희망 날짜와 시간을 문장학교 카카오톡으로 문의해 주세요.
-                      </p>
-                      <a href="http://pf.kakao.com/_xcxbGwn/chat" target="_blank"
-                        rel="noopener noreferrer" className="button" style={{display:"inline-block"}}>
-                        카카오톡으로 문의하기
-                      </a>
-                    </div>
-                  )}
-                  {!selectedInquiryDay && (student.lesson_credits ?? 0) <= 0 &&
+                  {(student.lesson_credits ?? 0) <= 0 &&
                     <p className="error">{isExtended120Student
                       ? "잔여 수강권이 없어도 사용 가능한 무료 혜택은 신청할 수 있습니다."
                       : "잔여 수강권이 없어 예약할 수 없습니다. 관리자에게 문의해 주세요."}</p>}
-                  {!selectedInquiryDay && selectedSlots.length === 0 &&
+                  {selectedSlots.length === 0 &&
                     <p>선택한 날짜에는 예약하거나 대기할 수 있는 수업이 없습니다.</p>}
 
                   <div style={styles.timelineList} aria-label="선택 날짜 수업 시간표">

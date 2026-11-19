@@ -312,10 +312,9 @@ export async function GET(request: Request) {
     const protectedDates = new Set(["2026-10-19", "2026-10-20", "2026-10-26", "2026-10-27"]);
 
     const isAllowedLessonDateAndTime = (slot: SlotRow) => {
-      // Only weekend slots are self-bookable for the opt-in 120-minute student.
-      // Wed–Fri remain selectable in the student calendar for Kakao inquiries only.
+      // Eligible 120-minute students can book administrator-opened Wed–Sun slots.
       if (lessonMinutes === 120 && !(isDecemberShortLesson(slot.start_at) && isLifestyleLessonSlot(slot.start_at)) &&
-          (!extendedSelfBookingAllowed || !isExtendedLessonSlot(slot.start_at) || !["Sat","Sun"].includes(slotWeekday(slot.start_at)))) return false;
+          (!extendedSelfBookingAllowed || !isExtendedLessonSlot(slot.start_at))) return false;
       const dateKey = slotDateKey(slot.start_at);
       if (isSchoolClosedDateKey(dateKey)) return false;
       const weekday = slotWeekday(slot.start_at);
