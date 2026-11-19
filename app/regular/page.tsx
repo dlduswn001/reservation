@@ -656,24 +656,14 @@ export default function RegularPage() {
                   <p><strong>서평생활·필사생활(12월부터 60분)과 프리 라이팅 클럽</strong>은 60분 수강권 <strong>1회</strong>, 90분 수강권 <strong>0.5회</strong>가 차감됩니다. (11월까지 45분 수강권)</p>
                 </div>
                 )}
-                {studentLessonMinutes === 120 && (<>
+                {studentLessonMinutes === 120 && (
                 <div className="noticeItem">
                   <span className="noticeIcon">120분</span>
                   <p>12월부터 <strong>서평생활·필사생활은 합산 월 1회 무료</strong>이며, 이후에는 <strong>0.5회씩 차감</strong>됩니다. <strong>프리 라이팅 클럽은 횟수 제한 없이 무료</strong>입니다.</p>
                 </div>
-                <div className="noticeItem">
-                  <span className="noticeIcon">무료 혜택</span>
-                  <p>120분 수강권의 월 1회 무료 생활수업은 <strong>수업 6시간 전까지 취소하면 해당 월의 무료 혜택이 복원</strong>됩니다. 이후 취소 시에는 사용한 것으로 처리됩니다. 예약·취소 시간 규칙은 모든 수강권과 생활수업·클럽에 동일하게 적용됩니다.</p>
-                </div>
-                </>)}
+                )}
               </div>
-              {studentLessonMinutes === 120 ? (
-                <p className="small" style={{marginTop: 12, marginBottom: 0}}>
-                  {student.extended_self_booking_enabled === true
-                    ? "수·목·금요일과 토·일요일에 관리자가 연 120분 정규수업을 직접 예약할 수 있습니다. 12월 생활수업과 프리 라이팅 클럽은 달력의 열린 시간에서 신청할 수 있습니다."
-                    : "120분 정규수업은 카카오톡으로 개별 문의해 주세요. 12월 생활수업과 프리 라이팅 클럽은 달력의 열린 시간에서 신청할 수 있습니다."}
-                </p>
-              ) : (
+              {studentLessonMinutes !== 120 && (
               <p className="small" style={{marginTop: 12, marginBottom: 0}}>
                 예약 가능한 수업은 <strong>예약하기</strong>, 이미 예약된 수업은 <strong>대기 신청</strong>,
                 예약과 대기 신청이 모두 불가능한 시간은 <strong>마감</strong>으로 표시됩니다.
@@ -830,11 +820,6 @@ export default function RegularPage() {
                     return (
                       <div key={monthKey} className="studioMonthBlock">
                         <h3 className="studioMonthTitle">{formatMonthTitle(`${monthKey}-01`)}</h3>
-                        {monthKey==="2026-12" && (
-                          <p className="small" style={{margin:"0 0 10px",color:"#822940",fontWeight:600}}>
-                            12월 30일(수)~31일(목)은 문장학교 연말 휴무입니다.
-                          </p>
-                        )}
                         <div className="studioCalendarWeekdays">
                           {["일", "월", "화", "수", "목", "금", "토"].map((weekday) => <span key={weekday}>{weekday}</span>)}
                         </div>
