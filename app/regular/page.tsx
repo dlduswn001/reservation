@@ -685,11 +685,11 @@ export default function RegularPage() {
                 </div>
                 <div className="noticeItem">
                   <span className="noticeIcon">120분</span>
-                  <p>12월부터 <strong>서평생활·필사생활은 합산 월 1회 무료</strong>이며, 이후에는 <strong>0.5회씩 차감</strong>됩니다. <strong>프리 라이팅 클럽은 횟수 제한 없이 무료</strong>입니다.</p>
+                  <p>12월부터 <strong>서평생활·필사생활은 합산 월 2회 무료</strong>이며, 이후에는 <strong>0.5회씩 차감</strong>됩니다. <strong>프리 라이팅 클럽은 횟수 제한 없이 무료</strong>입니다.</p>
                 </div>
                 <div className="noticeItem">
                   <span className="noticeIcon">무료 혜택</span>
-                  <p>120분 수강권의 월 1회 무료 생활수업은 <strong>수업 6시간 전까지 취소하면 해당 월의 무료 혜택이 복원</strong>됩니다. 이후 취소 시에는 사용한 것으로 처리됩니다. 예약·취소 시간 규칙은 모든 수강권과 생활수업·클럽에 동일하게 적용됩니다.</p>
+                  <p>120분 수강권의 월 2회 무료 생활수업은 <strong>수업 6시간 전까지 취소하면 해당 월의 무료 혜택이 복원</strong>됩니다. 이후 취소 시에는 사용한 것으로 처리됩니다. 예약·취소 시간 규칙은 모든 수강권과 생활수업·클럽에 동일하게 적용됩니다.</p>
                 </div>
               </div>
               {studentLessonMinutes === 120 ? (
@@ -951,7 +951,7 @@ export default function RegularPage() {
                                     : `수강권 ${slot.credit_cost}회 차감`}`
                                 : `${slot.extra_title || "원데이 클래스"} · 신청 ${slot.extra_count || 0}/${slot.extra_capacity || 6}명`)
                               : (slot.rule_label || (slot.is_lifestyle
-                                  ? `1:1 서평생활 / 필사생활 · ${slot.credit_cost === 0 ? "월 1회 무료" : `수강권 ${slot.credit_cost}회 차감`}`
+                                  ? `1:1 서평생활 / 필사생활 · ${slot.credit_cost === 0 ? "월 2회 무료" : `수강권 ${slot.credit_cost}회 차감`}`
                                   : "1:1 정규수업 · 수강권 1회 차감"))}
                           </p>
                           {slot.extra_kind ? (

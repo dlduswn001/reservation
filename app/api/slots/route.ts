@@ -240,15 +240,18 @@ export async function GET(request: Request) {
       }
     }
 
-    const usedMonths = new Set<string>();
+    const usedMonths = new Map<string, number>();
     if (studentId && lessonMinutes === 120) {
       const benefits = await supabase.from("regular_bookings").select("lifestyle_free_month")
         .eq("student_id",studentId).neq("status","cancelled").not("lifestyle_free_month","is",null);
       if (benefits.error) throw benefits.error;
-      for (const row of benefits.data || []) usedMonths.add(row.lifestyle_free_month.slice(0,7));
+      for (const row of benefits.data || []) {
+        const month = row.lifestyle_free_month.slice(0,7);
+        usedMonths.set(month, (usedMonths.get(month) || 0) + 1);
+      }
     }
     const creditFor = (start:string) => lessonMinutes === 120 && isDecemberShortLesson(start) && isLifestyleLessonSlot(start)
-      ? (usedMonths.has(kstMonthKeyFromIso(start)) ? 0.5 : 0) : getReservationCreditCost(start,lessonMinutes);
+      ? ((usedMonths.get(kstMonthKeyFromIso(start)) || 0) >= 2 ? 0.5 : 0) : getReservationCreditCost(start,lessonMinutes);
 
 
     // 당일 시작 3시간 전이 지나서 신청/대기가 모두 닫힌 시간도 '마감'으로 표시합니다.
