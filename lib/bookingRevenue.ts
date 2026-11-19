@@ -44,7 +44,7 @@ export function isPrepaidPassBooking(booking: Pick<LessonBooking, "memo">): bool
 export function lessonFee(booking: Pick<LessonBooking, "memo">, tuition?: LessonTuition | null): number | null {
   if (isPrepaidPassBooking(booking)) {
     const metadata = String(booking.memo || "");
-    const memoLessonMinutes = Number(metadata.match(/(45|90|120)분 수업/)?.[1] ?? NaN);
+    const memoLessonMinutes = Number(metadata.match(/(45|60|90|120)분 수업/)?.[1] ?? NaN);
     const minutes = tuition?.lesson_minutes ?? (Number.isFinite(memoLessonMinutes) ? memoLessonMinutes : null);
     const studentMinutes = tuition?.student_minutes
       ?? (minutes === 120 ? 120 : null);

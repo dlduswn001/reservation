@@ -2355,7 +2355,7 @@ export default function AdminPage() {
                           onChange={e=>setLessonCredits(e.target.value)}/></div>
                       <div><label>수업 유형</label>
                         <select value={lessonDurationMinutes} onChange={e=>setLessonDurationMinutes(e.target.value)}>
-                          <option value="45">45분</option><option value="90">90분</option><option value="120">120분</option>
+                          <option value="45">60분(11월까지 45분)</option><option value="90">90분</option><option value="120">120분</option>
                         </select></div>
                     </div>
                     <label>수강권 등록일</label>
@@ -2508,7 +2508,7 @@ export default function AdminPage() {
                             <select value={edit.lesson_duration_minutes}
                               onChange={e=>setStudentEdits(current=>({
                                 ...current,[s.id]:{...edit,lesson_duration_minutes:e.target.value}}))}>
-                              <option value="45">45분</option><option value="90">90분</option><option value="120">120분</option>
+                              <option value="45">60분(11월까지 45분)</option><option value="90">90분</option><option value="120">120분</option>
                             </select></div>
                         </div>
                         <label>수강권 등록일</label>
@@ -2779,7 +2779,7 @@ export default function AdminPage() {
                   </section>
               <section className="card">
                 <h2>월·화요일 휴무 관리</h2>
-                <p className="small">월·화요일은 자동으로 열리지 않습니다. 수업할 날짜를 선택하면 수요일과 동일한 45분·90분 정규수업 및 15:40 생활수업 시간표가 등록됩니다. 기존 예약과 수강권은 변경되지 않습니다.</p>
+                <p className="small">월·화요일은 자동으로 열리지 않습니다. 수업할 날짜를 선택하면 수요일과 동일한 단시간·90분 정규수업 및 15:40 생활수업 시간표가 등록됩니다. 기존 예약과 수강권은 변경되지 않습니다.</p>
                 <label>수업을 열 날짜 (월요일 또는 화요일)</label>
                 <input type="date" min="2026-10-01" value={openMondayTuesdayDate} onChange={(e) => setOpenMondayTuesdayDate(e.target.value)} />
                 <p className="small">10월 19·20·26·27일은 이미 직접 개방한 보호 일정으로, 열기/닫기 작업에서 제외됩니다.</p>
@@ -2804,7 +2804,7 @@ export default function AdminPage() {
                 <input type="datetime-local" value={adjustedStartAt} onChange={(e) => setAdjustedStartAt(e.target.value)} />
                 <label>조율할 수업 유형</label>
                 <select value={adjustedLessonMinutes} onChange={(e) => setAdjustedLessonMinutes(e.target.value)}>
-                  <option value="45">45분 수업</option>
+                  <option value="45">60분(11월까지 45분) 수업</option>
                   <option value="90">90분 수업</option>
                   <option value="120">120분 수업</option>
                 </select>
@@ -2916,7 +2916,7 @@ export default function AdminPage() {
                 <input type="datetime-local" value={adminBookingStartAt} onChange={(e) => setAdminBookingStartAt(e.target.value)} />
                 <label>수업 길이</label>
                 <select value={adminBookingLessonMinutes} onChange={(e) => setAdminBookingLessonMinutes(e.target.value)}>
-                  <option value="45">45분 수업</option>
+                  <option value="45">60분(11월까지 45분) 수업</option>
                   <option value="90">90분 수업</option>
                   <option value="120">120분 수업</option>
                 </select>

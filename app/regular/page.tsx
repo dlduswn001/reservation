@@ -329,7 +329,7 @@ export default function RegularPage() {
           // Defensive UI filter: reject any 45-minute, lifestyle or unscheduled rows
           // even if an older cached/server response still contains them.
           if (isExtended120Calendar &&
-              !isExtended120VisibleSlot(slot)) {
+              !slot.is_lifestyle && !isExtended120VisibleSlot(slot)) {
             continue;
           }
           const start = new Date(slot.start_at).getTime();
@@ -480,7 +480,7 @@ export default function RegularPage() {
     for (const slot of [...slots, ...extras.entries]) {
       const key = seoulDateKey(slot.start_at);
       if (isSchoolClosedDateKey(key)) continue;
-      if (isExtended120Student && isWeekdayInquiryDateKey(key)) continue;
+      if (isExtended120Student && !slot.is_lifestyle && isWeekdayInquiryDateKey(key)) continue;
       if (!grouped[key]) grouped[key] = [];
       grouped[key].push(slot);
     }
@@ -498,7 +498,7 @@ export default function RegularPage() {
         const count = new Date(Date.UTC(year,month,0)).getUTCDate();
         for (let day=1;day<=count;day++) {
           const key = `${monthKey}-${String(day).padStart(2,"0")}`;
-          if (key >= today && isWeekdayInquiryDateKey(key) && !isSchoolClosedDateKey(key)) grouped[key] = [];
+          if (key >= today && isWeekdayInquiryDateKey(key) && !isSchoolClosedDateKey(key)) grouped[key] ??= [];
         }
       }
     }
@@ -606,7 +606,7 @@ export default function RegularPage() {
   const studentLessonMinutes = Number(student?.lesson_duration_minutes ?? 90);
   const isDirectScheduleStudent = studentLessonMinutes === 120 && !extendedAutoBookable
     && !extras.entries.some(entry => entry.extra_kind === "freewriting");
-  const lifestyleCreditText = studentLessonMinutes === 45 ? "수강권 1회" : "수강권 0.5회";
+
 
   async function cancel(bookingId: string) {
     if (!student) return;
@@ -682,13 +682,13 @@ export default function RegularPage() {
                 {[45,90].includes(studentLessonMinutes) && (
                   <div className="noticeItem">
                     <span className="noticeIcon">생활·클럽</span>
-                    <p><strong>생활수업(45분)과 프리 라이팅 클럽</strong>은 45분 수강권 <strong>1회</strong>, 90분 수강권 <strong>0.5회</strong>가 차감됩니다.</p>
+                    <p><strong>생활수업(12월부터 60분)과 프리 라이팅 클럽</strong>은 단시간 수강권 <strong>1회</strong>, 90분 수강권 <strong>0.5회</strong>가 차감됩니다.</p>
                   </div>
                 )}
                 {studentLessonMinutes === 120 && (
                   <div className="noticeItem">
                     <span className="noticeIcon">클럽</span>
-                    <p><strong>프리 라이팅 클럽은 무료</strong>이며, 120분 수강권이 차감되지 않습니다.</p>
+                    <p>12월부터 서평생활·필사생활은 합산 월 1회 무료이며 이후에는 0.5회씩 차감됩니다. <strong>프리 라이팅 클럽은 무료</strong>이며, 120분 수강권이 차감되지 않습니다.</p>
                   </div>
                 )}
               </div>
@@ -917,13 +917,13 @@ export default function RegularPage() {
                   )}
                   {!selectedInquiryDay && (student.lesson_credits ?? 0) <= 0 &&
                     <p className="error">{isExtended120Student
-                      ? "정규수업 수강권은 남아 있지 않지만 프리 라이팅 클럽은 무료로 신청할 수 있습니다."
+                      ? "잔여 수강권이 없어도 사용 가능한 무료 혜택은 신청할 수 있습니다."
                       : "잔여 수강권이 없어 예약할 수 없습니다. 관리자에게 문의해 주세요."}</p>}
                   {!selectedInquiryDay && selectedSlots.length === 0 &&
                     <p>선택한 날짜에는 예약하거나 대기할 수 있는 수업이 없습니다.</p>}
 
                   <div style={styles.timelineList} aria-label="선택 날짜 수업 시간표">
-                    {!selectedInquiryDay && selectedSlots.map((slot, index) => (
+                    {selectedSlots.map((slot, index) => (
                       <div key={slot.id} style={styles.timelineRow}>
                         <div style={styles.timelineRail} aria-hidden="true">
                           <span style={styles.timelineDot} />
@@ -939,7 +939,7 @@ export default function RegularPage() {
                               <span style={slot.is_closed ? styles.timelineClosedLabel : styles.timelineDuration}>
                                 {slot.extra_kind
                                   ? (slot.extra_kind === "freewriting" ? "120분" : "원데이")
-                                  : slot.is_closed ? "마감" : slot.is_waitlist ? "예약 마감 · 대기 가능" : slot.is_lifestyle ? "45분" : `${slot.lesson_minutes || 90}분`}
+                                  : slot.is_closed ? "마감" : slot.is_waitlist ? "예약 마감 · 대기 가능" : slot.is_lifestyle ? `${slot.lesson_minutes}분` : `${slot.lesson_minutes || 90}분`}
                               </span>
                             </span>
                           </div>
@@ -951,7 +951,7 @@ export default function RegularPage() {
                                     : `수강권 ${slot.credit_cost}회 차감`}`
                                 : `${slot.extra_title || "원데이 클래스"} · 신청 ${slot.extra_count || 0}/${slot.extra_capacity || 6}명`)
                               : (slot.rule_label || (slot.is_lifestyle
-                                  ? `1:1 서평생활 / 필사생활 · ${lifestyleCreditText} 차감`
+                                  ? `1:1 서평생활 / 필사생활 · ${slot.credit_cost === 0 ? "월 1회 무료" : `수강권 ${slot.credit_cost}회 차감`}`
                                   : "1:1 정규수업 · 수강권 1회 차감"))}
                           </p>
                           {slot.extra_kind ? (

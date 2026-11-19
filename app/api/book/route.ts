@@ -12,6 +12,7 @@ import {
   getReservationLessonMinutes,
   getReservationCreditCost,
   isLifestyleLessonSlot,
+  isDecemberShortLesson,
   reservationKindLabel,
   normalizeLifestyleClassName,
   conflictsWithOneDayBlocks,
@@ -87,17 +88,9 @@ export async function POST(request: Request) {
 
 
     const currentCredits = Number(student.lesson_credits || 0);
-    if (currentCredits <= 0) {
-      return NextResponse.json({ message: "잔여 수강권이 없어 예약할 수 없습니다. 관리자에게 문의해 주세요." }, { status: 400 });
-    }
-
     const requestedLessonMinutes = normalizeLessonDurationMinutes(student.lesson_duration_minutes);
     const isExtendedSelfBooking = requestedLessonMinutes === EXTENDED_LESSON_MINUTES
       && student.extended_self_booking_enabled === true;
-    if (requestedLessonMinutes === EXTENDED_LESSON_MINUTES && !isExtendedSelfBooking) {
-      return NextResponse.json({ message: "120분 수업은 문장학교 카카오톡 채널로 직접 일정을 조율해 주세요." }, { status: 400 });
-    }
-
     // Dedicated 120-minute lessons always require an administrator-opened real slot.
     // Never let an auto-adjustment or arbitrary time bypass the approved timetable.
     if (isExtendedSelfBooking && (slotId.startsWith("auto:") || slotId.startsWith("closed:"))) {
@@ -136,6 +129,11 @@ export async function POST(request: Request) {
       slot = normalSlot;
     }
 
+    const monthlyLifestyle = requestedLessonMinutes === 120 && isDecemberShortLesson(slot.start_at) && isLifestyleLessonSlot(slot.start_at);
+    if (requestedLessonMinutes === EXTENDED_LESSON_MINUTES && !isExtendedSelfBooking && !monthlyLifestyle) {
+      return NextResponse.json({ message: "120분 수업은 문장학교 카카오톡 채널로 직접 일정을 조율해 주세요." }, { status: 400 });
+    }
+
     if (isSchoolClosedLessonStart(slot.start_at)) {
       return NextResponse.json({message:"12월 30일과 31일은 문장학교 연말 휴무일로 예약할 수 없습니다."},{status:400});
     }
@@ -145,7 +143,7 @@ export async function POST(request: Request) {
     const weekdayKst = new Intl.DateTimeFormat("en-US", {
       timeZone: "Asia/Seoul", weekday: "short",
     }).format(new Date(slot.start_at));
-    if (isExtendedSelfBooking && !["Sat","Sun"].includes(weekdayKst)) {
+    if (isExtendedSelfBooking && !monthlyLifestyle && !["Sat","Sun"].includes(weekdayKst)) {
       return NextResponse.json({
         message: "120분 평일 수업은 카카오톡으로 희망 날짜와 시간을 별도로 문의해 주세요.",
       }, { status: 400 });
@@ -186,7 +184,7 @@ export async function POST(request: Request) {
     }
 
     // The 120-minute opt-in is *regular class only*; never admit lifestyle starts.
-    if (isExtendedSelfBooking && !isExtendedLessonSlot(slot.start_at)) {
+    if (isExtendedSelfBooking && !monthlyLifestyle && !isExtendedLessonSlot(slot.start_at)) {
       return NextResponse.json({ message: "120분 수업은 수~금 14·17·19시, 토·일 10·13·14시 40분에만 예약할 수 있습니다." }, { status: 400 });
     }
 
@@ -205,7 +203,7 @@ export async function POST(request: Request) {
     const rule = regularLessonRule(slot.start_at, slotLessonMinutes);
     const candidateEndAt = lessonEndIso(slot.start_at, slotLessonMinutes);
 
-    if (currentCredits < creditCost) {
+    if (!monthlyLifestyle && currentCredits < creditCost) {
       return NextResponse.json({ message: `잔여 수강권이 부족합니다. 이 수업은 수강권 ${creditCost}회가 필요합니다.` }, { status: 400 });
     }
 
@@ -260,6 +258,12 @@ export async function POST(request: Request) {
         .single();
       if (saveSlotError) throw saveSlotError;
       slot = savedSlot;
+    }
+
+    if (monthlyLifestyle) {
+      const result = await supabase.rpc("book_monthly_lifestyle", {p_student:studentId,p_slot:slot.id,p_title:lifestyleClassName});
+      if (result.error) return NextResponse.json({message:result.error.message},{status:409});
+      return NextResponse.json(result.data);
     }
 
     const { error } = await supabase.from("regular_bookings").insert({

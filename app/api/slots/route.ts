@@ -10,6 +10,7 @@ import {
   getReservationLessonMinutes,
   getReservationCreditCost,
   isLifestyleLessonSlot,
+  isDecemberShortLesson,
   EXTENDED_LESSON_MINUTES,
   conflictsWithOneDayBlocks,
   conflictsWithRegularBookingsAllowingContinuous,
@@ -239,28 +240,16 @@ export async function GET(request: Request) {
       }
     }
 
-    if (lessonMinutes === EXTENDED_LESSON_MINUTES && !extendedSelfBookingAllowed) {
-      return NextResponse.json(
-        {
-          slots: [],
-          lesson_minutes: lessonMinutes,
-          requires_direct_scheduling: true,
-          kakao_chat_url: "http://pf.kakao.com/_xcxbGwn/chat",
-          message: "120분 수업은 문장학교 카카오톡 채널로 직접 일정을 조율해 주세요.",
-          available_months: [],
-          raw_months: [],
-          pass_policy: studentPassStatus,
-          debug: { version: "v36", note: "120분 수강생은 앱 자동예약 대신 직접 조율 안내를 표시합니다." },
-        },
-        {
-          headers: {
-            "Cache-Control": "no-store, no-cache, must-revalidate, max-age=0",
-            Pragma: "no-cache",
-            Expires: "0",
-          },
-        },
-      );
+    const usedMonths = new Set<string>();
+    if (studentId && lessonMinutes === 120) {
+      const benefits = await supabase.from("regular_bookings").select("lifestyle_free_month")
+        .eq("student_id",studentId).neq("status","cancelled").not("lifestyle_free_month","is",null);
+      if (benefits.error) throw benefits.error;
+      for (const row of benefits.data || []) usedMonths.add(row.lifestyle_free_month.slice(0,7));
     }
+    const creditFor = (start:string) => lessonMinutes === 120 && isDecemberShortLesson(start) && isLifestyleLessonSlot(start)
+      ? (usedMonths.has(kstMonthKeyFromIso(start)) ? 0.5 : 0) : getReservationCreditCost(start,lessonMinutes);
+
 
     // 당일 시작 3시간 전이 지나서 신청/대기가 모두 닫힌 시간도 '마감'으로 표시합니다.
     // 전날 수업은 노출하지 않고 오늘 00:00 KST부터 읽습니다.
@@ -325,8 +314,8 @@ export async function GET(request: Request) {
     const isAllowedLessonDateAndTime = (slot: SlotRow) => {
       // Only weekend slots are self-bookable for the opt-in 120-minute student.
       // Wed–Fri remain selectable in the student calendar for Kakao inquiries only.
-      if (extendedSelfBookingAllowed &&
-          (!isExtendedLessonSlot(slot.start_at) || !["Sat","Sun"].includes(slotWeekday(slot.start_at)))) return false;
+      if (lessonMinutes === 120 && !(isDecemberShortLesson(slot.start_at) && isLifestyleLessonSlot(slot.start_at)) &&
+          (!extendedSelfBookingAllowed || !isExtendedLessonSlot(slot.start_at) || !["Sat","Sun"].includes(slotWeekday(slot.start_at)))) return false;
       const dateKey = slotDateKey(slot.start_at);
       if (isSchoolClosedDateKey(dateKey)) return false;
       const weekday = slotWeekday(slot.start_at);
@@ -376,10 +365,10 @@ export async function GET(request: Request) {
           end_at: lessonEndIso(slot.start_at, slotLessonMinutes),
           lesson_minutes: slotLessonMinutes,
           break_minutes: isLifestyle || extendedSelfBookingAllowed ? 0 : 30,
-          credit_cost: getReservationCreditCost(slot.start_at, lessonMinutes),
+          credit_cost: creditFor(slot.start_at),
           is_lifestyle: isLifestyle,
           rule_label: isLifestyle
-            ? `${slotLessonMinutes}분 1:1 서평생활/필사생활 · 수강권 ${getReservationCreditCost(slot.start_at, lessonMinutes)}회 차감`
+            ? `${slotLessonMinutes}분 1:1 서평생활/필사생활 · 수강권 ${creditFor(slot.start_at)}회 차감`
             : `${slotLessonMinutes}분 정규수업 · 수강권 1회 차감`,
         };
       })
@@ -397,7 +386,7 @@ export async function GET(request: Request) {
           start_at: slot.start_at,
           end_at: lessonEndIso(slot.start_at, duration),
           lesson_minutes: duration,
-          credit_cost: getReservationCreditCost(slot.start_at, lessonMinutes),
+          credit_cost: creditFor(slot.start_at),
           is_lifestyle: lifestyle,
           rule_label: lifestyle
             ? `${duration}분 1:1 서평생활/필사생활 · 대기 신청`
@@ -425,7 +414,7 @@ export async function GET(request: Request) {
           start_at: slot.start_at,
           end_at: lessonEndIso(slot.start_at, duration),
           lesson_minutes: duration,
-          credit_cost: getReservationCreditCost(slot.start_at, lessonMinutes),
+          credit_cost: creditFor(slot.start_at),
           is_lifestyle: lifestyle,
           is_closed: true,
           rule_label: "해당 시간은 예약과 대기 신청이 마감되었습니다.",
@@ -463,7 +452,7 @@ export async function GET(request: Request) {
       for (const time of times) {
         const [hour, minute] = time.split(":").map(Number);
         const startAt = kstDateTimeToIso(year, month, day, hour, minute);
-        if (extendedSelfBookingAllowed && !isExtendedLessonSlot(startAt)) continue;
+        if (lessonMinutes === 120 && !(isDecemberShortLesson(startAt) && isLifestyleLessonSlot(startAt)) && !(extendedSelfBookingAllowed && isExtendedLessonSlot(startAt))) continue;
         if (seenStartTimes.has(startInstant(startAt))) continue;
         const duration = getReservationLessonMinutes(startAt, lessonMinutes);
         // The club itself is shown below the regular calendar; do not invent a
@@ -475,7 +464,7 @@ export async function GET(request: Request) {
           start_at: startAt,
           end_at: lessonEndIso(startAt, duration),
           lesson_minutes: duration,
-          credit_cost: getReservationCreditCost(startAt, lessonMinutes),
+          credit_cost: creditFor(startAt),
           is_lifestyle: lifestyle,
           is_closed: true,
           rule_label: "해당 시간은 예약과 대기 신청이 마감되었습니다.",
