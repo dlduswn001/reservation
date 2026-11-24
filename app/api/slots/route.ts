@@ -313,7 +313,7 @@ export async function GET(request: Request) {
 
     const isAllowedLessonDateAndTime = (slot: SlotRow) => {
       // Eligible 120-minute students can book administrator-opened Wed–Sun slots.
-      if (lessonMinutes === 120 && !(isDecemberShortLesson(slot.start_at) && isLifestyleLessonSlot(slot.start_at)) &&
+      if (lessonMinutes === 120 && !isLifestyleLessonSlot(slot.start_at) &&
           (!extendedSelfBookingAllowed || !isExtendedLessonSlot(slot.start_at))) return false;
       const dateKey = slotDateKey(slot.start_at);
       if (isSchoolClosedDateKey(dateKey)) return false;
@@ -451,7 +451,7 @@ export async function GET(request: Request) {
       for (const time of times) {
         const [hour, minute] = time.split(":").map(Number);
         const startAt = kstDateTimeToIso(year, month, day, hour, minute);
-        if (lessonMinutes === 120 && !(isDecemberShortLesson(startAt) && isLifestyleLessonSlot(startAt)) && !(extendedSelfBookingAllowed && isExtendedLessonSlot(startAt))) continue;
+        if (lessonMinutes === 120 && !isLifestyleLessonSlot(startAt) && !(extendedSelfBookingAllowed && isExtendedLessonSlot(startAt))) continue;
         if (seenStartTimes.has(startInstant(startAt))) continue;
         const duration = getReservationLessonMinutes(startAt, lessonMinutes);
         // The club itself is shown below the regular calendar; do not invent a

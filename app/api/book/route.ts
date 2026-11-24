@@ -130,7 +130,7 @@ export async function POST(request: Request) {
     }
 
     const monthlyLifestyle = requestedLessonMinutes === 120 && isDecemberShortLesson(slot.start_at) && isLifestyleLessonSlot(slot.start_at);
-    if (requestedLessonMinutes === EXTENDED_LESSON_MINUTES && !isExtendedSelfBooking && !monthlyLifestyle) {
+    if (requestedLessonMinutes === EXTENDED_LESSON_MINUTES && !isExtendedSelfBooking && !isLifestyleLessonSlot(slot.start_at)) {
       return NextResponse.json({ message: "120분 수업은 문장학교 카카오톡 채널로 직접 일정을 조율해 주세요." }, { status: 400 });
     }
 
@@ -179,7 +179,7 @@ export async function POST(request: Request) {
     }
 
     // The 120-minute opt-in is *regular class only*; never admit lifestyle starts.
-    if (isExtendedSelfBooking && !monthlyLifestyle && !isExtendedLessonSlot(slot.start_at)) {
+    if (isExtendedSelfBooking && !isLifestyleLessonSlot(slot.start_at) && !isExtendedLessonSlot(slot.start_at)) {
       return NextResponse.json({ message: "120분 수업은 수~금 14·17·19시, 토·일 10·13·14시 40분에만 예약할 수 있습니다." }, { status: 400 });
     }
 
