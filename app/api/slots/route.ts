@@ -311,7 +311,13 @@ export async function GET(request: Request) {
     }).format(new Date(startAt));
     const protectedDates = new Set(["2026-10-19", "2026-10-20", "2026-10-26", "2026-10-27"]);
 
+    // Individual enrollment: lifestyle lessons start in December for this student.
+    const isRestrictedLifestyle = (startAt: string) =>
+      studentId === "022321be-744b-485b-ae38-1ddde7b870f6" &&
+      isLifestyleLessonSlot(startAt) && !isDecemberShortLesson(startAt);
+
     const isAllowedLessonDateAndTime = (slot: SlotRow) => {
+      if (isRestrictedLifestyle(slot.start_at)) return false;
       // Eligible 120-minute students can book administrator-opened Wed–Sun slots.
       if (lessonMinutes === 120 && !isLifestyleLessonSlot(slot.start_at) &&
           (!extendedSelfBookingAllowed || !isExtendedLessonSlot(slot.start_at))) return false;
@@ -452,6 +458,7 @@ export async function GET(request: Request) {
         const [hour, minute] = time.split(":").map(Number);
         const startAt = kstDateTimeToIso(year, month, day, hour, minute);
         if (lessonMinutes === 120 && !isLifestyleLessonSlot(startAt) && !(extendedSelfBookingAllowed && isExtendedLessonSlot(startAt))) continue;
+        if (isRestrictedLifestyle(startAt)) continue;
         if (seenStartTimes.has(startInstant(startAt))) continue;
         const duration = getReservationLessonMinutes(startAt, lessonMinutes);
         // The club itself is shown below the regular calendar; do not invent a
