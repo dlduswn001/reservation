@@ -129,6 +129,11 @@ export async function POST(request: Request) {
       slot = normalSlot;
     }
 
+    if (student.id === "022321be-744b-485b-ae38-1ddde7b870f6" &&
+        isLifestyleLessonSlot(slot.start_at) && !isDecemberShortLesson(slot.start_at)) {
+      return NextResponse.json({ message: "서평생활·필사생활은 12월 수업부터 신청할 수 있습니다." }, { status: 400 });
+    }
+
     const monthlyLifestyle = requestedLessonMinutes === 120 && isDecemberShortLesson(slot.start_at) && isLifestyleLessonSlot(slot.start_at);
     if (requestedLessonMinutes === EXTENDED_LESSON_MINUTES && !isExtendedSelfBooking && !isLifestyleLessonSlot(slot.start_at)) {
       return NextResponse.json({ message: "120분 수업은 문장학교 카카오톡 채널로 직접 일정을 조율해 주세요." }, { status: 400 });
