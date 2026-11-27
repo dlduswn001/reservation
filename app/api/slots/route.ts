@@ -373,7 +373,7 @@ export async function GET(request: Request) {
           credit_cost: creditFor(slot.start_at),
           is_lifestyle: isLifestyle,
           rule_label: isLifestyle
-            ? `${slotLessonMinutes}분 1:1 서평생활/필사생활 · 수강권 ${creditFor(slot.start_at)}회 차감`
+            ? `${slotLessonMinutes}분 1:1 서평생활/${isDecemberShortLesson(slot.start_at) ? "독서생활" : "필사생활"} · 수강권 ${creditFor(slot.start_at)}회 차감`
             : `${slotLessonMinutes}분 정규수업 · 수강권 1회 차감`,
         };
       })
@@ -394,7 +394,7 @@ export async function GET(request: Request) {
           credit_cost: creditFor(slot.start_at),
           is_lifestyle: lifestyle,
           rule_label: lifestyle
-            ? `${duration}분 1:1 서평생활/필사생활 · 대기 신청`
+            ? `${duration}분 1:1 서평생활/${isDecemberShortLesson(slot.start_at) ? "독서생활" : "필사생활"} · 대기 신청`
             : `${duration}분 정규수업 · 대기 신청`,
           is_waitlist: true,
         };

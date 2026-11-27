@@ -325,7 +325,7 @@ export default function HistoryPage() {
                 if (item.kind === "regular") {
                   return (
                     <div className="item" key={`regular-${item.booking.id}`}>
-                      <strong>{bookingDisplayNameFromMemo(item.booking.memo)}</strong>
+                      <strong>{bookingDisplayNameFromMemo(item.booking.memo, item.booking.start_at)}</strong>
                       <p>{formatDateTime(item.booking.start_at)} - {formatTime(item.booking.end_at)}</p>
                       <p className="small">상태: {regularStatusLabel(item.booking, currentTime)}</p>
                       <p className="small">메모: {mergeMemo("수강생 직접 예약", item.booking.memo)}</p>
@@ -380,7 +380,7 @@ export default function HistoryPage() {
                 if (item.kind === "regular") {
                   return (
                     <div className="item" key={`regular-history-${item.booking.id}`}>
-                      <strong>{bookingDisplayNameFromMemo(item.booking.memo)}</strong>
+                      <strong>{bookingDisplayNameFromMemo(item.booking.memo, item.booking.start_at)}</strong>
                       <p>{formatDateTime(item.booking.start_at)} - {formatTime(item.booking.end_at)}</p>
                       <p className="small">상태: {regularStatusLabel(item.booking, currentTime)}</p>
                       <p className="small">메모: {mergeMemo("수강생 직접 예약", item.booking.memo)}</p>

@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import type { CSSProperties } from "react";
 import BottomNav from "../components/BottomNav";
 import { disconnectPushOnLogout } from "../../lib/pushClient";
-import { isExtended120VisibleSlot, isSchoolClosedDateKey, bookingLeadHoursForLesson, freeCancelLeadHoursForLesson, isAtLeastCancelHoursBefore } from "../../lib/businessRules";
+import { lifestyleReadingLabel, isExtended120VisibleSlot, isSchoolClosedDateKey, bookingLeadHoursForLesson, freeCancelLeadHoursForLesson, isAtLeastCancelHoursBefore } from "../../lib/businessRules";
 import { useStudentExtraClasses } from "./StudentExtraClasses";
 import type { ExtraClassSlot } from "./StudentExtraClasses";
 
@@ -533,7 +533,7 @@ export default function RegularPage() {
   async function book(slot: Slot, lifestyleClassName?: "정규수업" | "1:1 서평생활" | "1:1 필사생활") {
     if (!student) return;
     if (slot.is_lifestyle && !lifestyleClassName) {
-      setMessage("1:1 서평생활 또는 1:1 필사생활을 선택해 주세요.");
+      setMessage(`1:1 서평생활 또는 1:1 ${lifestyleReadingLabel(slot.start_at)}을 선택해 주세요.`);
       return;
     }
     // Bookings made inside the free-cancellation window are non-refundable
@@ -653,13 +653,13 @@ export default function RegularPage() {
                 {studentLessonMinutes !== 120 && (
                 <div className="noticeItem">
                   <span className="noticeIcon">60·90분</span>
-                  <p><strong>서평생활·필사생활(12월부터 60분)과 프리 라이팅 클럽</strong>은 60분 수강권 <strong>1회</strong>, 90분 수강권 <strong>0.5회</strong>가 차감됩니다. (11월까지 45분 수강권)</p>
+                  <p><strong>서평생활·독서생활(12월부터 60분)과 프리 라이팅 클럽</strong>은 60분 수강권 <strong>1회</strong>, 90분 수강권 <strong>0.5회</strong>가 차감됩니다. (11월까지 45분 수강권)</p>
                 </div>
                 )}
                 {studentLessonMinutes === 120 && (
                 <div className="noticeItem">
                   <span className="noticeIcon">120분</span>
-                  <p>12월부터 <strong>서평생활·필사생활은 합산 월 1회 무료</strong>이며, 이후에는 <strong>0.5회씩 차감</strong>됩니다. <strong>프리 라이팅 클럽은 횟수 제한 없이 무료</strong>입니다.</p>
+                  <p>12월부터 <strong>서평생활·독서생활은 합산 월 1회 무료</strong>이며, 이후에는 <strong>0.5회씩 차감</strong>됩니다. <strong>프리 라이팅 클럽은 횟수 제한 없이 무료</strong>입니다.</p>
                 </div>
                 )}
               </div>
@@ -898,7 +898,7 @@ export default function RegularPage() {
                                     : `수강권 ${slot.credit_cost}회 차감`}`
                                 : `${slot.extra_title || "원데이 클래스"} · 신청 ${slot.extra_count || 0}/${slot.extra_capacity || 6}명`)
                               : (slot.rule_label || (slot.is_lifestyle
-                                  ? `1:1 서평생활 / 필사생활 · ${slot.credit_cost === 0 ? "월 1회 무료" : `수강권 ${slot.credit_cost}회 차감`}`
+                                  ? `1:1 서평생활 / ${lifestyleReadingLabel(slot.start_at)} · ${slot.credit_cost === 0 ? "월 1회 무료" : `수강권 ${slot.credit_cost}회 차감`}`
                                   : "1:1 정규수업 · 수강권 1회 차감"))}
                           </p>
                           {slot.extra_kind ? (
@@ -942,7 +942,7 @@ export default function RegularPage() {
                                     <button type="button" style={styles.timelineSecondaryButton}
                                       onClick={() => applyWaitlist(slot.id,"1:1 서평생활")}>서평생활 대기</button>
                                     <button type="button" style={styles.timelineSecondaryButton}
-                                      onClick={() => applyWaitlist(slot.id,"1:1 필사생활")}>필사생활 대기</button>
+                                      onClick={() => applyWaitlist(slot.id,"1:1 필사생활")}>{lifestyleReadingLabel(slot.start_at)} 대기</button>
                                   </>
                                 ) : (
                                   <button type="button" style={styles.timelineSecondaryButton}
@@ -957,7 +957,7 @@ export default function RegularPage() {
                                 style={styles.timelineSecondaryButton}>서평생활 신청</button>
                               <button type="button" onClick={() => book(slot, "1:1 필사생활")}
                                 disabled={(student.lesson_credits ?? 0) < Number(slot.credit_cost ?? 0.5)}
-                                style={styles.timelineSecondaryButton}>필사생활 신청</button>
+                                style={styles.timelineSecondaryButton}>{lifestyleReadingLabel(slot.start_at)} 신청</button>
                             </div>
                           ) : (
                             <button type="button" onClick={() => book(slot)}

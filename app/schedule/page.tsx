@@ -113,7 +113,7 @@ export default function SchedulePage() {
       const regularItems = (historyJson.bookings || [])
         .filter((booking: Booking) => ["booked", "done", "late_cancelled"].includes(String(booking.status || "")))
         .map((booking: Booking) => {
-          const className = bookingDisplayNameFromMemo(booking.memo);
+          const className = bookingDisplayNameFromMemo(booking.memo, booking.start_at);
           return {
             id: `regular-${booking.id}`,
             date: booking.start_at,
