@@ -1,4 +1,5 @@
 "use client";
+import { bookingDisplayNameFromMemo } from "../../lib/businessRules";
 
 import { useEffect, useMemo, useState } from "react";
 import { House, CalendarDays, UsersRound, Settings2, ChevronLeft, ChevronRight, NotebookPen, Send, Copy, Search, UserRoundPlus } from "lucide-react";
@@ -922,8 +923,7 @@ export default function AdminPage() {
       booking_id:bookingId,
       ...(booking ? {
         lesson_date:seoulDateKey(booking.start_at),
-        title:booking.memo?.includes("필사생활") ? "1:1 필사생활"
-          :booking.memo?.includes("서평생활") ? "1:1 서평생활" : "1:1 정규수업",
+        title:bookingDisplayNameFromMemo(booking.memo, booking.start_at),
       } : {}),
     }));
   }
@@ -2234,8 +2234,7 @@ export default function AdminPage() {
                                       ...EMPTY_JOURNAL,
                                       booking_id: item.booking_id || "",
                                       lesson_date: seoulDateKey(item.start_at),
-                                      title: item.detail?.includes("필사생활") ? "1:1 필사생활"
-                                        : item.detail?.includes("서평생활") ? "1:1 서평생활" : "1:1 정규수업",
+                                      title: bookingDisplayNameFromMemo(item.detail, item.start_at),
                                     });
                                   }}>
                                   <NotebookPen size={14}/> 수업일지 작성

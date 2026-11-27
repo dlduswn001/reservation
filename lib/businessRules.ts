@@ -256,9 +256,10 @@ export function creditCostFromBookingMemo(memo: unknown, fallback = REGULAR_CLAS
   return fallback;
 }
 
-export function bookingDisplayNameFromMemo(memo: unknown) {
+export function bookingDisplayNameFromMemo(memo: unknown, startAt?: string) {
   const text = String(memo || "");
-  if (text.includes("1:1 필사생활")) return "1:1 필사생활";
+  if (text.includes("1:1 독서생활")) return "1:1 독서생활";
+  if (text.includes("1:1 필사생활")) return startAt && isDecemberShortLesson(startAt) ? "1:1 독서생활" : "1:1 필사생활";
   if (text.includes("1:1 서평생활")) return "1:1 서평생활";
   return "정규수업";
 }
@@ -660,4 +661,9 @@ export function buildTimetableSlots(startDateKey: string, weeks: number) {
   }
 
   return rows;
+}
+
+// Keep the stored class key compatible with existing booking and waitlist RPCs.
+export function lifestyleReadingLabel(startAt: string) {
+  return isDecemberShortLesson(startAt) ? "독서생활" : "필사생활";
 }

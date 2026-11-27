@@ -1,3 +1,4 @@
+import { isDecemberShortLesson } from "../../../../lib/businessRules";
 import { NextResponse } from "next/server";
 import { checkAdminPassword, getAdminPasswordErrorMessage } from "../../../../lib/admin";
 import { getSupabaseAdmin } from "../../../../lib/supabaseAdmin";
@@ -105,7 +106,7 @@ export async function POST(request: Request) {
       bookingTuitions: bookingTuitions.data || [],
       blockedTimeTuitions: missingBlockedTuitionTable ? [] : (blockedTimeTuitions.data || []),
       slots: slots.data || [],
-      bookings: bookings.data || [],
+      bookings: (bookings.data || []).map((booking) => ({ ...booking, memo: isDecemberShortLesson(booking.start_at) ? booking.memo?.replaceAll("필사생활", "독서생활") : booking.memo })),
       classes,
       onedayBookings: onedayBookings.data || [],
       lessonHistory: lessonHistory.data || [],

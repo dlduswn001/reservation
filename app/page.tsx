@@ -90,7 +90,7 @@ export default function Home() {
       const regular = (historyJson.bookings || [])
         .filter((booking: any) => booking.status === "booked" && new Date(booking.end_at).getTime() > now)
         .map((booking: any) => {
-          const className = bookingDisplayNameFromMemo(booking.memo);
+          const className = bookingDisplayNameFromMemo(booking.memo, booking.start_at);
           return {
             label: className === "정규수업" ? "정규수업" : "생활수업",
             title: className,
